@@ -403,18 +403,45 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       if (res && res.erro) throw new Error(res.erro);
       setDetalhesItem(res);
     } catch (e) {
-      alert("Erro ao obter detalhes do item: " + e.message);
+      const msg = String(e?.message || "");
+      if (msg.toLowerCase().includes("não encontrado")) {
+        setDetalhesItem({
+          posicao_fila: it.posicao_fila,
+          item_final: it.item_final,
+          pedido: it.pedido,
+          fabrica: it.fabrica,
+          total_componentes: 0,
+          total_faltando: 0,
+          total_disponiveis: 0,
+          faltando: [],
+          disponiveis: [],
+        });
+      } else {
+        alert("Erro ao obter detalhes do item: " + msg);
+      }
     } finally {
       setCarregandoDetalhes(false);
     }
   };
 
   const abrirDetalhes = (it) => {
+    const baixaInicial = filtroBaixa;
+    const tipoInicial = filtroTipo;
+    const abaInicial =
+      filtroStatus === "disponivel"
+        ? "disponiveis"
+        : filtroStatus === "falta"
+        ? "faltando"
+        : it.componentes_faltando > 0
+        ? "faltando"
+        : "disponiveis";
+
     setItemSelecionado(it);
-    setAbaDetalhe(it.componentes_faltando > 0 ? "faltando" : "disponiveis");
-    setModalBaixa("todos");
-    setModalTipo("todos");
-    carregarDetalhes(it, "todos", "todos");
+    setDetalhesItem(null);
+    setAbaDetalhe(abaInicial);
+    setModalBaixa(baixaInicial);
+    setModalTipo(tipoInicial);
+    carregarDetalhes(it, baixaInicial, tipoInicial);
   };
 
   const fecharDetalhes = () => {
@@ -1678,13 +1705,18 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                       </span>
                     )
                   )}
-                  {itemSelecionado.status === "Disponível" ? (
+                  {(detalhesItem
+                    ? detalhesItem.total_faltando === 0
+                    : itemSelecionado.status === "Disponível") ? (
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F5E9] text-[#2E7D32]">
                       100% Disponível na Fila
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFEBEE] text-[#C62828]">
-                      {itemSelecionado.componentes_faltando} insumo(s) em falta
+                      {detalhesItem
+                        ? detalhesItem.total_faltando
+                        : itemSelecionado.componentes_faltando}{" "}
+                      insumo(s) em falta
                     </span>
                   )}
                 </div>
