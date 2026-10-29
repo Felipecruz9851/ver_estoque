@@ -1,0 +1,2 @@
+Cole aqui os snapshots (snapshot_*.pkl ou pastas snapshot_*/ com .parquet).
+O mais recente e usado automaticamente.
