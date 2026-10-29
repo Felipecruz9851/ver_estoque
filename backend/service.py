@@ -7,8 +7,11 @@ da fila ordenada por Data de Abertura, e gerencia a simulação/destaque de pedi
 """
 
 from datetime import datetime
+import re
+import threading
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
+import uuid
 
 import numpy as np
 import pandas as pd
@@ -47,24 +50,115 @@ _enriquecimento: Dict[str, Dict[str, Any]] = {
     "desc_item": {},
 }
 
-# Estado em memória do Simulador
-# _pedidos_carteira_simulados: num_pedido -> {
-#   "datas_por_item": {cod_item_final: (dt_entrega, dt_abertura)},
-#   "default_datas": (dt_entrega_default, dt_abertura_default),
-# }
-_pedidos_carteira_simulados: Dict[str, Dict[str, Any]] = {}
-_pedidos_simulados_novos: Dict[str, pd.DataFrame] = {}
-_meta_simulados: Dict[str, Dict[str, Any]] = {}
-_simulacao_versao: int = 0
+# ==============================================================================
+# Gestão de Sessões Isoladas por Usuário / Navegador (Cookies)
+# ==============================================================================
 
-# Cache do cálculo cumulativo de fila por combinação (cache_ts, sim_ver, baixa, tipo)
-_cache_filas: Dict[Tuple[Any, ...], Tuple[pd.DataFrame, pd.DataFrame, List[str]]] = {}
+
+class SessionState:
+    """Estado de execução isolado por sessão (identificado por cookie no navegador)."""
+
+    def __init__(self, session_id: str):
+        self.session_id: str = session_id
+        # num_pedido -> {"datas_por_item": ..., "default_datas": ...}
+        self.pedidos_carteira_simulados: Dict[str, Dict[str, Any]] = {}
+        # num_pedido -> df_ped
+        self.pedidos_simulados_novos: Dict[str, pd.DataFrame] = {}
+        # num_pedido -> {"pedido": ..., "origem": ..., "data_entrega": ..., "qtd_itens_finais": ...}
+        self.meta_simulados: Dict[str, Dict[str, Any]] = {}
+        self.simulacao_versao: int = 0
+        # Cache do cálculo cumulativo de fila da sessão por (cache_ts, sim_ver, baixa, tipo)
+        self.cache_filas: Dict[Tuple[Any, ...], Tuple[pd.DataFrame, pd.DataFrame, List[str]]] = {}
+        self.created_at: float = time.time()
+        self.last_accessed: float = time.time()
+        self.lock = threading.Lock()
+
+    def invalidar_cache_fila(self) -> None:
+        self.simulacao_versao += 1
+        self.cache_filas.clear()
+        self.last_accessed = time.time()
+
+    def tocar(self) -> None:
+        self.last_accessed = time.time()
+
+
+_sessions: Dict[str, SessionState] = {}
+_sessions_lock = threading.Lock()
+_last_session_cleanup: float = 0.0
+_SESSION_ID_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{8,64}$")
+
+
+def gerar_session_id() -> str:
+    """Gera um identificador criptograficamente aleatório e seguro para a sessão."""
+    return uuid.uuid4().hex
+
+
+def is_valid_session_id(sid: Optional[str]) -> bool:
+    """Valida se o session_id segue o padrão alfanumérico seguro."""
+    if not sid or not isinstance(sid, str):
+        return False
+    return bool(_SESSION_ID_REGEX.match(sid.strip()))
+
+
+def obter_sessao(session_id: Optional[str] = None) -> SessionState:
+    """
+    Recupera ou inicializa a sessão isolada para o ID fornecido.
+    Fallback seguro para a sessão 'default' se nenhum session_id válido for informado.
+    """
+    global _last_session_cleanup
+    sid = str(session_id or "").strip()
+    if not is_valid_session_id(sid):
+        sid = "default"
+
+    now = time.time()
+    with _sessions_lock:
+        if now - _last_session_cleanup > 600:
+            _limpar_sessoes_expiradas_locked(now)
+            _last_session_cleanup = now
+
+        sess = _sessions.get(sid)
+        if sess is None:
+            sess = SessionState(session_id=sid)
+            _sessions[sid] = sess
+        sess.tocar()
+        return sess
+
+
+def _limpar_sessoes_expiradas_locked(now: float) -> None:
+    ttl = getattr(settings, "SESSION_TTL_SECONDS", 86400 * 2)
+    expiradas = [
+        sid for sid, s in _sessions.items()
+        if sid != "default" and (now - s.last_accessed) > ttl
+    ]
+    for sid in expiradas:
+        _sessions.pop(sid, None)
+
+
+def invalidar_todas_as_sessoes() -> None:
+    """Invalida o cache de filas de todas as sessões ativas (ex: ao recarregar snapshot base)."""
+    with _sessions_lock:
+        for s in _sessions.values():
+            with s.lock:
+                s.invalidar_cache_fila()
 
 
 def _invalidar_cache_fila() -> None:
-    global _simulacao_versao
-    _simulacao_versao += 1
-    _cache_filas.clear()
+    """Alias retrocompatível para invalidação geral de caches ao recarregar snapshot."""
+    invalidar_todas_as_sessoes()
+
+
+def obter_info_sessao(session_id: Optional[str] = None) -> Dict[str, Any]:
+    """Retorna dados diagnósticos da sessão atual."""
+    sess = obter_sessao(session_id)
+    with sess.lock:
+        return {
+            "session_id": sess.session_id,
+            "qtd_pedidos_simulados": len(sess.meta_simulados),
+            "pedidos_simulados": list(sess.meta_simulados.keys()),
+            "versao_simulacao": sess.simulacao_versao,
+            "criada_em": datetime.fromtimestamp(sess.created_at).strftime("%d/%m/%Y %H:%M:%S"),
+            "ultimo_acesso": datetime.fromtimestamp(sess.last_accessed).strftime("%d/%m/%Y %H:%M:%S"),
+        }
 
 
 def obter_info_carregamento() -> Dict[str, str]:
@@ -427,6 +521,7 @@ def simular_pedidos(
     usuario: str,
     senha: str,
     pedidos_input: List[Dict[str, Any]],
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Processa lista de pedidos [{'pedido': '188366', 'data_entrega': '2026-11-30'}, ...]:
@@ -439,9 +534,12 @@ def simular_pedidos(
        - Consulta saldo (`situacao_pedidos2.php`) e estrutura (`json-pedido-estrutura.php`)
          na Intranet, calcula Data de Abertura em dias úteis (ou final da lista se em branco),
          multiplica pelo saldo do pedido e recalcula a fila cumulativa.
+    Todas as alterações são mantidas isoladamente na sessão do usuário (cookie).
     """
     if not pedidos_input:
         raise ValueError("Adicione ao menos um número de pedido para consultar/simular.")
+
+    sess = obter_sessao(session_id)
 
     # Expande eventuais pedidos separados por vírgula na mesma linha do modal
     vistos_lote: Dict[str, str] = {}
@@ -497,95 +595,96 @@ def simular_pedidos(
             if pn:
                 estrutura_por_ped.setdefault(pn, []).append(row)
 
-    # 1. Atualiza Data de Abertura e destaca pedidos que já constam em carteira (sem alterar números!)
-    for ped_exist, dt_desejada in pedidos_ja_na_carteira.items():
-        _pedidos_simulados_novos.pop(ped_exist, None)
+    with sess.lock:
+        # 1. Atualiza Data de Abertura e destaca pedidos que já constam em carteira (sem alterar números!)
+        for ped_exist, dt_desejada in pedidos_ja_na_carteira.items():
+            sess.pedidos_simulados_novos.pop(ped_exist, None)
 
-        linhas_est = estrutura_por_ped.get(ped_exist) or []
-        datas_por_item: Dict[str, Tuple[Any, Any]] = {}
+            linhas_est = estrutura_por_ped.get(ped_exist) or []
+            datas_por_item: Dict[str, Tuple[Any, Any]] = {}
 
-        if dt_desejada:
-            por_item: Dict[str, List[Dict[str, Any]]] = {}
-            for r in linhas_est:
-                ci = scraper.normalizar_cod_item(r.get("cod_item"))
-                if ci:
-                    por_item.setdefault(ci, []).append(r)
+            if dt_desejada:
+                por_item: Dict[str, List[Dict[str, Any]]] = {}
+                for r in linhas_est:
+                    ci = scraper.normalizar_cod_item(r.get("cod_item"))
+                    if ci:
+                        por_item.setdefault(ci, []).append(r)
 
-            for ci, rows_ci in por_item.items():
-                rows_n1 = [x for x in rows_ci if str(x.get("nivel") or "").strip() == "1"]
-                ref = rows_n1[0] if rows_n1 else rows_ci[0]
-                datas_por_item[ci] = calcular_data_abertura_util(
-                    data_entrega_raw=dt_desejada,
-                    cod_horizon=ref.get("cod_horizon"),
-                    tmp_ressup=ref.get("tmp_ressup"),
-                )
+                for ci, rows_ci in por_item.items():
+                    rows_n1 = [x for x in rows_ci if str(x.get("nivel") or "").strip() == "1"]
+                    ref = rows_n1[0] if rows_n1 else rows_ci[0]
+                    datas_por_item[ci] = calcular_data_abertura_util(
+                        data_entrega_raw=dt_desejada,
+                        cod_horizon=ref.get("cod_horizon"),
+                        tmp_ressup=ref.get("tmp_ressup"),
+                    )
 
-            default_datas = calcular_data_abertura_util(dt_desejada, 0, 0)
-        else:
-            default_datas = (pd.NaT, pd.NaT)
+                default_datas = calcular_data_abertura_util(dt_desejada, 0, 0)
+            else:
+                default_datas = (pd.NaT, pd.NaT)
 
-        _pedidos_carteira_simulados[ped_exist] = {
-            "datas_por_item": datas_por_item,
-            "default_datas": default_datas,
-        }
+            sess.pedidos_carteira_simulados[ped_exist] = {
+                "datas_por_item": datas_por_item,
+                "default_datas": default_datas,
+            }
 
-        qtd_itens_exist = int(
-            df_base.loc[
-                (df_base["raiz_Pedido_Str"] == ped_exist) & df_base["raiz_Item Final"].notna(),
-                "raiz_Item Final",
-            ].nunique()
-        )
-        dt_fmt = ""
-        if dt_desejada:
-            dt_parsed = pd.to_datetime(dt_desejada, errors="coerce", dayfirst="/" in dt_desejada)
-            if pd.notna(dt_parsed):
-                dt_fmt = dt_parsed.strftime("%d/%m/%Y")
+            qtd_itens_exist = int(
+                df_base.loc[
+                    (df_base["raiz_Pedido_Str"] == ped_exist) & df_base["raiz_Item Final"].notna(),
+                    "raiz_Item Final",
+                ].nunique()
+            )
+            dt_fmt = ""
+            if dt_desejada:
+                dt_parsed = pd.to_datetime(dt_desejada, errors="coerce", dayfirst="/" in dt_desejada)
+                if pd.notna(dt_parsed):
+                    dt_fmt = dt_parsed.strftime("%d/%m/%Y")
 
-        _meta_simulados[ped_exist] = {
-            "pedido": ped_exist,
-            "origem": "carteira",
-            "data_entrega": dt_fmt,
-            "qtd_itens_finais": qtd_itens_exist,
-        }
+            sess.meta_simulados[ped_exist] = {
+                "pedido": ped_exist,
+                "origem": "carteira",
+                "data_entrega": dt_fmt,
+                "qtd_itens_finais": qtd_itens_exist,
+            }
 
-    # 2. Insere pedidos novos que NÃO existiam na tabela atual
-    pedidos_inseridos_intranet: List[str] = []
-    pedidos_nao_encontrados: List[str] = []
+        # 2. Insere pedidos novos que NÃO existiam na tabela atual
+        pedidos_inseridos_intranet: List[str] = []
+        pedidos_nao_encontrados: List[str] = []
 
-    for ped_novo, dt_desejada in pedidos_novos_para_intranet.items():
-        linhas_ped = estrutura_por_ped.get(ped_novo) or []
-        if not linhas_ped:
-            pedidos_nao_encontrados.append(ped_novo)
-            continue
+        for ped_novo, dt_desejada in pedidos_novos_para_intranet.items():
+            linhas_ped = estrutura_por_ped.get(ped_novo) or []
+            if not linhas_ped:
+                pedidos_nao_encontrados.append(ped_novo)
+                continue
 
-        df_ped, qtd_finais = _montar_df_pedido_simulado(
-            num_pedido=ped_novo,
-            linhas_estrutura=linhas_ped,
-            saldos_map=saldos_map,
-            data_entrega_raw=dt_desejada,
-        )
-        if df_ped.empty or qtd_finais == 0:
-            pedidos_nao_encontrados.append(ped_novo)
-            continue
+            df_ped, qtd_finais = _montar_df_pedido_simulado(
+                num_pedido=ped_novo,
+                linhas_estrutura=linhas_ped,
+                saldos_map=saldos_map,
+                data_entrega_raw=dt_desejada,
+            )
+            if df_ped.empty or qtd_finais == 0:
+                pedidos_nao_encontrados.append(ped_novo)
+                continue
 
-        _pedidos_carteira_simulados.pop(ped_novo, None)
-        _pedidos_simulados_novos[ped_novo] = df_ped
+            sess.pedidos_carteira_simulados.pop(ped_novo, None)
+            sess.pedidos_simulados_novos[ped_novo] = df_ped
 
-        dt_fmt = ""
-        if dt_desejada:
-            dt_parsed = pd.to_datetime(dt_desejada, errors="coerce", dayfirst="/" in dt_desejada)
-            if pd.notna(dt_parsed):
-                dt_fmt = dt_parsed.strftime("%d/%m/%Y")
+            dt_fmt = ""
+            if dt_desejada:
+                dt_parsed = pd.to_datetime(dt_desejada, errors="coerce", dayfirst="/" in dt_desejada)
+                if pd.notna(dt_parsed):
+                    dt_fmt = dt_parsed.strftime("%d/%m/%Y")
 
-        _meta_simulados[ped_novo] = {
-            "pedido": ped_novo,
-            "origem": "intranet",
-            "data_entrega": dt_fmt,
-            "qtd_itens_finais": qtd_finais,
-        }
-        pedidos_inseridos_intranet.append(ped_novo)
+            sess.meta_simulados[ped_novo] = {
+                "pedido": ped_novo,
+                "origem": "intranet",
+                "data_entrega": dt_fmt,
+                "qtd_itens_finais": qtd_finais,
+            }
+            pedidos_inseridos_intranet.append(ped_novo)
 
-    _invalidar_cache_fila()
+        sess.invalidar_cache_fila()
 
     if not pedidos_ja_na_carteira and not pedidos_inseridos_intranet and pedidos_nao_encontrados:
         raise ValueError(
@@ -597,60 +696,74 @@ def simular_pedidos(
         "pedidos_destacados_carteira": list(pedidos_ja_na_carteira.keys()),
         "pedidos_inseridos_intranet": pedidos_inseridos_intranet,
         "pedidos_nao_encontrados": pedidos_nao_encontrados,
-        "pedidos_simulados_ativos": listar_pedidos_simulados_ativos(),
+        "pedidos_simulados_ativos": listar_pedidos_simulados_ativos(session_id=session_id),
+        "session_id": sess.session_id,
     }
 
 
-def remover_pedido_simulado(pedido: str) -> Dict[str, Any]:
-    """Remove um único pedido da simulação/destaque ativo, restaurando datas/estado originais."""
-    ped_norm = scraper.normalizar_numero_pedido(pedido)
-    if ped_norm:
-        _pedidos_carteira_simulados.pop(ped_norm, None)
-        _pedidos_simulados_novos.pop(ped_norm, None)
-        _meta_simulados.pop(ped_norm, None)
-        _invalidar_cache_fila()
-    return {
-        "status": "ok",
-        "pedidos_simulados_ativos": listar_pedidos_simulados_ativos(),
-    }
+def remover_pedido_simulado(pedido: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+    """Remove um único pedido da simulação/destaque ativo da sessão, restaurando datas/estado originais."""
+    sess = obter_sessao(session_id)
+    with sess.lock:
+        ped_norm = scraper.normalizar_numero_pedido(pedido)
+        if ped_norm:
+            sess.pedidos_carteira_simulados.pop(ped_norm, None)
+            sess.pedidos_simulados_novos.pop(ped_norm, None)
+            sess.meta_simulados.pop(ped_norm, None)
+            sess.invalidar_cache_fila()
+        return {
+            "status": "ok",
+            "pedidos_simulados_ativos": listar_pedidos_simulados_ativos(session_id=session_id),
+            "session_id": sess.session_id,
+        }
 
 
-def limpar_simulacao() -> Dict[str, Any]:
-    """Remove todos os destaques e pedidos simulados, restaurando a fila original do snapshot."""
-    _pedidos_carteira_simulados.clear()
-    _pedidos_simulados_novos.clear()
-    _meta_simulados.clear()
-    _invalidar_cache_fila()
-    return {
-        "status": "ok",
-        "pedidos_simulados_ativos": [],
-    }
+def limpar_simulacao(session_id: Optional[str] = None) -> Dict[str, Any]:
+    """Remove todos os destaques e pedidos simulados da sessão, restaurando a fila original do snapshot."""
+    sess = obter_sessao(session_id)
+    with sess.lock:
+        sess.pedidos_carteira_simulados.clear()
+        sess.pedidos_simulados_novos.clear()
+        sess.meta_simulados.clear()
+        sess.invalidar_cache_fila()
+        return {
+            "status": "ok",
+            "pedidos_simulados_ativos": [],
+            "session_id": sess.session_id,
+        }
 
 
-def listar_pedidos_simulados_ativos() -> List[Dict[str, Any]]:
-    """Lista ordenada dos metadados dos pedidos atualmente destacados ou simulados."""
-    return [
-        _meta_simulados[k]
-        for k in sorted(_meta_simulados.keys(), key=lambda x: (int(x) if x.isdigit() else 0, x))
-    ]
+def listar_pedidos_simulados_ativos(session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Lista ordenada dos metadados dos pedidos atualmente destacados ou simulados na sessão."""
+    sess = obter_sessao(session_id)
+    with sess.lock:
+        return [
+            sess.meta_simulados[k]
+            for k in sorted(sess.meta_simulados.keys(), key=lambda x: (int(x) if x.isdigit() else 0, x))
+        ]
 
 
-def obter_cons_efetivo(recarregar: bool = False) -> pd.DataFrame:
+def obter_cons_efetivo(recarregar: bool = False, session_id: Optional[str] = None) -> pd.DataFrame:
     """
     Compõe o DataFrame efetivo da fila combinando:
-    - O snapshot base (`_cache_cons`), aplicando para os pedidos em `_pedidos_carteira_simulados`
-      apenas `simulado=True`, `origem_simulacao='carteira'` e a nova `raiz_Data Abertura` /
+    - O snapshot base (`_cache_cons`), aplicando para os pedidos em `pedidos_carteira_simulados`
+      da sessão apenas `simulado=True`, `origem_simulacao='carteira'` e a nova `raiz_Data Abertura` /
       `raiz_Entrega Pedido` (mantendo todos os números, saldos e consumos inalterados).
-    - Os pedidos novos consultados na Intranet (`_pedidos_simulados_novos`).
+    - Os pedidos novos consultados na Intranet (`pedidos_simulados_novos`) da sessão.
     """
     df_base = obter_cons_com_cache(recarregar=recarregar)
+    sess = obter_sessao(session_id)
 
-    if not _pedidos_carteira_simulados and not _pedidos_simulados_novos:
+    with sess.lock:
+        carteira_sim = dict(sess.pedidos_carteira_simulados)
+        novos_sim = list(sess.pedidos_simulados_novos.values())
+
+    if not carteira_sim and not novos_sim:
         return df_base
 
-    if _pedidos_carteira_simulados:
+    if carteira_sim:
         df_trab = df_base.copy()
-        for ped_exist, cfg in _pedidos_carteira_simulados.items():
+        for ped_exist, cfg in carteira_sim.items():
             mask_ped = (df_trab["raiz_Pedido_Str"] == ped_exist) & df_trab["raiz_Item Final"].notna()
             if not mask_ped.any():
                 continue
@@ -670,8 +783,8 @@ def obter_cons_efetivo(recarregar: bool = False) -> pd.DataFrame:
     else:
         df_trab = df_base
 
-    if _pedidos_simulados_novos:
-        partes = [df_trab] + list(_pedidos_simulados_novos.values())
+    if novos_sim:
+        partes = [df_trab] + novos_sim
         return pd.concat(partes, ignore_index=True)
 
     return df_trab
@@ -681,22 +794,25 @@ def _obter_fila_calculada(
     baixa_filtro: str = "TODOS",
     tipo_filtro: str = "TODOS",
     recarregar: bool = False,
+    session_id: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
     """
-    Executa (ou recupera do cache) o cálculo de abatimento cumulativo de estoque (Situação L)
+    Executa (ou recupera do cache da sessão) o cálculo de abatimento cumulativo de estoque (Situação L)
     seguindo estritamente a ordem de Data de Abertura da OP (e itens sem data ao final da lista).
     """
     if recarregar or _cache_cons is None:
         gerar_dataframe_cons()
 
+    sess = obter_sessao(session_id)
     b_norm = baixa_filtro if baixa_filtro in ("S", "N") else "TODOS"
     t_norm = tipo_filtro if tipo_filtro in ("C", "P") else "TODOS"
-    cache_key = (_cache_timestamp, _simulacao_versao, b_norm, t_norm)
+    cache_key = (_cache_timestamp, sess.simulacao_versao, b_norm, t_norm)
 
-    if cache_key in _cache_filas:
-        return _cache_filas[cache_key]
+    with sess.lock:
+        if cache_key in sess.cache_filas:
+            return sess.cache_filas[cache_key]
 
-    df = obter_cons_efetivo(recarregar=False)
+    df = obter_cons_efetivo(recarregar=False, session_id=session_id)
 
     locais_producao = sorted(
         [str(x) for x in df["raiz_Fábrica"].dropna().unique() if str(x).strip()]
@@ -711,7 +827,8 @@ def _obter_fila_calculada(
     df_escopo = df[mask_escopo]
     if df_escopo.empty:
         vazio = pd.DataFrame()
-        _cache_filas[cache_key] = (vazio, vazio, locais_producao)
+        with sess.lock:
+            sess.cache_filas[cache_key] = (vazio, vazio, locais_producao)
         return vazio, vazio, locais_producao
 
     group_cols = ["raiz_Item Final", "raiz_Pedido_Str", "raiz_Fábrica"]
@@ -800,7 +917,10 @@ def _obter_fila_calculada(
 
     itens_resumo = itens_resumo.sort_values(by="_ordem_fila", ascending=True).reset_index(drop=True)
 
-    _cache_filas[cache_key] = (itens_resumo, comp_agg, locais_producao)
+    with sess.lock:
+        if len(sess.cache_filas) >= 10:
+            sess.cache_filas.clear()
+        sess.cache_filas[cache_key] = (itens_resumo, comp_agg, locais_producao)
     return itens_resumo, comp_agg, locais_producao
 
 
@@ -809,10 +929,11 @@ def analisar_itens_finais(
     page: int = 0,
     page_size: int = 50,
     recarregar: bool = False,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Retorna os itens finais paginados após o abatimento cumulativo de estoque na fila,
-    aplicando filtros de visualização e retornando métricas e estado da simulação.
+    aplicando filtros de visualização e retornando métricas e estado da simulação da sessão.
     """
     filtros = filtros or {}
 
@@ -831,9 +952,10 @@ def analisar_itens_finais(
         baixa_filtro=baixa_filtro,
         tipo_filtro=tipo_filtro,
         recarregar=recarregar,
+        session_id=session_id,
     )
     info_carga = obter_info_carregamento()
-    pedidos_ativos = listar_pedidos_simulados_ativos()
+    pedidos_ativos = listar_pedidos_simulados_ativos(session_id=session_id)
 
     if itens_full.empty:
         return {
@@ -853,6 +975,7 @@ def analisar_itens_finais(
             "data_carga": info_carga["data_carga"],
             "data_carregamento": info_carga["data_carregamento"],
             "snapshot": info_carga["snapshot"],
+            "session_id": str(session_id or "default"),
         }
 
     total_simulados_global = int(itens_full["simulado"].sum())
@@ -987,6 +1110,7 @@ def analisar_itens_finais(
         "data_carga": info_carga["data_carga"],
         "data_carregamento": info_carga["data_carregamento"],
         "snapshot": info_carga["snapshot"],
+        "session_id": str(session_id or "default"),
     }
 
 
@@ -996,10 +1120,11 @@ def obter_detalhes_item_final(
     raiz_fabrica: Optional[str] = None,
     baixa: Optional[str] = None,
     tipo: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Retorna a lista analítica de todos os componentes de um item final específico,
-    refletindo o saldo exato disponível na posição daquele item na fila cumulativa.
+    refletindo o saldo exato disponível na posição daquele item na fila cumulativa da sessão.
     """
     b_norm = str(baixa or "todos").strip().upper()
     t_norm = str(tipo or "todos").strip().upper()
@@ -1007,6 +1132,7 @@ def obter_detalhes_item_final(
     itens_full, comp_agg_full, _ = _obter_fila_calculada(
         baixa_filtro=b_norm,
         tipo_filtro=t_norm,
+        session_id=session_id,
     )
     if itens_full.empty or comp_agg_full.empty:
         return {"erro": "Nenhum insumo encontrado para os filtros selecionados."}
@@ -1079,15 +1205,19 @@ def obter_detalhes_item_final(
         "total_disponiveis": len(disponivel_df),
         "faltando": _formatar_lista(faltando_df),
         "disponiveis": _formatar_lista(disponivel_df),
+        "session_id": str(session_id or "default"),
     }
 
 
-def exportar_analise_excel(filtros: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def exportar_analise_excel(
+    filtros: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Exporta a análise consolidada dos itens finais com seus status, faltas e marcação de simulação
-    para um arquivo Excel no diretório de exportações, retornando a URL de download.
+    para um arquivo Excel no diretório de exportações, isolando o arquivo e a fila da sessão.
     """
-    res = analisar_itens_finais(filtros=filtros, page=0, page_size=200000)
+    res = analisar_itens_finais(filtros=filtros, page=0, page_size=200000, session_id=session_id)
     itens = res.get("itens", [])
     if not itens:
         return {"erro": "Nenhum item final encontrado para exportação com os filtros aplicados."}
@@ -1123,8 +1253,9 @@ def exportar_analise_excel(filtros: Optional[Dict[str, Any]] = None) -> Dict[str
     }
     df_export = df_export.rename(columns=col_names)
 
+    sess_tag = (session_id[:8] if session_id and session_id != "default" else "export")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    nome_arquivo = f"analise_estoque_itens_finais_{timestamp}.xlsx"
+    nome_arquivo = f"analise_estoque_{sess_tag}_{timestamp}.xlsx"
     caminho_arquivo = settings.EXPORTS_DIR / nome_arquivo
 
     df_export.to_excel(caminho_arquivo, index=False)
@@ -1133,6 +1264,7 @@ def exportar_analise_excel(filtros: Optional[Dict[str, Any]] = None) -> Dict[str
         "url": f"/ver_estoque/exports/{nome_arquivo}",
         "nome": nome_arquivo,
         "total": len(df_export),
+        "session_id": str(session_id or "default"),
     }
 
 

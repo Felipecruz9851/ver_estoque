@@ -2,6 +2,7 @@ export async function apiCall(method, payload = {}) {
   const res = await fetch(`/ver_estoque/api/call/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify({ method, payload }),
   });
   if (!res.ok) {

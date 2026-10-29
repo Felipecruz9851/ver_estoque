@@ -35,6 +35,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
   const [dataCarregamento, setDataCarregamento] = useState("");
+  const [sessionId, setSessionId] = useState("");
 
   // Estados de carregamento e paginação contínua (Infinite Scroll)
   const [page, setPage] = useState(0);
@@ -161,6 +162,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         if (res.locais_producao) setLocaisProducao(res.locais_producao);
         if (res.data_carga) setDataCarga(res.data_carga);
         if (res.data_carregamento) setDataCarregamento(res.data_carregamento);
+        if (res.session_id) setSessionId(res.session_id);
       } catch (e) {
         alert("Erro ao carregar análise de estoque: " + e.message);
       } finally {
@@ -648,6 +650,25 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         </div>
 
         <div className="flex items-center gap-2.5">
+          {sessionId && (
+            <div
+              className="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-[#EEF2FF] border border-[#C7D2FE] rounded-sm text-left shadow-2xs"
+              title={`Sessão isolada via cookie no navegador\nID: ${sessionId}\nExecuções e simulações são mantidas exclusivamente neste navegador.`}
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#4F46E5]">
+                shield
+              </span>
+              <div className="flex flex-col leading-none">
+                <span className="text-[9px] font-semibold text-[#4338CA] uppercase tracking-wider">
+                  Sessão Isolada
+                </span>
+                <span className="text-[11px] font-semibold text-[#312E81] font-mono mt-0.5">
+                  {sessionId.slice(0, 8)}
+                </span>
+              </div>
+            </div>
+          )}
+
           {(dataCarga || dataCarregamento) && (
             <div
               className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-[#F9F9F9] border border-[#E0E0E0] rounded-sm text-left shadow-2xs"
