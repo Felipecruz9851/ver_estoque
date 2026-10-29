@@ -48,6 +48,16 @@ def _executar(method: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "ok", "mensagem": "Dados de estoque recarregados com sucesso."}
     if method == "exportar_analise_estoque":
         return service.exportar_analise_excel(filtros=payload.get("filtros"))
+    if method == "simular_pedidos":
+        return service.simular_pedidos(
+            usuario=str(payload.get("usuario") or ""),
+            senha=str(payload.get("senha") or ""),
+            pedidos_input=payload.get("pedidos") or [],
+        )
+    if method == "remover_pedido_simulado":
+        return service.remover_pedido_simulado(pedido=str(payload.get("pedido") or ""))
+    if method == "limpar_simulacao":
+        return service.limpar_simulacao()
     return {"erro": "Método não permitido ou inexistente"}
 
 
@@ -55,8 +65,10 @@ def _executar(method: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 def call_method(method: str, req: CallPayload):
     try:
         return _executar(method, req.payload or {})
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, ConnectionError) as e:
         return {"erro": str(e)}
+    except Exception as e:
+        return {"erro": f"Erro ao processar requisição ({method}): {e}"}
 
 
 @router.get("/snapshots")

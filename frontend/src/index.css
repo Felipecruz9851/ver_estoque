@@ -33,3 +33,15 @@ body {
   background-color: var(--color-muted-bg);
   color: var(--color-text-main);
 }
+
+/* Regras nativas de contenção de rolagem para <dialog> modal */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
