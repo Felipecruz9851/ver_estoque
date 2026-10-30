@@ -398,6 +398,147 @@ def calcular_data_abertura_util(
     return pd.Timestamp(dt_entrega).floor("D"), pd.Timestamp(dt_ab_np)
 
 
+def tratar_estrutura_fantasmas(
+    linhas_estrutura: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """
+    Remove itens fantasma (ies_tip_item == 'T') da árvore de estrutura de pedidos
+    e promove seus filhos para o nível do pai do fantasma na estrutura.
+
+    Regra de negócio:
+    - O ERP / PCP da Lider não gera ordem ou reserva de estoque para itens fantasma (tipo 'T').
+    - O item fantasma deve ser removido da estrutura.
+    - Caso o item fantasma tenha filhos, eles devem ir para o nível do pai do fantasma
+      (seu cod_item_pai passa a ser o pai do fantasma, e seu nível na árvore é decrementado
+      pelo número de níveis fantasmas colapsados acima).
+    """
+    if not linhas_estrutura:
+        return []
+
+    from collections import defaultdict
+    por_raiz: Dict[Tuple[str, str], List[Tuple[int, Dict[str, Any]]]] = defaultdict(list)
+    for idx, r in enumerate(linhas_estrutura):
+        ped = str(r.get("num_pedido") or "").strip()
+        raiz = scraper.normalizar_cod_item(r.get("cod_item"))
+        por_raiz[(ped, raiz)].append((idx, r))
+
+    resultado_final: List[Dict[str, Any]] = []
+
+    for (ped, raiz), indexed_rows in por_raiz.items():
+        n = len(indexed_rows)
+        # Identifica quais linhas são itens fantasma (tipo 'T' ou 'F')
+        is_phantom = []
+        codigos_fantasmas: Set[str] = set()
+        for _, r in indexed_rows:
+            tipo = str(r.get("ies_tip_item") or r.get("tipo_item") or r.get("tipo") or "").strip().upper()
+            eh_fantasma = tipo in ("T")
+            is_phantom.append(eh_fantasma)
+            if eh_fantasma:
+                cc = scraper.normalizar_cod_item(r.get("cod_item_compon"))
+                if cc:
+                    codigos_fantasmas.add(cc)
+
+        # Se não há fantasmas nesta árvore, preserva todas as linhas
+        if not any(is_phantom):
+            for _, r in indexed_rows:
+                resultado_final.append(r)
+            continue
+
+        # Determina o nó pai de cada linha dentro desta árvore
+        parent_idx: List[Optional[int]] = [None] * n
+        for j in range(n):
+            _, r_j = indexed_rows[j]
+            pai_cod = scraper.normalizar_cod_item(r_j.get("cod_item_pai"))
+            try:
+                nivel_j = int(float(r_j.get("nivel") or 1))
+            except (ValueError, TypeError):
+                nivel_j = 1
+
+            if not pai_cod or pai_cod == raiz or nivel_j <= 1:
+                parent_idx[j] = None
+            else:
+                p_cand = None
+                # 1. Procura para trás na ordem da árvore (preorder) pelo pai com nivel < nivel_j
+                for i in range(j - 1, -1, -1):
+                    _, r_i = indexed_rows[i]
+                    comp_i = scraper.normalizar_cod_item(r_i.get("cod_item_compon"))
+                    try:
+                        nivel_i = int(float(r_i.get("nivel") or 1))
+                    except (ValueError, TypeError):
+                        nivel_i = 1
+
+                    if comp_i == pai_cod and nivel_i < nivel_j:
+                        p_cand = i
+                        break
+
+                # 2. Fallback: qualquer linha anterior com cod_item_compon == pai_cod
+                if p_cand is None:
+                    for i in range(j - 1, -1, -1):
+                        _, r_i = indexed_rows[i]
+                        comp_i = scraper.normalizar_cod_item(r_i.get("cod_item_compon"))
+                        if comp_i == pai_cod:
+                            p_cand = i
+                            break
+
+                # 3. Fallback abrangente: qualquer linha na árvore com cod_item_compon == pai_cod
+                if p_cand is None:
+                    for i in range(n):
+                        if i == j:
+                            continue
+                        _, r_i = indexed_rows[i]
+                        comp_i = scraper.normalizar_cod_item(r_i.get("cod_item_compon"))
+                        if comp_i == pai_cod:
+                            p_cand = i
+                            break
+
+                parent_idx[j] = p_cand
+
+        # Processa cada linha não-fantasma
+        for j in range(n):
+            if is_phantom[j]:
+                continue  # Fantasma é removido da estrutura
+
+            orig_idx, r_orig = indexed_rows[j]
+            r_novo = dict(r_orig)
+
+            curr_p = parent_idx[j]
+            fantasmas_acima = 0
+            visited = set()
+            while curr_p is not None and is_phantom[curr_p]:
+                if curr_p in visited:
+                    break
+                visited.add(curr_p)
+                fantasmas_acima += 1
+                curr_p = parent_idx[curr_p]
+
+            if curr_p is None:
+                r_novo["cod_item_pai"] = raiz
+            else:
+                _, r_anc = indexed_rows[curr_p]
+                r_novo["cod_item_pai"] = r_anc.get("cod_item_compon")
+
+            try:
+                orig_nivel = int(float(r_orig.get("nivel") or 1))
+            except (ValueError, TypeError):
+                orig_nivel = 1
+
+            novo_nivel = max(1, orig_nivel - fantasmas_acima)
+            r_novo["nivel"] = str(novo_nivel)
+
+            # Sanitiza caminho_pai se presente
+            if r_novo.get("caminho_pai"):
+                partes = [p.strip() for p in str(r_novo["caminho_pai"]).split(">")]
+                partes_limpas = [
+                    p for p in partes
+                    if scraper.normalizar_cod_item(p) not in codigos_fantasmas
+                ]
+                r_novo["caminho_pai"] = " > ".join(partes_limpas) if partes_limpas else raiz
+
+            resultado_final.append(r_novo)
+
+    return resultado_final
+
+
 def _montar_df_pedido_simulado(
     num_pedido: str,
     linhas_estrutura: List[Dict[str, Any]],
@@ -409,6 +550,11 @@ def _montar_df_pedido_simulado(
     para o mesmo schema do DataFrame `df_consumo`.
     Retorna (df_pedido, qtd_itens_finais).
     """
+    # 1. Trata e explode itens fantasma (tipo 'T'): remove fantasmas e promove filhos
+    linhas_estrutura = tratar_estrutura_fantasmas(linhas_estrutura)
+    if not linhas_estrutura:
+        return pd.DataFrame(), 0
+
     # Agrupa linhas por cod_item (Item Final do pedido)
     por_item_final: Dict[str, List[Dict[str, Any]]] = {}
     for r in linhas_estrutura:
@@ -460,14 +606,28 @@ def _montar_df_pedido_simulado(
             if not comp_code:
                 continue
 
+            tipo_raw = str(r.get("ies_tip_item") or r.get("tipo_item") or r.get("tipo") or "").strip().upper()
+            if tipo_raw in ("T"):
+                # Salvaguarda: fantasma nunca deve entrar no consumo simulado
+                continue
+
             qtd_unit = scraper.parse_numero_flexivel(r.get("qtd_necessaria"), default=0.0)
             consumo_total = qtd_unit * saldo_val
 
             estoque_l = float(_enriquecimento["estoque"].get(comp_code, 0.0))
-            tipo_comp = _enriquecimento["tipo"].get(comp_code) or (
-                "C" if comp_code.startswith("3") else "P"
-            )
-            baixa_comp = _enriquecimento["baixa"].get(comp_code, "S")
+            if tipo_raw in ("C", "P"):
+                tipo_comp = tipo_raw
+            else:
+                tipo_comp = _enriquecimento["tipo"].get(comp_code) or (
+                    "C" if comp_code.startswith("3") else "P"
+                )
+
+            baixa_raw = str(r.get("baixa") or r.get("ies_baixa") or "").strip().upper()
+            if baixa_raw in ("S", "N"):
+                baixa_comp = baixa_raw
+            else:
+                baixa_comp = _enriquecimento["baixa"].get(comp_code, "S")
+
             local_prod_comp = _enriquecimento["local_prod"].get(comp_code, "")
             den_comp = (
                 str(r.get("den_item") or "").strip()
@@ -589,6 +749,9 @@ def simular_pedidos(
         )
         estrutura_total = res_scraper.get("estrutura") or []
         saldos_map = res_scraper.get("saldos") or {}
+
+        # Trata itens fantasma (tipo 'T'): elimina os fantasmas e promove os filhos
+        estrutura_total = tratar_estrutura_fantasmas(estrutura_total)
 
         for row in estrutura_total:
             pn = scraper.normalizar_numero_pedido(row.get("num_pedido"))

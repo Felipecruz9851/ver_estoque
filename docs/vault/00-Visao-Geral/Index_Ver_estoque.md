@@ -15,8 +15,9 @@ tipo: moc
 - **Dados** (`./backend/data/snapshots/`): pasta onde os snapshots (`.pkl` ou `.parquet`) são disponibilizados manualmente.
 - Origem: módulo extraído do projeto Analise_compras em 2026-10-29. Ver [[2026-10-29]].
 
-## Pendências Técnicas Mapeadas
+## Tratamento de Itens Fantasma Implementado
 
-- **[ ] Tratamento de Itens Fantasma (`Tipo = 'F'`) no Simulador de Pedidos:**
-  - **Problema:** Na tabela `cons` das OPs reais do snapshot, o ERP já explode os itens fantasma nos componentes filhos e não gera reserva para o fantasma. Já o endpoint `/JSN001/json-pedido-estrutura.php` retorna toda a árvore explodida sem informar o tipo mestre do item (`ies_tip_item`: `C`, `P`, `F`, `T`), fazendo com que itens fantasma/virtuais em pedidos novos simulados (ex.: acabamentos `2ACAB*`, quantificadores `1M2*`, raízes `1MAO*` e agrupadores `F`) entrem pelo fallback como `Produzido (P)` com estoque `0` e acusem falsa falta.
-  - **Solução mapeada:** Incluir a coluna de tipo do item (`ies_tip_item` e, opcionalmente, flag de `baixa`) diretamente no `SELECT` de `json-pedido-estrutura.php` na Intranet, ou disponibilizar uma tabela leve de cadastro mestre de itens no snapshot para filtragem exata em `./backend/service.py`. Detalhes em [[2026-10-29]].
+- **[x] Tratamento de Itens Fantasma (`Tipo = 'T'` / `ies_tip_item`) no Simulador de Pedidos:**
+  - **Regra:** Quando o JSON da estrutura de pedidos retorna `ies_tip_item = 'T'` (item fantasma / virtual, ex.: acabamentos `2ACAB*`, quantificadores `1M2*`, raízes de mão de obra `1MAO*` ou agrupadores), o item é removido da estrutura. Se o fantasma possuir componentes filhos na árvore, eles sobem para o nível do pai do fantasma (seu `cod_item_pai` passa a ser o pai do nó fantasma e o nível hierárquico é ajustado).
+  - **Implementação:** Desenvolvida função `tratar_estrutura_fantasmas()` em `./backend/service.py`, integrada em `simular_pedidos()` e `_montar_df_pedido_simulado()`. Adicionada leitura direta de `ies_tip_item` e `baixa` retornados pela Intranet.
+  - **Validação:** Coberta por suíte de testes unitários automatizados cobrindo fantasmas folhas, intermediários, aninhados e em subconjuntos com 100% de sucesso. Detalhes em [[2026-10-30]].
