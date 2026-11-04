@@ -84,7 +84,21 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             tipo=payload.get("tipo"),
             session_id=session_id,
         )
+    if method == "obter_resumo_pedido":
+        return service.obter_resumo_pedido(
+            pedido=payload.get("pedido"),
+            item_final=payload.get("item_final"),
+            fabrica=payload.get("fabrica"),
+            baixa=payload.get("baixa"),
+            tipo=payload.get("tipo"),
+            session_id=session_id,
+        )
     if method == "recarregar_dados_estoque":
+        if payload.get("atualizar_oc"):
+            try:
+                service.scraper.carregar_ou_atualizar_oc_abertas(forcar_intranet=True)
+            except Exception:
+                pass
         service.obter_cons_com_cache(recarregar=True)
         return {
             "status": "ok",

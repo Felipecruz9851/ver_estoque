@@ -40,14 +40,23 @@ _cache_data_calculo: Optional[str] = None
 _cache_snapshot_nome: Optional[str] = None
 _cache_data_snapshot: Optional[str] = None
 
-# Mapas auxiliares extraídos do snapshot para enriquecer pedidos novos simulados
-_enriquecimento: Dict[str, Dict[str, Any]] = {
+# Mapas auxiliares extraídos do snapshot para enriquecer pedidos novos simulados e camada gerencial
+_enriquecimento: Dict[str, Any] = {
     "estoque": {},
     "tipo": {},
     "baixa": {},
     "local_prod": {},
     "fabrica_item": {},
     "desc_item": {},
+    "op_por_numero": {},
+    "op_por_item_pedido": {},
+    "op_por_item_lote": {},
+    "op_por_item_todos": {},
+    "oc_por_item_ped_it": {},
+    "oc_por_item_ped": {},
+    "oc_por_item_it_sem_ped": {},
+    "oc_por_item_geral": {},
+    "oc_por_item_todas": {},
 }
 
 # ==============================================================================
@@ -170,16 +179,67 @@ def obter_info_carregamento() -> Dict[str, str]:
     }
 
 
+def _parse_data_br_flex(valor: Any) -> Tuple[str, str]:
+    """
+    Normaliza uma data (Timestamp, DD/MM/YYYY, DD/MM/YYYY., YYYY-MM-DD) para
+    (data_formatada_br 'DD/MM/YYYY', chave_ordenacao 'YYYY-MM-DD' ou '9999-12-31').
+    """
+    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
+        return "", "9999-12-31"
+    if isinstance(valor, pd.Timestamp):
+        if pd.isna(valor):
+            return "", "9999-12-31"
+        return valor.strftime("%d/%m/%Y"), valor.strftime("%Y-%m-%d")
+
+    s = str(valor).strip().rstrip(".")
+    if not s or s.lower() in ("nan", "nat", "none", "0"):
+        return "", "9999-12-31"
+
+    m_br = re.match(r"^(\d{2})/(\d{2})/(\d{4})", s)
+    if m_br:
+        d, m, y = m_br.group(1), m_br.group(2), m_br.group(3)
+        return f"{d}/{m}/{y}", f"{y}-{m}-{d}"
+
+    m_iso = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    if m_iso:
+        y, m, d = m_iso.group(1), m_iso.group(2), m_iso.group(3)
+        return f"{d}/{m}/{y}", f"{y}-{m}-{d}"
+
+    apenas_dig = re.sub(r"[^\d]", "", s)
+    if len(apenas_dig) == 8:
+        d, m, y = apenas_dig[:2], apenas_dig[2:4], apenas_dig[4:8]
+        return f"{d}/{m}/{y}", f"{y}-{m}-{d}"
+
+    dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
+    if pd.notna(dt):
+        return dt.strftime("%d/%m/%Y"), dt.strftime("%Y-%m-%d")
+    return "", "9999-12-31"
+
+
 def _construir_mapas_enriquecimento(
-    dfs: Dict[str, pd.DataFrame], df_consumo: pd.DataFrame
-) -> Dict[str, Dict[str, Any]]:
-    """Indexa estoque L, Tipo (C/P), Baixa (S/N), Local Prod, Fábrica e Descrição a partir do snapshot."""
+    dfs: Dict[str, pd.DataFrame], df_consumo: pd.DataFrame, forcar_oc: bool = False
+) -> Dict[str, Any]:
+    """
+    Indexa estoque L, Tipo (C/P), Baixa (S/N), Local Prod, Fábrica, Descrição,
+    Ordens de Produção de Componentes (com Abertura e Entrega) e Ordens de Compra abertas (OC).
+    """
     estoque_map: Dict[str, float] = {}
     tipo_map: Dict[str, str] = {}
     baixa_map: Dict[str, str] = {}
     local_prod_map: Dict[str, str] = {}
     fabrica_item_map: Dict[str, str] = {}
     desc_item_map: Dict[str, str] = {}
+
+    op_por_numero: Dict[str, Dict[str, Any]] = {}
+    op_por_item_pedido: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    op_por_item_lote: Dict[str, List[Dict[str, Any]]] = {}
+    op_por_item_todos: Dict[str, List[Dict[str, Any]]] = {}
+
+    oc_por_item_ped_it: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
+    oc_por_item_ped: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    oc_por_item_it_sem_ped: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    oc_por_item_geral: Dict[str, List[Dict[str, Any]]] = {}
+    oc_por_item_todas: Dict[str, List[Dict[str, Any]]] = {}
 
     # 1. Apoio compras (Baixa e Descrição de comprados)
     raw_apoio = dfs.get("apoio_compras")
@@ -229,11 +289,12 @@ def _construir_mapas_enriquecimento(
                 if desc and desc != ".":
                     desc_item_map[it] = desc
 
-    # 3. Ordens (Descrição comercial e Fábrica de itens finais / produzidos)
+    # 3. Ordens (Descrição comercial, Fábrica e Ordens de Produção de Componentes com Datas de Abertura e Entrega)
     raw_ordens = dfs.get("ordens")
     if raw_ordens is not None:
         df_ord = raw_ordens.to_pandas() if isinstance(raw_ordens, pl.DataFrame) else raw_ordens
         if "Item" in df_ord.columns:
+            ops_temp: List[Tuple[Tuple[str, str, int], str, Dict[str, Any]]] = []
             for rec in df_ord.to_dict("records"):
                 it = scraper.normalizar_cod_item(rec.get("Item"))
                 if not it:
@@ -244,6 +305,44 @@ def _construir_mapas_enriquecimento(
                 fab = str(rec.get("Fábrica") or "").strip()
                 if fab and fab not in ("0", ".", "None", "nan"):
                     fabrica_item_map[it] = fab
+                else:
+                    fab = ""
+
+                op_raw = str(rec.get("Ordem") or "").strip().removesuffix(".0")
+                op_digits = re.sub(r"[^\d]", "", op_raw)
+                op_str = str(int(op_digits)) if op_digits else op_raw
+                if not op_str:
+                    continue
+
+                ped_norm = scraper.normalizar_numero_pedido(rec.get("Pedido"))
+                if ped_norm == "0":
+                    ped_norm = ""
+
+                dt_ab_br, dt_ab_sort = _parse_data_br_flex(rec.get("Data Abertura"))
+                dt_ent_br, dt_ent_sort = _parse_data_br_flex(rec.get("Data Entrega"))
+                saldo_op = round(scraper.parse_numero_flexivel(rec.get("Saldo"), default=0.0), 4)
+
+                op_info = {
+                    "ordem_prod": op_str,
+                    "data_abertura": dt_ab_br,
+                    "data_entrega": dt_ent_br,
+                    "saldo_op": saldo_op,
+                    "fabrica": fab,
+                    "pedido_op": ped_norm,
+                }
+                sort_key = (dt_ent_sort, dt_ab_sort, int(op_digits) if op_digits else 999999999)
+                ops_temp.append((sort_key, it, op_info))
+
+            ops_temp.sort(key=lambda x: x[0])
+            for _, it, op_info in ops_temp:
+                op_num = op_info["ordem_prod"]
+                ped_op = op_info["pedido_op"]
+                op_por_numero[op_num] = op_info
+                op_por_item_todos.setdefault(it, []).append(op_info)
+                if ped_op:
+                    op_por_item_pedido.setdefault((it, ped_op), []).append(op_info)
+                else:
+                    op_por_item_lote.setdefault(it, []).append(op_info)
 
     # 4. Consumo calculado (Tipo, Baixa e Local Prod reais praticados nas OPs)
     if df_consumo is not None and not df_consumo.empty and "Item" in df_consumo.columns:
@@ -262,6 +361,68 @@ def _construir_mapas_enriquecimento(
             if lp and lp not in ("0", ".", "None", "nan"):
                 local_prod_map[it] = lp
 
+    # 5. Ordens de Compra abertas (OC) para Matérias-Primas (ordenadas pela previsão mais antiga)
+    try:
+        ocs_raw = scraper.carregar_ou_atualizar_oc_abertas(forcar_intranet=forcar_oc)
+    except Exception as exc:
+        print(f"[Enriquecimento OC] Aviso: {exc}")
+        ocs_raw = []
+
+    if ocs_raw:
+        ocs_temp: List[Tuple[Tuple[int, str, str, int], str, Dict[str, Any]]] = []
+        for rec in ocs_raw:
+            it = scraper.normalizar_cod_item(rec.get("item"))
+            oc_num = str(rec.get("oc_numero") or "").strip()
+            if not it or not oc_num:
+                continue
+            dt_prev_br, dt_prev_sort = _parse_data_br_flex(rec.get("previsao"))
+            dt_orig_br, dt_orig_sort = _parse_data_br_flex(rec.get("data_origem"))
+            dt_emis_br, _ = _parse_data_br_flex(rec.get("emissao_oc"))
+            saldo_oc = round(float(rec.get("saldo") or 0.0), 4)
+            ped_vinc = rec.get("pedido_vinculado")
+            it_vinc = rec.get("item_final_vinculado")
+
+            oc_info = {
+                "oc_numero": oc_num,
+                "previsao": dt_prev_br,
+                "previsao_sort": dt_prev_sort,
+                "data_origem": dt_orig_br,
+                "emissao_oc": dt_emis_br,
+                "saldo": saldo_oc,
+                "unidade": str(rec.get("unidade") or ""),
+                "fornecedor": str(rec.get("fornecedor") or ""),
+                "comprador": str(rec.get("comprador") or ""),
+                "programador": str(rec.get("programador") or ""),
+                "pedido_compra": str(rec.get("pedido_compra") or ""),
+                "sit_oc": str(rec.get("sit_oc") or "P"),
+                "familia": str(rec.get("familia") or ""),
+                "texto": str(rec.get("texto") or ""),
+                "pedido_vinculado": ped_vinc,
+                "item_final_vinculado": it_vinc,
+            }
+            oc_digits = re.sub(r"[^\d]", "", oc_num)
+            sort_key = (
+                0 if saldo_oc > 0 else 1,
+                dt_prev_sort,
+                dt_orig_sort,
+                int(oc_digits) if oc_digits else 999999999,
+            )
+            ocs_temp.append((sort_key, it, oc_info))
+
+        ocs_temp.sort(key=lambda x: x[0])
+        for _, it, oc_info in ocs_temp:
+            ped_vinc = oc_info["pedido_vinculado"]
+            it_vinc = oc_info["item_final_vinculado"]
+            oc_por_item_todas.setdefault(it, []).append(oc_info)
+            if ped_vinc and ped_vinc != "0":
+                oc_por_item_ped.setdefault((it, ped_vinc), []).append(oc_info)
+                if it_vinc:
+                    oc_por_item_ped_it.setdefault((it, ped_vinc, it_vinc), []).append(oc_info)
+            else:
+                if ped_vinc == "0" and it_vinc:
+                    oc_por_item_it_sem_ped.setdefault((it, it_vinc), []).append(oc_info)
+                oc_por_item_geral.setdefault(it, []).append(oc_info)
+
     return {
         "estoque": estoque_map,
         "tipo": tipo_map,
@@ -269,6 +430,15 @@ def _construir_mapas_enriquecimento(
         "local_prod": local_prod_map,
         "fabrica_item": fabrica_item_map,
         "desc_item": desc_item_map,
+        "op_por_numero": op_por_numero,
+        "op_por_item_pedido": op_por_item_pedido,
+        "op_por_item_lote": op_por_item_lote,
+        "op_por_item_todos": op_por_item_todos,
+        "oc_por_item_ped_it": oc_por_item_ped_it,
+        "oc_por_item_ped": oc_por_item_ped,
+        "oc_por_item_it_sem_ped": oc_por_item_it_sem_ped,
+        "oc_por_item_geral": oc_por_item_geral,
+        "oc_por_item_todas": oc_por_item_todas,
     }
 
 
@@ -1277,6 +1447,269 @@ def analisar_itens_finais(
     }
 
 
+def _enriquecer_insumo_gerencial(
+    comp_item: str,
+    tipo_comp: str,
+    local_prod_raw: Any,
+    op_prod_raw: Any,
+    raiz_pedido_str: str,
+    raiz_item_final: str,
+    raiz_data_abertura: Any = None,
+) -> Dict[str, Any]:
+    """
+    Resolve os metadados gerenciais de um insumo:
+    - Se Tipo == 'P' (Componente Produzido): Fábrica, OP do componente, Data Abertura OP, Data Entrega OP, Saldo OP e vínculo.
+    - Se Tipo == 'C' (Matéria-Prima): Previsão de Ordem de Compra (OC), priorizando OC cujo texto vincula ao Pedido (+ Item Final),
+      usando a previsão mais antiga para matérias-primas em geral e calculando o saldo total em OC até a data de abertura da ordem.
+    """
+    it = scraper.normalizar_cod_item(comp_item)
+    ped = scraper.normalizar_numero_pedido(raiz_pedido_str)
+    if ped == "0":
+        ped = ""
+    it_final = scraper.normalizar_cod_item(raiz_item_final)
+    dt_ab_ordem_br, dt_ab_ordem_sort = _parse_data_br_flex(raiz_data_abertura)
+
+    lp = str(local_prod_raw or "").strip()
+    if lp in ("", "0", ".", "None", "nan"):
+        lp = (
+            _enriquecimento.get("local_prod", {}).get(it)
+            or _enriquecimento.get("fabrica_item", {}).get(it)
+            or ""
+        )
+
+    op_prod_str = ""
+    if op_prod_raw is not None and pd.notna(op_prod_raw):
+        s_op = str(op_prod_raw).strip().removesuffix(".0")
+        dig_op = re.sub(r"[^\d]", "", s_op)
+        op_prod_str = str(int(dig_op)) if dig_op else s_op
+        if op_prod_str in ("0", "nan", "None"):
+            op_prod_str = ""
+
+    # Dados de Ordem de Produção (Componentes Tipo P)
+    ordem_prod = op_prod_str
+    op_data_abertura = ""
+    op_data_entrega = ""
+    op_saldo = 0.0
+    op_vinculo = ""
+    ops_abertas: List[Dict[str, Any]] = []
+
+    if tipo_comp == "P":
+        op_por_item_pedido = _enriquecimento.get("op_por_item_pedido", {})
+        op_por_numero = _enriquecimento.get("op_por_numero", {})
+        op_por_item_lote = _enriquecimento.get("op_por_item_lote", {})
+        op_por_item_todos = _enriquecimento.get("op_por_item_todos", {})
+
+        ops_ped = op_por_item_pedido.get((it, ped), []) if ped else []
+        ops_lote = op_por_item_lote.get(it, [])
+        ops_todas = op_por_item_todos.get(it, [])
+
+        op_principal: Optional[Dict[str, Any]] = None
+        if ops_ped:
+            op_principal = ops_ped[0]
+            op_vinculo = "PEDIDO"
+        elif op_prod_str and op_prod_str in op_por_numero:
+            op_principal = op_por_numero[op_prod_str]
+            ped_op = op_principal.get("pedido_op") or ""
+            op_vinculo = "PEDIDO" if (ped and ped_op == ped) else ("LOTE" if not ped_op else "GERAL")
+        elif ops_lote:
+            op_principal = ops_lote[0]
+            op_vinculo = "LOTE"
+        elif ops_todas:
+            op_principal = ops_todas[0]
+            op_vinculo = "GERAL"
+
+        if op_principal:
+            ordem_prod = str(op_principal.get("ordem_prod") or op_prod_str)
+            op_data_abertura = str(op_principal.get("data_abertura") or "")
+            op_data_entrega = str(op_principal.get("data_entrega") or "")
+            op_saldo = float(op_principal.get("saldo_op") or 0.0)
+            if not lp and op_principal.get("fabrica"):
+                lp = str(op_principal["fabrica"])
+
+        cands_op = ops_ped + [x for x in ops_lote if x not in ops_ped]
+        if not cands_op:
+            cands_op = ops_todas
+        ops_abertas = cands_op[:5]
+
+    if not lp:
+        lp = "NÃO INFORMADO" if tipo_comp == "P" else "COMPRAS"
+
+    # Dados de Ordem de Compra (Matérias-Primas Tipo C)
+    oc_numero = ""
+    oc_previsao = ""
+    oc_data_origem = ""
+    oc_emissao = ""
+    oc_saldo = 0.0
+    oc_saldo_ate_abertura = 0.0
+    oc_qtd_ate_abertura = 0
+    oc_saldo_total_item = 0.0
+    oc_qtd_total_item = 0
+    oc_data_abertura_ref = dt_ab_ordem_br
+    oc_fornecedor = ""
+    oc_comprador = ""
+    oc_pedido_compra = ""
+    oc_sit = ""
+    oc_texto = ""
+    oc_vinculo = ""
+    oc_vinculada_pedido = False
+    ocs_abertas: List[Dict[str, Any]] = []
+
+    if tipo_comp == "C":
+        oc_por_item_ped_it = _enriquecimento.get("oc_por_item_ped_it", {})
+        oc_por_item_ped = _enriquecimento.get("oc_por_item_ped", {})
+        oc_por_item_it_sem_ped = _enriquecimento.get("oc_por_item_it_sem_ped", {})
+        oc_por_item_geral = _enriquecimento.get("oc_por_item_geral", {})
+        oc_por_item_todas = _enriquecimento.get("oc_por_item_todas", {})
+
+        oc_principal: Optional[Dict[str, Any]] = None
+        ocs_vinc_lista: List[Dict[str, Any]] = []
+
+        if ped and it_final and (it, ped, it_final) in oc_por_item_ped_it:
+            ocs_vinc_lista = oc_por_item_ped_it[(it, ped, it_final)]
+            oc_principal = ocs_vinc_lista[0]
+            oc_vinculo = "PEDIDO + ITEM"
+            oc_vinculada_pedido = True
+        elif ped and (it, ped) in oc_por_item_ped:
+            cands_ped = oc_por_item_ped[(it, ped)]
+            sem_conflito = [
+                x for x in cands_ped
+                if not x.get("item_final_vinculado") or x.get("item_final_vinculado") == it_final
+            ]
+            ocs_vinc_lista = sem_conflito if sem_conflito else cands_ped
+            oc_principal = ocs_vinc_lista[0]
+            oc_vinculo = "PEDIDO"
+            oc_vinculada_pedido = True
+        elif not ped and it_final and (it, it_final) in oc_por_item_it_sem_ped:
+            ocs_vinc_lista = oc_por_item_it_sem_ped[(it, it_final)]
+            oc_principal = ocs_vinc_lista[0]
+            oc_vinculo = "ITEM"
+            oc_vinculada_pedido = True
+        else:
+            cands_geral = oc_por_item_geral.get(it) or oc_por_item_todas.get(it) or []
+            if cands_geral:
+                oc_principal = cands_geral[0]
+                oc_vinculo = "MAIS ANTIGA"
+                oc_vinculada_pedido = False
+
+        if oc_principal:
+            oc_numero = str(oc_principal.get("oc_numero") or "")
+            oc_previsao = str(oc_principal.get("previsao") or "")
+            oc_data_origem = str(oc_principal.get("data_origem") or "")
+            oc_emissao = str(oc_principal.get("emissao_oc") or "")
+            oc_saldo = float(oc_principal.get("saldo") or 0.0)
+            oc_fornecedor = str(oc_principal.get("fornecedor") or "")
+            oc_comprador = str(oc_principal.get("comprador") or "")
+            oc_pedido_compra = str(oc_principal.get("pedido_compra") or "")
+            oc_sit = str(oc_principal.get("sit_oc") or "")
+            oc_texto = str(oc_principal.get("texto") or "")
+
+        todas_it = oc_por_item_todas.get(it, [])
+        oc_qtd_total_item = len(todas_it)
+        oc_saldo_total_item = sum(float(x.get("saldo") or 0.0) for x in todas_it)
+
+        if dt_ab_ordem_sort and dt_ab_ordem_sort != "9999-12-31":
+            for x in todas_it:
+                p_sort = str(x.get("previsao_sort") or "")
+                if not p_sort:
+                    _, p_sort = _parse_data_br_flex(x.get("previsao"))
+                if p_sort and p_sort != "9999-12-31" and p_sort <= dt_ab_ordem_sort:
+                    oc_saldo_ate_abertura += float(x.get("saldo") or 0.0)
+                    oc_qtd_ate_abertura += 1
+
+        if ocs_vinc_lista:
+            ocs_abertas = (ocs_vinc_lista + [x for x in todas_it if x not in ocs_vinc_lista])[:5]
+        else:
+            ocs_abertas = todas_it[:5]
+
+    return {
+        "fabrica_componente": lp,
+        "ordem_prod": ordem_prod,
+        "op_data_abertura": op_data_abertura,
+        "op_data_entrega": op_data_entrega,
+        "op_saldo": round(op_saldo, 4),
+        "op_vinculo": op_vinculo,
+        "ops_abertas": ops_abertas,
+        "oc_numero": oc_numero,
+        "oc_previsao": oc_previsao,
+        "oc_data_origem": oc_data_origem,
+        "oc_emissao": oc_emissao,
+        "oc_saldo": round(oc_saldo, 4),
+        "oc_saldo_ate_abertura": round(oc_saldo_ate_abertura, 4),
+        "oc_qtd_ate_abertura": oc_qtd_ate_abertura,
+        "oc_saldo_total_item": round(oc_saldo_total_item, 4),
+        "oc_qtd_total_item": oc_qtd_total_item,
+        "oc_data_abertura_ref": oc_data_abertura_ref,
+        "oc_fornecedor": oc_fornecedor,
+        "oc_comprador": oc_comprador,
+        "oc_pedido_compra": oc_pedido_compra,
+        "oc_sit": oc_sit,
+        "oc_texto": oc_texto,
+        "oc_vinculo": oc_vinculo,
+        "oc_vinculada_pedido": oc_vinculada_pedido,
+        "ocs_abertas": ocs_abertas,
+    }
+
+
+def _organizar_insumos_gerencial(lista_insumos: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Separa a lista de insumos em:
+    1. `materias_primas`: Tipo == 'C', ordenados por falta DESC e código ASC.
+    2. `componentes_por_fabrica`: Tipo == 'P', agrupados por Fábrica (`fabrica_componente` / `local_prod`).
+    """
+    materias_primas = [x for x in lista_insumos if x.get("tipo") == "C"]
+    componentes = [x for x in lista_insumos if x.get("tipo") == "P"]
+
+    materias_primas.sort(
+        key=lambda x: (-float(x.get("falta") or 0.0), str(x.get("item") or ""))
+    )
+
+    por_fab: Dict[str, List[Dict[str, Any]]] = {}
+    for comp in componentes:
+        fab = str(comp.get("fabrica_componente") or comp.get("local_prod") or "NÃO INFORMADO").strip()
+        if not fab or fab == "0":
+            fab = "NÃO INFORMADO"
+        por_fab.setdefault(fab, []).append(comp)
+
+    grupos_fabrica: List[Dict[str, Any]] = []
+    for fab_nome, itens_fab in por_fab.items():
+        itens_fab.sort(
+            key=lambda x: (-float(x.get("falta") or 0.0), str(x.get("item") or ""))
+        )
+        faltando_cnt = sum(1 for x in itens_fab if not x.get("disponivel", False))
+        com_op_cnt = sum(1 for x in itens_fab if bool(x.get("ordem_prod")))
+        grupos_fabrica.append(
+            {
+                "fabrica": fab_nome,
+                "total_itens": len(itens_fab),
+                "total_faltando": faltando_cnt,
+                "total_com_op": com_op_cnt,
+                "itens": itens_fab,
+            }
+        )
+
+    grupos_fabrica.sort(
+        key=lambda g: (-g["total_faltando"], -g["total_itens"], g["fabrica"])
+    )
+
+    mp_faltando = [x for x in materias_primas if not x.get("disponivel", False)]
+    comp_faltando = [x for x in componentes if not x.get("disponivel", False)]
+
+    return {
+        "materias_primas": materias_primas,
+        "componentes_por_fabrica": grupos_fabrica,
+        "resumo": {
+            "total_materias_primas": len(materias_primas),
+            "materias_primas_faltando": len(mp_faltando),
+            "mp_com_oc": sum(1 for x in materias_primas if bool(x.get("oc_numero"))),
+            "mp_vinculadas_pedido": sum(1 for x in materias_primas if bool(x.get("oc_vinculada_pedido"))),
+            "total_componentes": len(componentes),
+            "componentes_faltando": len(comp_faltando),
+            "comp_com_op": sum(1 for x in componentes if bool(x.get("ordem_prod"))),
+            "total_fabricas": len(grupos_fabrica),
+        },
+    }
+
+
 def obter_detalhes_item_final(
     raiz_item_final: str,
     raiz_pedido: Optional[str] = None,
@@ -1286,8 +1719,10 @@ def obter_detalhes_item_final(
     session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Retorna a lista analítica de todos os componentes de um item final específico,
-    refletindo o saldo exato disponível na posição daquele item na fila cumulativa da sessão.
+    Retorna a lista analítica e a camada gerencial de todos os componentes de um item final específico,
+    refletindo o saldo exato disponível na posição daquele item na fila cumulativa da sessão,
+    o saldo total de estoque, datas de abertura/entrega de OPs de componentes (agrupados por fábrica)
+    e previsões de OCs de matérias-primas (com vínculo por pedido no texto ou previsão mais antiga).
     """
     b_norm = str(baixa or "todos").strip().upper()
     t_norm = str(tipo or "todos").strip().upper()
@@ -1313,7 +1748,12 @@ def obter_detalhes_item_final(
     if alvo.empty:
         return {"erro": "Item não encontrado no cálculo de consumo para os filtros atuais."}
 
-    ordem_fila = int(alvo.iloc[0]["_ordem_fila"])
+    row_alvo = alvo.iloc[0]
+    ordem_fila = int(row_alvo["_ordem_fila"])
+    ped_str_alvo = str(row_alvo.get("raiz_Pedido_Str") or raiz_pedido or "").strip()
+    item_final_alvo = str(row_alvo.get("raiz_Item Final") or raiz_item_final).strip()
+    dt_abertura_alvo = str(row_alvo.get("_dt_abertura_br") or "").strip()
+
     comp = comp_agg_full[comp_agg_full["_ordem_fila"] == ordem_fila].copy()
 
     faltando_df = comp[~comp["Disponivel"]].sort_values(
@@ -1326,48 +1766,308 @@ def obter_detalhes_item_final(
     def _formatar_lista(sub_df: pd.DataFrame) -> List[Dict[str, Any]]:
         lista = []
         for _, r in sub_df.iterrows():
+            tp = str(r["Tipo"] or "").strip().upper()
             tipo_desc = (
                 "Matéria Prima (C)"
-                if r["Tipo"] == "C"
-                else ("Componente Produzido (P)" if r["Tipo"] == "P" else f"Outro ({r['Tipo']})")
+                if tp == "C"
+                else ("Componente Produzido (P)" if tp == "P" else f"Outro ({tp})")
             )
-            op_prod = ""
-            if pd.notna(r.get("Ordem_Prod")):
-                try:
-                    op_prod = str(int(float(r["Ordem_Prod"])))
-                except Exception:
-                    op_prod = str(r["Ordem_Prod"])
-
+            info_ger = _enriquecer_insumo_gerencial(
+                comp_item=str(r["Item"]),
+                tipo_comp=tp,
+                local_prod_raw=r.get("Local_Prod"),
+                op_prod_raw=r.get("Ordem_Prod"),
+                raiz_pedido_str=ped_str_alvo,
+                raiz_item_final=item_final_alvo,
+                raiz_data_abertura=dt_abertura_alvo,
+            )
+            est_total = round(float(r["estoque"]), 4)
             lista.append(
                 {
                     "item": str(r["Item"]),
                     "descricao": str(r["Den_Item"] or ""),
-                    "tipo": str(r["Tipo"]),
+                    "tipo": tp,
                     "tipo_descricao": tipo_desc,
                     "baixa": str(r.get("Baixa") or "").upper(),
                     "consumo": round(float(r["Consumo"]), 4),
-                    "estoque_l": round(float(r["estoque"]), 4),
+                    "estoque_l": est_total,
+                    "estoque_total": est_total,
                     "saldo_fila": round(float(r["estoque_disp_fila"]), 4),
                     "falta": round(float(r["Falta"]), 4),
                     "disponivel": bool(r["Disponivel"]),
-                    "local_prod": str(r.get("Local_Prod") or ""),
-                    "ordem_prod": op_prod,
+                    "local_prod": info_ger["fabrica_componente"],
+                    **info_ger,
                 }
             )
         return lista
 
+    faltando_list = _formatar_lista(faltando_df)
+    disponiveis_list = _formatar_lista(disponivel_df)
+
     return {
         "posicao_fila": ordem_fila + 1,
-        "item_final": str(raiz_item_final),
-        "pedido": str(raiz_pedido or ""),
-        "fabrica": str(raiz_fabrica or ""),
-        "simulado": bool(alvo.iloc[0]["simulado"]),
-        "origem_simulacao": str(alvo.iloc[0]["origem_simulacao"] or ""),
+        "item_final": item_final_alvo,
+        "descricao": str(row_alvo.get("raiz_Descricao") or ""),
+        "pedido": ped_str_alvo,
+        "fabrica": str(row_alvo.get("raiz_Fábrica") or raiz_fabrica or ""),
+        "cliente": str(row_alvo.get("raiz_Cliente") or ""),
+        "data_abertura": str(row_alvo.get("_dt_abertura_br") or ""),
+        "entrega": str(row_alvo.get("_dt_entrega_br") or ""),
+        "simulado": bool(row_alvo["simulado"]),
+        "origem_simulacao": str(row_alvo["origem_simulacao"] or ""),
         "total_componentes": len(comp),
-        "total_faltando": len(faltando_df),
-        "total_disponiveis": len(disponivel_df),
-        "faltando": _formatar_lista(faltando_df),
-        "disponiveis": _formatar_lista(disponivel_df),
+        "total_faltando": len(faltando_list),
+        "total_disponiveis": len(disponiveis_list),
+        "faltando": faltando_list,
+        "disponiveis": disponiveis_list,
+        "gerencial_faltando": _organizar_insumos_gerencial(faltando_list),
+        "gerencial_disponiveis": _organizar_insumos_gerencial(disponiveis_list),
+        "session_id": str(session_id or "default"),
+    }
+
+
+def obter_resumo_pedido(
+    pedido: Optional[str] = None,
+    item_final: Optional[str] = None,
+    fabrica: Optional[str] = None,
+    baixa: Optional[str] = None,
+    tipo: Optional[str] = None,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Tela Gerencial de Resumo de Pedido / Item ("O que falta para resolver o pedido ou o item"):
+    - Consolida todos os itens finais pertencentes ao `pedido` (ou a um `item_final` específico caso o pedido seja vazio/filtrado).
+    - Permite visualizar tanto o consolidado do pedido inteiro quanto filtrar por um item final específico do pedido.
+    - Separa os insumos em:
+      1. Matérias-Primas (Tipo == 'C'), trazendo Saldo Total de Estoque, Saldo na Fila, Falta e Previsão de OC
+         (vinculada pelo número do pedido no texto da OC ou a previsão mais antiga).
+      2. Componentes Produzidos (Tipo == 'P') agrupados por Fábrica, trazendo Saldo Total de Estoque, Saldo na Fila,
+         Falta, OP do componente, Data de Abertura e Data de Entrega da OP.
+    """
+    ped_raw = str(pedido or "").strip()
+    ped_norm = scraper.normalizar_numero_pedido(ped_raw) if ped_raw else ""
+    if ped_norm == "0":
+        ped_norm = ""
+
+    item_filtro = str(item_final or "").strip().upper()
+    if item_filtro in ("", "TODOS"):
+        item_filtro = ""
+
+    fab_filtro = str(fabrica or "").strip().upper()
+    if fab_filtro in ("", "TODOS"):
+        fab_filtro = ""
+
+    b_norm = str(baixa or "todos").strip().upper()
+    t_norm = str(tipo or "todos").strip().upper()
+
+    itens_full, comp_agg_full, _ = _obter_fila_calculada(
+        baixa_filtro=b_norm,
+        tipo_filtro=t_norm,
+        session_id=session_id,
+    )
+    if itens_full.empty or comp_agg_full.empty:
+        return {"erro": "Nenhum dado encontrado na fila para os filtros informados."}
+
+    if ped_norm:
+        mask_ped = itens_full["raiz_Pedido_Str"].astype(str) == ped_norm
+        itens_ped_df = itens_full[mask_ped].copy()
+        if itens_ped_df.empty:
+            # Tenta busca parcial caso o usuário tenha digitado parte do número
+            mask_parcial = itens_full["raiz_Pedido_Str"].astype(str).str.contains(ped_norm, na=False)
+            itens_ped_df = itens_full[mask_parcial].copy()
+            if not itens_ped_df.empty:
+                ped_norm = str(itens_ped_df.iloc[0]["raiz_Pedido_Str"])
+                itens_ped_df = itens_full[itens_full["raiz_Pedido_Str"].astype(str) == ped_norm].copy()
+    elif item_filtro:
+        mask_it = itens_full["raiz_Item Final"].astype(str).str.upper() == item_filtro
+        if fab_filtro:
+            mask_it &= itens_full["raiz_Fábrica"].astype(str).str.upper() == fab_filtro
+        itens_ped_df = itens_full[mask_it].copy()
+    else:
+        return {"erro": "Informe o número do pedido ou selecione um item para visualizar o resumo gerencial."}
+
+    if itens_ped_df.empty:
+        return {"erro": f"Pedido '{ped_raw or item_filtro}' não encontrado na fila atual."}
+
+    itens_ped_df = itens_ped_df.sort_values(by="_ordem_fila", ascending=True).reset_index(drop=True)
+
+    # Lista de todos os itens finais pertencentes a este pedido (para seletor de escopo Pedido vs Item)
+    itens_do_pedido: List[Dict[str, Any]] = []
+    for _, r_it in itens_ped_df.iterrows():
+        s_val = 1.0
+        if pd.notna(r_it["raiz_Saldo"]):
+            try:
+                s_val = float(r_it["raiz_Saldo"])
+            except Exception:
+                s_val = 1.0
+        itens_do_pedido.append(
+            {
+                "posicao_fila": int(r_it["_ordem_fila"]) + 1,
+                "ordem_fila_idx": int(r_it["_ordem_fila"]),
+                "item_final": str(r_it["raiz_Item Final"]),
+                "descricao": str(r_it["raiz_Descricao"] or ""),
+                "pedido": str(r_it["raiz_Pedido_Str"] or ""),
+                "fabrica": str(r_it["raiz_Fábrica"] or ""),
+                "cliente": str(r_it["raiz_Cliente"] or ""),
+                "saldo": round(s_val, 4) if s_val % 1 != 0 else int(s_val),
+                "data_abertura": str(r_it["_dt_abertura_br"] or ""),
+                "entrega": str(r_it["_dt_entrega_br"] or ""),
+                "total_componentes": int(r_it["total_componentes"]),
+                "componentes_disponiveis": int(r_it["componentes_disponiveis"]),
+                "componentes_faltando": int(r_it["componentes_faltando"]),
+                "perc_disponivel": float(r_it["perc_disponivel"]),
+                "status": str(r_it["status"]),
+                "simulado": bool(r_it["simulado"]),
+                "origem_simulacao": str(r_it["origem_simulacao"] or ""),
+            }
+        )
+
+    # Filtra escopo alvo (Pedido Completo vs Item Final específico do pedido)
+    if item_filtro:
+        alvo_df = itens_ped_df[itens_ped_df["raiz_Item Final"].astype(str).str.upper() == item_filtro]
+        if fab_filtro and len(alvo_df) > 1:
+            alvo_fab = alvo_df[alvo_df["raiz_Fábrica"].astype(str).str.upper() == fab_filtro]
+            if not alvo_fab.empty:
+                alvo_df = alvo_fab
+        if alvo_df.empty:
+            alvo_df = itens_ped_df
+            item_filtro = ""
+    else:
+        alvo_df = itens_ped_df
+
+    ordens_fila_alvo = alvo_df["_ordem_fila"].astype(int).tolist()
+    mapa_info_fila = {
+        int(r["_ordem_fila"]): {
+            "item_final": str(r["raiz_Item Final"]),
+            "descricao": str(r["raiz_Descricao"] or ""),
+            "fabrica": str(r["raiz_Fábrica"] or ""),
+            "posicao_fila": int(r["_ordem_fila"]) + 1,
+            "pedido": str(r["raiz_Pedido_Str"] or ""),
+            "data_abertura": str(r.get("_dt_abertura_br") or ""),
+        }
+        for _, r in alvo_df.iterrows()
+    }
+
+    comp_sub = comp_agg_full[comp_agg_full["_ordem_fila"].isin(ordens_fila_alvo)].copy()
+    comp_sub = comp_sub.sort_values(by=["Item", "_ordem_fila"], ascending=[True, True])
+
+    # Consolida por insumo (`Item`) dentro do escopo selecionado (Pedido inteiro ou Item específico)
+    insumos_consolidados: List[Dict[str, Any]] = []
+    for comp_code, grp in comp_sub.groupby("Item", sort=False):
+        r_first = grp.iloc[0]
+        tp = str(r_first["Tipo"] or "").strip().upper()
+        tipo_desc = (
+            "Matéria Prima (C)"
+            if tp == "C"
+            else ("Componente Produzido (P)" if tp == "P" else f"Outro ({tp})")
+        )
+
+        consumo_total_escopo = round(float(grp["Consumo"].sum()), 4)
+        falta_total_escopo = round(float(grp["Falta"].sum()), 4)
+        estoque_total = round(float(r_first["estoque"]), 4)
+        # Saldo na fila no momento do primeiro item do pedido que consome este insumo
+        saldo_fila_ref = round(float(r_first["estoque_disp_fila"]), 4)
+        disponivel_escopo = falta_total_escopo <= 1e-6
+
+        itens_finais_afetados: List[Dict[str, Any]] = []
+        item_final_com_falta_principal = ""
+        dt_abertura_ref_principal = ""
+        for _, r_g in grp.iterrows():
+            of_idx = int(r_g["_ordem_fila"])
+            meta_f = mapa_info_fila.get(of_idx, {})
+            falta_i = round(float(r_g["Falta"]), 4)
+            if falta_i > 0 and not item_final_com_falta_principal:
+                item_final_com_falta_principal = meta_f.get("item_final", "")
+                dt_abertura_ref_principal = meta_f.get("data_abertura", "")
+            itens_finais_afetados.append(
+                {
+                    "item_final": meta_f.get("item_final", ""),
+                    "descricao": meta_f.get("descricao", ""),
+                    "fabrica": meta_f.get("fabrica", ""),
+                    "posicao_fila": meta_f.get("posicao_fila", of_idx + 1),
+                    "data_abertura": meta_f.get("data_abertura", ""),
+                    "consumo": round(float(r_g["Consumo"]), 4),
+                    "saldo_fila": round(float(r_g["estoque_disp_fila"]), 4),
+                    "falta": falta_i,
+                    "disponivel": bool(r_g["Disponivel"]),
+                }
+            )
+
+        ref_item_final = (
+            item_filtro
+            or item_final_com_falta_principal
+            or (itens_finais_afetados[0]["item_final"] if itens_finais_afetados else "")
+        )
+        ref_dt_abertura = (
+            dt_abertura_ref_principal
+            or (itens_finais_afetados[0].get("data_abertura", "") if itens_finais_afetados else "")
+        )
+
+        info_ger = _enriquecer_insumo_gerencial(
+            comp_item=str(comp_code),
+            tipo_comp=tp,
+            local_prod_raw=r_first.get("Local_Prod"),
+            op_prod_raw=r_first.get("Ordem_Prod"),
+            raiz_pedido_str=ped_norm,
+            raiz_item_final=ref_item_final,
+            raiz_data_abertura=ref_dt_abertura,
+        )
+
+        insumos_consolidados.append(
+            {
+                "item": str(comp_code),
+                "descricao": str(r_first["Den_Item"] or ""),
+                "tipo": tp,
+                "tipo_descricao": tipo_desc,
+                "baixa": str(r_first.get("Baixa") or "").upper(),
+                "consumo": consumo_total_escopo,
+                "estoque_l": estoque_total,
+                "estoque_total": estoque_total,
+                "saldo_fila": saldo_fila_ref,
+                "falta": falta_total_escopo,
+                "disponivel": disponivel_escopo,
+                "local_prod": info_ger["fabrica_componente"],
+                "itens_finais_afetados": itens_finais_afetados,
+                "qtd_itens_finais_afetados": len(itens_finais_afetados),
+                "qtd_itens_finais_com_falta": sum(1 for x in itens_finais_afetados if x["falta"] > 0),
+                **info_ger,
+            }
+        )
+
+    faltando_list = [x for x in insumos_consolidados if not x["disponivel"]]
+    disponiveis_list = [x for x in insumos_consolidados if x["disponivel"]]
+
+    faltando_list.sort(key=lambda x: (-x["falta"], x["tipo"], x["item"]))
+    disponiveis_list.sort(key=lambda x: (x["tipo"], x["item"]))
+
+    gerencial_faltando = _organizar_insumos_gerencial(faltando_list)
+    gerencial_disponiveis = _organizar_insumos_gerencial(disponiveis_list)
+
+    primeiro_it = itens_do_pedido[0]
+    total_itens_ped = len(itens_do_pedido)
+    itens_disp_ped = sum(1 for x in itens_do_pedido if x["status"] == "Disponível")
+    itens_falta_ped = total_itens_ped - itens_disp_ped
+
+    return {
+        "pedido": ped_norm,
+        "escopo_item_final": item_filtro or "TODOS",
+        "cliente": primeiro_it.get("cliente", ""),
+        "data_abertura": primeiro_it.get("data_abertura", ""),
+        "entrega": primeiro_it.get("entrega", ""),
+        "simulado": any(x["simulado"] for x in itens_do_pedido),
+        "origem_simulacao": primeiro_it.get("origem_simulacao", ""),
+        "total_itens_pedido": total_itens_ped,
+        "itens_pedido_disponiveis": itens_disp_ped,
+        "itens_pedido_com_falta": itens_falta_ped,
+        "status_pedido": "Disponível" if itens_falta_ped == 0 else "Com Falta",
+        "itens_do_pedido": itens_do_pedido,
+        "total_insumos": len(insumos_consolidados),
+        "total_faltando": len(faltando_list),
+        "total_disponiveis": len(disponiveis_list),
+        "faltando": faltando_list,
+        "disponiveis": disponiveis_list,
+        "gerencial_faltando": gerencial_faltando,
+        "gerencial_disponiveis": gerencial_disponiveis,
         "session_id": str(session_id or "default"),
     }
 

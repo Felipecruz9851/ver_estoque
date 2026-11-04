@@ -10,6 +10,10 @@ DATA_DIR = Path(os.environ.get("VER_ESTOQUE_DATA_DIR", BACKEND_DIR / "data"))
 # Pasta onde os snapshots são disponibilizados manualmente.
 SNAPSHOTS_DIR = Path(os.environ.get("VER_ESTOQUE_SNAPSHOTS_DIR", DATA_DIR / "snapshots"))
 EXPORTS_DIR = DATA_DIR / "exports"
+OC_CACHE_FILE = DATA_DIR / "oc_abertas_cache.pkl"
+
+INTRANET_DEFAULT_USER = os.environ.get("VER_ESTOQUE_INTRANET_USER", "felipe.cruz")
+INTRANET_DEFAULT_PASS = os.environ.get("VER_ESTOQUE_INTRANET_PASS", "#Gladoscruz.9851")
 
 FRONTEND_DIST = Path(
     os.environ.get(

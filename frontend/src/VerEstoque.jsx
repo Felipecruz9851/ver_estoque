@@ -14,12 +14,14 @@ const criarLinhaPedidoVazia = () => ({
 export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const tableId = useId();
   const simDialogTitleId = useId();
+  const resumoDialogTitleId = useId();
   const userFieldId = useId();
   const passFieldId = useId();
 
   const sentinelRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const simDialogRef = useRef(null);
+  const resumoDialogRef = useRef(null);
 
   // Estados de dados
   const [itens, setItens] = useState([]);
@@ -90,6 +92,16 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const [abaDetalhe, setAbaDetalhe] = useState("faltando"); // 'faltando' | 'disponiveis'
   const [modalBaixa, setModalBaixa] = useState("todos"); // 'todos' | 'S' | 'N'
   const [modalTipo, setModalTipo] = useState("todos"); // 'todos' | 'C' | 'P'
+
+  // Modal Gerencial de Resumo do Pedido ("O que falta para resolver o pedido ou o item")
+  const [resumoPedidoInput, setResumoPedidoInput] = useState("");
+  const [resumoDados, setResumoDados] = useState(null);
+  const [carregandoResumo, setCarregandoResumo] = useState(false);
+  const [erroResumo, setErroResumo] = useState("");
+  const [abaResumo, setAbaResumo] = useState("faltando"); // 'faltando' | 'disponiveis'
+  const [resumoBaixa, setResumoBaixa] = useState("todos"); // 'todos' | 'S' | 'N'
+  const [resumoTipo, setResumoTipo] = useState("todos"); // 'todos' | 'C' | 'P'
+  const [resumoItemEscopo, setResumoItemEscopo] = useState("TODOS"); // 'TODOS' | cod_item_final
 
   // Fecha menu de coluna ao clicar fora
   useEffect(() => {
@@ -451,6 +463,576 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
     setDetalhesItem(null);
   };
 
+  // --- Ações da Tela / Modal Gerencial de Resumo de Pedido ---
+  const carregarResumoPedido = async (
+    numPed,
+    itEscopo = "TODOS",
+    bFiltro = resumoBaixa,
+    tFiltro = resumoTipo,
+    fabFiltro = ""
+  ) => {
+    const pedLimpo = String(numPed || "").trim();
+    const itemLimpo = String(itEscopo || "TODOS").trim();
+    if (!pedLimpo && (!itemLimpo || itemLimpo === "TODOS")) {
+      setErroResumo("Informe o número de um pedido para consultar o resumo gerencial.");
+      return;
+    }
+
+    setCarregandoResumo(true);
+    setErroResumo("");
+    try {
+      const res = await apiCall("obter_resumo_pedido", {
+        pedido: pedLimpo,
+        item_final: itemLimpo === "TODOS" ? "" : itemLimpo,
+        fabrica: fabFiltro,
+        baixa: bFiltro,
+        tipo: tFiltro,
+      });
+      if (res && res.erro) throw new Error(res.erro);
+      setResumoDados(res);
+      if (res.pedido) {
+        setResumoPedidoInput(res.pedido);
+      }
+      setResumoItemEscopo(res.escopo_item_final || "TODOS");
+      if ((res.total_faltando || 0) === 0 && (res.total_disponiveis || 0) > 0) {
+        setAbaResumo("disponiveis");
+      } else {
+        setAbaResumo("faltando");
+      }
+    } catch (e) {
+      setErroResumo(e.message || "Não foi possível carregar o resumo do pedido.");
+      setResumoDados(null);
+    } finally {
+      setCarregandoResumo(false);
+    }
+  };
+
+  const abrirResumoPedido = (pedidoAlvo = "", itemEscopoInicial = "TODOS", fabricaAlvo = "") => {
+    const pedEfetivo =
+      String(pedidoAlvo || "").trim() ||
+      String(filtroPedido || "").trim() ||
+      (itens.find((x) => x.pedido)?.pedido || "");
+
+    const bIni = filtroBaixa;
+    const tIni = filtroTipo;
+    setResumoBaixa(bIni);
+    setResumoTipo(tIni);
+    setResumoPedidoInput(pedEfetivo);
+    setResumoItemEscopo(itemEscopoInicial || "TODOS");
+    setErroResumo("");
+
+    if (resumoDialogRef.current && !resumoDialogRef.current.open) {
+      resumoDialogRef.current.showModal();
+    }
+
+    if (pedEfetivo || (itemEscopoInicial && itemEscopoInicial !== "TODOS")) {
+      carregarResumoPedido(pedEfetivo, itemEscopoInicial || "TODOS", bIni, tIni, fabricaAlvo);
+    } else {
+      setResumoDados(null);
+    }
+  };
+
+  const fecharResumoPedido = () => {
+    if (resumoDialogRef.current && resumoDialogRef.current.open) {
+      resumoDialogRef.current.close();
+    }
+  };
+
+  // Renderizador compartilhado da Camada Gerencial (Matérias-Primas separadas de Componentes agrupados por Fábrica)
+  const renderSecaoGerencial = (
+    blocoGerencial,
+    isAbaFaltando = true,
+    exibirItensAfetados = false
+  ) => {
+    const materiasPrimas = blocoGerencial?.materias_primas || [];
+    const componentesPorFabrica = blocoGerencial?.componentes_por_fabrica || [];
+    const resumo = blocoGerencial?.resumo || {};
+
+    if (materiasPrimas.length === 0 && componentesPorFabrica.length === 0) {
+      return isAbaFaltando ? (
+        <div className="py-12 text-center text-xs text-[#2E7D32] flex flex-col items-center gap-2 bg-[#E8F5E9]/25 rounded-sm border border-[#C8E6C9]">
+          <span className="material-symbols-outlined text-4xl">check_circle</span>
+          <strong className="text-sm">
+            Nenhuma matéria-prima ou componente em falta para resolver este escopo!
+          </strong>
+          <span className="text-[#424242]">
+            Todos os insumos necessários possuem saldo suficiente na fila cumulativa.
+          </span>
+        </div>
+      ) : (
+        <div className="py-8 text-center text-xs text-[#757575]">
+          Nenhum insumo registrado como disponível para os filtros selecionados.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-5">
+        {/* BLOCO 1: MATÉRIAS-PRIMAS (TIPO C) */}
+        <section className="border border-[#E0E0E0] rounded-sm bg-white overflow-hidden shadow-2xs">
+          <div className="px-4 py-2.5 bg-[#FFF8E1] border-b border-[#FFE082] flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-[#8B5A2B]">
+                inventory_2
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#5D4037]">
+                Matérias-Primas e Insumos Comprados (Tipo C)
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#8B5A2B] text-white">
+                {materiasPrimas.length}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="px-2 py-0.5 rounded bg-white border border-[#FFE082] text-[#5D4037] font-medium">
+                Com OC Aberta: <strong>{resumo.mp_com_oc || 0}</strong>/{materiasPrimas.length}
+              </span>
+              {(resumo.mp_vinculadas_pedido || 0) > 0 && (
+                <span className="px-2 py-0.5 rounded bg-[#EEF2FF] border border-[#C7D2FE] text-[#312E81] font-semibold">
+                  OC Vinculada ao Pedido: <strong>{resumo.mp_vinculadas_pedido}</strong>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {materiasPrimas.length === 0 ? (
+            <div className="p-4 text-center text-xs text-[#757575]">
+              {isAbaFaltando
+                ? "✓ Nenhuma matéria-prima comprada (Tipo C) em falta."
+                : "Nenhuma matéria-prima comprada neste filtro."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px]">
+                  <tr>
+                    <th scope="col" className="p-2.5">Matéria-Prima</th>
+                    <th scope="col" className="p-2.5">Descrição</th>
+                    {exibirItensAfetados && (
+                      <th scope="col" className="p-2.5">Item(ns) do Pedido</th>
+                    )}
+                    <th scope="col" className="p-2.5 text-center">Baixa</th>
+                    <th scope="col" className="p-2.5 text-right">Saldo Total Estoque</th>
+                    <th scope="col" className="p-2.5 text-right">Saldo na Fila</th>
+                    <th scope="col" className="p-2.5 text-right">Consumo</th>
+                    {isAbaFaltando && (
+                      <th scope="col" className="p-2.5 text-right font-bold text-[#C62828]">
+                        Falta Resolver
+                      </th>
+                    )}
+                    <th scope="col" className="p-2.5">Ordem de Compra (OC)</th>
+                    <th scope="col" className="p-2.5 text-center">Previsão OC</th>
+                    <th
+                      scope="col"
+                      className="p-2.5 text-right"
+                      title="Soma do saldo em OCs com previsão de entrega até a data de abertura da ordem"
+                    >
+                      Saldo OC até Abertura
+                    </th>
+                    <th scope="col" className="p-2.5">Vínculo / Observação OC</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                  {materiasPrimas.map((mp, idx) => (
+                    <tr
+                      key={`${mp.item}_${idx}`}
+                      className={isAbaFaltando ? "hover:bg-[#FFFDF7]" : "hover:bg-[#F9FBF9]"}
+                    >
+                      <th scope="row" className="p-2.5 font-mono font-bold text-[#1A1A1A] whitespace-nowrap">
+                        {mp.item}
+                      </th>
+                      <td
+                        className="p-2.5 text-[#424242] max-w-[230px] truncate"
+                        title={mp.descricao}
+                      >
+                        {mp.descricao || "-"}
+                      </td>
+                      {exibirItensAfetados && (
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap gap-1 max-w-[210px]">
+                            {(mp.itens_finais_afetados || []).map((af, aIdx) => (
+                              <span
+                                key={aIdx}
+                                className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${af.consumo} • Falta: ${af.falta}`}
+                              >
+                                {af.item_final}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                      <td className="p-2.5 text-center">
+                        <span
+                          className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                            mp.baixa === "S"
+                              ? "bg-[#E8F5E9] text-[#2E7D32]"
+                              : "bg-[#F2F2F2] text-[#757575]"
+                          }`}
+                        >
+                          {mp.baixa || "-"}
+                        </span>
+                      </td>
+                      <td
+                        className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]"
+                        title="Saldo total físico em estoque (Situação L)"
+                      >
+                        {mp.estoque_total ?? mp.estoque_l}
+                      </td>
+                      <td className="p-2.5 text-right font-mono text-[#424242]">
+                        {mp.saldo_fila}
+                      </td>
+                      <td className="p-2.5 text-right font-mono font-medium">
+                        {mp.consumo}
+                      </td>
+                      {isAbaFaltando && (
+                        <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/30">
+                          {mp.falta}
+                        </td>
+                      )}
+                      <td className="p-2.5 whitespace-nowrap">
+                        {mp.oc_numero ? (
+                          <div className="flex flex-col leading-tight gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-[#1A1A1A]">
+                                OC #{mp.oc_numero}
+                              </span>
+                              {mp.oc_sit === "A" ? (
+                                <span
+                                  className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2]"
+                                  title="OC em aberto (sit_oc=S / situação A)"
+                                >
+                                  Em Aberto (A)
+                                </span>
+                              ) : mp.oc_pedido_compra ? (
+                                <span
+                                  className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]"
+                                  title={`Pedido de Compra no fornecedor #${mp.oc_pedido_compra}`}
+                                >
+                                  Ped.Compra #{mp.oc_pedido_compra}
+                                </span>
+                              ) : null}
+                            </div>
+                            <span className="text-[10px] text-[#666666]">
+                              Qtd OC: <strong>{mp.oc_saldo}</strong>
+                              {mp.oc_fornecedor
+                                ? ` • ${mp.oc_fornecedor}`
+                                : mp.oc_comprador
+                                ? ` • Compr.: ${mp.oc_comprador}`
+                                : ""}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                            Sem OC aberta
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-center font-mono font-semibold whitespace-nowrap">
+                        {mp.oc_previsao ? (
+                          <span className="px-2 py-0.5 rounded bg-[#FFF8E1] border border-[#FFE082] text-[#5D4037]">
+                            {mp.oc_previsao}
+                          </span>
+                        ) : (
+                          <span className="text-[#9E9E9E]">-</span>
+                        )}
+                      </td>
+                      <td
+                        className="p-2.5 text-right whitespace-nowrap"
+                        title={
+                          mp.oc_data_abertura_ref
+                            ? `Soma das OCs deste item com previsão <= ${mp.oc_data_abertura_ref} (Data de Abertura da Ordem)`
+                            : "Data de abertura da ordem não informada"
+                        }
+                      >
+                        <div className="flex flex-col items-end leading-tight gap-0.5">
+                          <span
+                            className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
+                              (mp.oc_saldo_ate_abertura || 0) > 0
+                                ? (mp.oc_saldo_ate_abertura || 0) >= (mp.falta || 0)
+                                  ? "bg-[#E8F5E9] text-[#2E7D32] border border-[#A5D6A7]"
+                                  : "bg-[#FFF8E1] text-[#E65100] border border-[#FFE082]"
+                                : "bg-[#F5F5F5] text-[#757575] border border-[#E0E0E0]"
+                            }`}
+                          >
+                            {mp.oc_saldo_ate_abertura ?? 0}
+                          </span>
+                          <span className="text-[10px] text-[#666666]">
+                            {mp.oc_data_abertura_ref ? (
+                              <>
+                                até <strong>{mp.oc_data_abertura_ref}</strong>
+                                {mp.oc_qtd_ate_abertura > 0
+                                  ? ` (${mp.oc_qtd_ate_abertura} OC)`
+                                  : ""}
+                              </>
+                            ) : (
+                              "Sem dt. abertura"
+                            )}
+                          </span>
+                          {(mp.oc_saldo_total_item || 0) > (mp.oc_saldo_ate_abertura || 0) && (
+                            <span
+                              className="text-[9px] text-[#1565C0]"
+                              title="Saldo total somando todas as OCs abertas deste item (incluindo previsões após a abertura da ordem)"
+                            >
+                              Total OC: {mp.oc_saldo_total_item}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2.5">
+                        {mp.oc_numero ? (
+                          mp.oc_vinculada_pedido ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-bold bg-[#EEF2FF] text-[#312E81] border border-[#C7D2FE]">
+                                <span className="material-symbols-outlined text-[12px]">link</span>
+                                Vinculada ao Pedido ({mp.oc_vinculo})
+                              </span>
+                              {mp.oc_texto && (
+                                <span
+                                  className="text-[10px] font-mono text-[#4338CA] max-w-[230px] truncate"
+                                  title={mp.oc_texto}
+                                >
+                                  {mp.oc_texto}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-medium bg-[#F5F5F5] text-[#424242] border border-[#E0E0E0]">
+                                Previsão mais antiga
+                              </span>
+                              {mp.oc_texto && (
+                                <span
+                                  className="text-[10px] text-[#757575] max-w-[230px] truncate"
+                                  title={mp.oc_texto}
+                                >
+                                  {mp.oc_texto}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <span className="text-[10px] text-[#9E9E9E]">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* BLOCO 2: COMPONENTES PRODUZIDOS (TIPO P) AGRUPADOS POR FÁBRICA */}
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-[#1565C0]">
+                precision_manufacturing
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#1565C0]">
+                Componentes Produzidos Internamente (Tipo P) • Agrupados por Fábrica
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1565C0] text-white">
+                {resumo.total_componentes || 0}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9] text-[#0D47A1] font-medium">
+                Fábricas Envolvidas: <strong>{componentesPorFabrica.length}</strong>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-white border border-[#D5D5D5] text-[#424242] font-medium">
+                Com OP Aberta: <strong>{resumo.comp_com_op || 0}</strong>/{resumo.total_componentes || 0}
+              </span>
+            </div>
+          </div>
+
+          {componentesPorFabrica.length === 0 ? (
+            <div className="p-4 border border-[#E0E0E0] rounded-sm bg-white text-center text-xs text-[#757575]">
+              {isAbaFaltando
+                ? "✓ Nenhum componente produzido (Tipo P) em falta."
+                : "Nenhum componente produzido neste filtro."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {componentesPorFabrica.map((grupo) => (
+                <div
+                  key={grupo.fabrica}
+                  className="border border-[#E0E0E0] rounded-sm bg-white overflow-hidden shadow-2xs"
+                >
+                  {/* Cabeçalho da Fábrica */}
+                  <div className="px-4 py-2 bg-[#E3F2FD]/65 border-b border-[#BBDEFB] flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[16px] text-[#0D47A1]">
+                        factory
+                      </span>
+                      <span className="text-xs font-bold text-[#0D47A1]">
+                        Fábrica: {grupo.fabrica}
+                      </span>
+                      <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-[#0D47A1] text-white">
+                        {grupo.total_itens} item(ns)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px]">
+                      {grupo.total_faltando > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-[#FFEBEE] text-[#C62828] font-semibold">
+                          {grupo.total_faltando} em falta
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded bg-white border border-[#BBDEFB] text-[#0D47A1] font-medium">
+                        OPs abertas: <strong>{grupo.total_com_op}</strong>/{grupo.total_itens}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tabela de Componentes da Fábrica */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px]">
+                        <tr>
+                          <th scope="col" className="p-2.5">Componente</th>
+                          <th scope="col" className="p-2.5">Descrição</th>
+                          {exibirItensAfetados && (
+                            <th scope="col" className="p-2.5">Item(ns) do Pedido</th>
+                          )}
+                          <th scope="col" className="p-2.5 text-center">Baixa</th>
+                          <th scope="col" className="p-2.5 text-right">Saldo Total Estoque</th>
+                          <th scope="col" className="p-2.5 text-right">Saldo na Fila</th>
+                          <th scope="col" className="p-2.5 text-right">Consumo</th>
+                          {isAbaFaltando && (
+                            <th scope="col" className="p-2.5 text-right font-bold text-[#C62828]">
+                              Falta Resolver
+                            </th>
+                          )}
+                          <th scope="col" className="p-2.5">OP Componente</th>
+                          <th scope="col" className="p-2.5 text-center">Abertura OP</th>
+                          <th scope="col" className="p-2.5 text-center">Entrega OP</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                        {grupo.itens.map((comp, cIdx) => (
+                          <tr
+                            key={`${comp.item}_${cIdx}`}
+                            className={isAbaFaltando ? "hover:bg-[#F5F9FF]" : "hover:bg-[#F9FBF9]"}
+                          >
+                            <th
+                              scope="row"
+                              className="p-2.5 font-mono font-bold text-[#1A1A1A] whitespace-nowrap"
+                            >
+                              {comp.item}
+                            </th>
+                            <td
+                              className="p-2.5 text-[#424242] max-w-[230px] truncate"
+                              title={comp.descricao}
+                            >
+                              {comp.descricao || "-"}
+                            </td>
+                            {exibirItensAfetados && (
+                              <td className="p-2.5">
+                                <div className="flex flex-wrap gap-1 max-w-[210px]">
+                                  {(comp.itens_finais_afetados || []).map((af, aIdx) => (
+                                    <span
+                                      key={aIdx}
+                                      className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                      title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${af.consumo} • Falta: ${af.falta}`}
+                                    >
+                                      {af.item_final}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                            )}
+                            <td className="p-2.5 text-center">
+                              <span
+                                className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                  comp.baixa === "S"
+                                    ? "bg-[#E8F5E9] text-[#2E7D32]"
+                                    : "bg-[#F2F2F2] text-[#757575]"
+                                }`}
+                              >
+                                {comp.baixa || "-"}
+                              </span>
+                            </td>
+                            <td
+                              className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]"
+                              title="Saldo total físico em estoque (Situação L)"
+                            >
+                              {comp.estoque_total ?? comp.estoque_l}
+                            </td>
+                            <td className="p-2.5 text-right font-mono text-[#424242]">
+                              {comp.saldo_fila}
+                            </td>
+                            <td className="p-2.5 text-right font-mono font-medium">
+                              {comp.consumo}
+                            </td>
+                            {isAbaFaltando && (
+                              <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/30">
+                                {comp.falta}
+                              </td>
+                            )}
+                            <td className="p-2.5 whitespace-nowrap">
+                              {comp.ordem_prod ? (
+                                <div className="flex flex-col leading-tight">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-bold text-[#0D47A1]">
+                                      OP #{comp.ordem_prod}
+                                    </span>
+                                    <span
+                                      className={`px-1.5 py-0.2 rounded text-[9px] font-semibold ${
+                                        comp.op_vinculo === "PEDIDO"
+                                          ? "bg-[#EEF2FF] text-[#312E81] border border-[#C7D2FE]"
+                                          : "bg-[#F5F5F5] text-[#666666] border border-[#E0E0E0]"
+                                      }`}
+                                    >
+                                      {comp.op_vinculo === "PEDIDO" ? "Pedido" : "Lote"}
+                                    </span>
+                                  </div>
+                                  {comp.op_saldo > 0 && (
+                                    <span className="text-[10px] text-[#666666]">
+                                      Saldo OP: <strong>{comp.op_saldo}</strong>
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                                  Sem OP aberta
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                              {comp.op_data_abertura ? (
+                                <span className="px-2 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] text-[#1A1A1A] font-medium">
+                                  {comp.op_data_abertura}
+                                </span>
+                              ) : (
+                                <span className="text-[#9E9E9E]">-</span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                              {comp.op_data_entrega ? (
+                                <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9] text-[#0D47A1] font-semibold">
+                                  {comp.op_data_entrega}
+                                </span>
+                              ) : (
+                                <span className="text-[#9E9E9E]">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  };
+
   const limparFiltros = () => {
     setFiltroLocal("");
     setFiltroPedido("");
@@ -688,6 +1270,18 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             </div>
           )}
 
+          {/* BOTÃO RESUMO GERENCIAL DO PEDIDO */}
+          <button
+            onClick={() => abrirResumoPedido(filtroPedido)}
+            disabled={loading}
+            className="px-3.5 py-1.5 rounded-sm bg-[#8B5A2B] text-white text-xs font-medium hover:bg-[#6F4722] transition-colors flex items-center gap-1.5 shadow-sm"
+            title="Abrir tela de resumo gerencial de um pedido: o que falta para resolver o pedido ou o item"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[16px]">assignment_late</span>
+            <span>Resumo do Pedido</span>
+          </button>
+
           {/* BOTÃO CONSULTAR / SIMULAR PEDIDO ESPECÍFICO */}
           <button
             onClick={abrirModalSimulador}
@@ -746,7 +1340,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       </header>
 
       {/* CONTEÚDO PRINCIPAL AJUSTADO À ALTURA DA TELA (SEM OVERFLOW VERTICAL EXTERNO) */}
-      <main className="flex-1 flex flex-col px-6 py-3 w-full max-w-[1850px] mx-auto min-h-0 overflow-hidden space-y-2.5">
+      <main className="flex-1 flex flex-col px-6 py-3 w-full max-w-[95%] mx-auto min-h-0 overflow-hidden space-y-2.5">
         {/* CARDS DE RESUMO (COMPACTOS E FIXOS) */}
         <section className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
@@ -1299,7 +1893,21 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 : "font-medium"
                             }`}
                           >
-                            {it.pedido || "-"}
+                            {it.pedido ? (
+                              <button
+                                type="button"
+                                onClick={() => abrirResumoPedido(it.pedido, "TODOS")}
+                                className="px-1.5 py-0.5 rounded hover:bg-[#FFF8E1] hover:text-[#8B5A2B] border border-transparent hover:border-[#FFE082] transition-colors inline-flex items-center gap-1"
+                                title={`Abrir Resumo Gerencial do Pedido #${it.pedido}`}
+                              >
+                                <span>{it.pedido}</span>
+                                <span className="material-symbols-outlined text-[12px] opacity-65">
+                                  open_in_new
+                                </span>
+                              </button>
+                            ) : (
+                              "-"
+                            )}
                           </td>
                           <td className="p-2.5 text-[#424242] font-medium">
                             {it.fabrica}
@@ -1370,14 +1978,30 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             )}
                           </td>
                           <td className="p-2.5 pr-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => abrirDetalhes(it)}
-                              className="px-2 py-1 text-xs font-medium rounded-sm border border-[#D5D5D5] bg-white text-[#1A1A1A] hover:bg-[#F2F2F2] transition-colors inline-flex items-center gap-1 shadow-xs"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">visibility</span>
-                              <span>Ver Insumos</span>
-                            </button>
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => abrirDetalhes(it)}
+                                className="px-2 py-1 text-xs font-medium rounded-sm border border-[#D5D5D5] bg-white text-[#1A1A1A] hover:bg-[#F2F2F2] transition-colors inline-flex items-center gap-1 shadow-xs"
+                                title="Ver insumos deste item final (separados em Matéria-Prima e Componentes por Fábrica)"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                                <span>Ver Insumos</span>
+                              </button>
+                              {it.pedido && (
+                                <button
+                                  type="button"
+                                  onClick={() => abrirResumoPedido(it.pedido, "TODOS")}
+                                  className="px-2 py-1 text-xs font-medium rounded-sm border border-[#D7CCC8] bg-[#FFF8E1]/70 text-[#5D4037] hover:bg-[#FFE082]/60 transition-colors inline-flex items-center gap-1 shadow-xs"
+                                  title={`Resumo Gerencial do Pedido #${it.pedido}: o que falta para resolver o pedido ou o item`}
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">
+                                    assignment
+                                  </span>
+                                  <span>Resumo</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1703,12 +2327,12 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         </form>
       </dialog>
 
-      {/* MODAL DE DETALHES DO ITEM FINAL COM FILTRO DE BAIXA E TIPO */}
+      {/* MODAL DE DETALHES DO ITEM FINAL (ORGANIZADO EM MATÉRIA-PRIMA E COMPONENTES POR FÁBRICA) */}
       {itemSelecionado && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl rounded-sm shadow-2xl flex flex-col max-h-[92vh] border border-[#E0E0E0] animate-fade-in">
+          <div className="bg-white w-full max-w-90% rounded-sm shadow-2xl flex flex-col max-h-[92vh] border border-[#E0E0E0] animate-fade-in">
             {/* Header do Modal */}
-            <div className="p-5 border-b border-[#E0E0E0] flex items-start justify-between bg-[#FAFAFA]">
+            <div className="p-5 border-b border-[#E0E0E0] flex items-start justify-between bg-[#FAFAFA] gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-base font-bold text-[#1A1A1A]">
@@ -1781,14 +2405,32 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={fecharDetalhes}
-                className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#F2F2F2] transition-colors"
-                title="Fechar"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {itemSelecionado.pedido && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ped = itemSelecionado.pedido;
+                      fecharDetalhes();
+                      abrirResumoPedido(ped, "TODOS");
+                    }}
+                    className="px-3 py-1.5 rounded-sm bg-[#8B5A2B] text-white text-xs font-semibold hover:bg-[#6F4722] transition-colors flex items-center gap-1.5 shadow-xs"
+                    title="Abrir tela de resumo gerencial para o pedido completo"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">assignment</span>
+                    <span>Resumo do Pedido #{itemSelecionado.pedido}</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={fecharDetalhes}
+                  className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#F2F2F2] transition-colors"
+                  title="Fechar"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
             </div>
 
             {/* BARRA DE CONTROLES E FILTROS INTERNOS DO MODAL */}
@@ -1805,7 +2447,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   }`}
                 >
                   <span className="material-symbols-outlined text-[16px]">warning</span>
-                  <span>Faltando ({detalhesItem?.total_faltando || 0})</span>
+                  <span>O que falta para o item ({detalhesItem?.total_faltando || 0})</span>
                 </button>
 
                 <button
@@ -1903,7 +2545,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
                       }`}
                     >
-                      Comprado (C)
+                      Matéria-Prima (C)
                     </button>
                     <button
                       type="button"
@@ -1917,174 +2559,32 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
                       }`}
                     >
-                      Produzido (P)
+                      Componente (P)
                     </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Conteúdo da Tabela do Modal */}
-            <div className="p-5 overflow-y-auto flex-1">
+            {/* Conteúdo Gerencial do Modal (Separado em Matéria-Prima e Componentes por Fábrica) */}
+            <div className="p-5 overflow-y-auto flex-1 bg-[#F9F9F9]">
               {carregandoDetalhes ? (
                 <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#757575]">
                   <span className="material-symbols-outlined text-3xl animate-spin text-[#1A1A1A]">
                     progress_activity
                   </span>
-                  <span className="text-xs">Carregando insumos e saldo na fila...</span>
+                  <span className="text-xs">
+                    Carregando insumos, saldos de estoque, OPs de componentes e OCs...
+                  </span>
                 </div>
               ) : !detalhesItem ? (
                 <div className="py-8 text-center text-xs text-[#757575]">
                   Dados não disponíveis.
                 </div>
               ) : abaDetalhe === "faltando" ? (
-                detalhesItem.faltando.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-[#2E7D32] flex flex-col items-center gap-2">
-                    <span className="material-symbols-outlined text-4xl">check_circle</span>
-                    <strong className="text-sm">
-                      Nenhum componente ou matéria-prima em falta nesta posição da fila!
-                    </strong>
-                    <span>
-                      Todos os insumos necessários possuem saldo suficiente após o consumo das OPs anteriores.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto border border-[#E0E0E0] rounded-sm">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-[#FFEBEE]/60 text-[#C62828] font-semibold border-b border-[#E0E0E0]">
-                        <tr>
-                          <th className="p-2.5">Tipo</th>
-                          <th className="p-2.5 text-center">Baixa</th>
-                          <th className="p-2.5">Item</th>
-                          <th className="p-2.5">Descrição</th>
-                          <th className="p-2.5 text-right">Estoque Inicial (L)</th>
-                          <th className="p-2.5 text-right">Saldo na Fila</th>
-                          <th className="p-2.5 text-right">Consumo Necessário</th>
-                          <th className="p-2.5 text-right font-bold">Falta Líquida</th>
-                          <th className="p-2.5">Local Prod / OP</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#EEEEEE]">
-                        {detalhesItem.faltando.map((comp, cIdx) => (
-                          <tr key={cIdx} className="hover:bg-[#FFF5F5]">
-                            <td className="p-2.5">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  comp.tipo === "C"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-blue-100 text-blue-800"
-                                }`}
-                              >
-                                {comp.tipo === "C" ? "Matéria Prima (C)" : "Componente (P)"}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <span
-                                className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
-                                  comp.baixa === "S"
-                                    ? "bg-[#E8F5E9] text-[#2E7D32]"
-                                    : "bg-[#F2F2F2] text-[#757575]"
-                                }`}
-                              >
-                                {comp.baixa || "-"}
-                              </span>
-                            </td>
-                            <td className="p-2.5 font-mono font-bold text-[#1A1A1A]">{comp.item}</td>
-                            <td
-                              className="p-2.5 text-[#424242] max-w-[240px] truncate"
-                              title={comp.descricao}
-                            >
-                              {comp.descricao || "-"}
-                            </td>
-                            <td className="p-2.5 text-right font-mono text-[#757575]">
-                              {comp.estoque_l}
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-medium text-[#424242]">
-                              {comp.saldo_fila}
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-medium">
-                              {comp.consumo}
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-bold text-[#C62828]">
-                              {comp.falta}
-                            </td>
-                            <td className="p-2.5 text-[11px] text-[#666666]">
-                              {comp.ordem_prod ? `OP: ${comp.ordem_prod}` : comp.local_prod || "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              ) : detalhesItem.disponiveis.length === 0 ? (
-                <div className="py-8 text-center text-xs text-[#757575]">
-                  Nenhum componente registrado como disponível para os filtros selecionados.
-                </div>
+                renderSecaoGerencial(detalhesItem.gerencial_faltando, true, false)
               ) : (
-                <div className="overflow-x-auto border border-[#E0E0E0] rounded-sm">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-[#E8F5E9]/60 text-[#2E7D32] font-semibold border-b border-[#E0E0E0]">
-                      <tr>
-                        <th className="p-2.5">Tipo</th>
-                        <th className="p-2.5 text-center">Baixa</th>
-                        <th className="p-2.5">Item</th>
-                        <th className="p-2.5">Descrição</th>
-                        <th className="p-2.5 text-right">Estoque Inicial (L)</th>
-                        <th className="p-2.5 text-right font-bold">Saldo na Fila</th>
-                        <th className="p-2.5 text-right">Consumo Necessário</th>
-                        <th className="p-2.5">Local Prod / OP</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#EEEEEE]">
-                      {detalhesItem.disponiveis.map((comp, cIdx) => (
-                        <tr key={cIdx} className="hover:bg-[#F1F8F1]">
-                          <td className="p-2.5">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                comp.tipo === "C"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-blue-100 text-blue-800"
-                              }`}
-                            >
-                              {comp.tipo === "C" ? "Matéria Prima (C)" : "Componente (P)"}
-                            </span>
-                          </td>
-                          <td className="p-2.5 text-center">
-                            <span
-                              className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
-                                comp.baixa === "S"
-                                  ? "bg-[#E8F5E9] text-[#2E7D32]"
-                                  : "bg-[#F2F2F2] text-[#757575]"
-                              }`}
-                            >
-                              {comp.baixa || "-"}
-                            </span>
-                          </td>
-                          <td className="p-2.5 font-mono font-bold text-[#1A1A1A]">{comp.item}</td>
-                          <td
-                            className="p-2.5 text-[#424242] max-w-[280px] truncate"
-                            title={comp.descricao}
-                          >
-                            {comp.descricao || "-"}
-                          </td>
-                          <td className="p-2.5 text-right font-mono text-[#757575]">
-                            {comp.estoque_l}
-                          </td>
-                          <td className="p-2.5 text-right font-mono font-bold text-[#2E7D32]">
-                            {comp.saldo_fila}
-                          </td>
-                          <td className="p-2.5 text-right font-mono font-medium">
-                            {comp.consumo}
-                          </td>
-                          <td className="p-2.5 text-[11px] text-[#666666]">
-                            {comp.ordem_prod ? `OP: ${comp.ordem_prod}` : comp.local_prod || "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                renderSecaoGerencial(detalhesItem.gerencial_disponiveis, false, false)
               )}
             </div>
 
@@ -2106,6 +2606,398 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           </div>
         </div>
       )}
+
+      {/* MODAL NATIVO <dialog> DE RESUMO GERENCIAL DO PEDIDO ("O QUE FALTA PARA RESOLVER O PEDIDO OU O ITEM") */}
+      <dialog
+        ref={resumoDialogRef}
+        aria-labelledby={resumoDialogTitleId}
+        className="w-full max-w-80% rounded-sm shadow-2xl border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto"
+      >
+        <div className="flex flex-col max-h-[92vh]">
+          {/* Cabeçalho do Resumo Gerencial com Busca de Pedido */}
+          <div className="px-5 py-4 border-b border-[#E0E0E0] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-[#8B5A2B]">
+                  assignment_late
+                </span>
+                <h2 id={resumoDialogTitleId} className="text-sm font-bold text-[#1A1A1A]">
+                  Resumo Gerencial do Pedido — O que falta para resolver o pedido ou o item
+                </h2>
+              </div>
+              <p className="text-[11px] text-[#666666]">
+                Visão consolidada separada por Matéria-Prima (previsão de OC) e Componentes agrupados por Fábrica (abertura e entrega de OP).
+              </p>
+            </div>
+
+            {/* Busca rápida de Pedido dentro da tela de resumo */}
+            <div className="flex items-center gap-2">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  carregarResumoPedido(resumoPedidoInput, "TODOS", resumoBaixa, resumoTipo);
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <label className="text-xs font-semibold text-[#424242]">Pedido:</label>
+                <input
+                  type="text"
+                  value={resumoPedidoInput}
+                  onChange={(e) => setResumoPedidoInput(e.target.value)}
+                  placeholder="Ex: 205408"
+                  className="w-32 px-2.5 py-1 text-xs font-mono font-bold bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#8B5A2B]"
+                />
+                <button
+                  type="submit"
+                  disabled={carregandoResumo}
+                  className="px-3 py-1 text-xs font-semibold bg-[#8B5A2B] text-white rounded-sm hover:bg-[#6F4722] transition-colors flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-[15px]">search</span>
+                  <span>Consultar</span>
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={fecharResumoPedido}
+                className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#EEEEEE] transition-colors"
+                aria-label="Fechar resumo do pedido"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Corpo do Resumo do Pedido */}
+          <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-[#F9F9F9]">
+            {erroResumo && (
+              <div
+                role="alert"
+                className="p-3 rounded-sm bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] text-xs flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[16px]">error</span>
+                <span>{erroResumo}</span>
+              </div>
+            )}
+
+            {carregandoResumo ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575]">
+                <span className="material-symbols-outlined text-3xl animate-spin text-[#8B5A2B]">
+                  progress_activity
+                </span>
+                <span className="text-xs">
+                  Consolidando itens do pedido, estoque total, OPs por fábrica e previsões de OC...
+                </span>
+              </div>
+            ) : !resumoDados ? (
+              <div className="py-12 text-center text-xs text-[#757575]">
+                Informe o número de um pedido acima e clique em <strong>Consultar</strong> para visualizar o resumo gerencial.
+              </div>
+            ) : (
+              <>
+                {/* FAIXA DE DADOS DO PEDIDO E KPIS EXECUTIVOS */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  {/* Card 1: Dados do Pedido */}
+                  <div className="bg-white p-3.5 rounded-sm border border-[#E0E0E0] shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#757575]">
+                        Pedido #{resumoDados.pedido || "-"}
+                      </span>
+                      {resumoDados.status_pedido === "Disponível" ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F5E9] text-[#2E7D32]">
+                          Pedido 100% Disponível
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FFEBEE] text-[#C62828]">
+                          {resumoDados.itens_pedido_com_falta} de {resumoDados.total_itens_pedido} item(ns) com falta
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      className="text-xs font-bold text-[#1A1A1A] truncate"
+                      title={resumoDados.cliente}
+                    >
+                      Cliente: {resumoDados.cliente || "Não informado"}
+                    </p>
+                    <div className="flex flex-wrap gap-3 text-[11px] text-[#666666]">
+                      <span>
+                        Abertura:{" "}
+                        <strong className="font-mono text-[#1A1A1A]">
+                          {resumoDados.data_abertura || "-"}
+                        </strong>
+                      </span>
+                      <span>
+                        Entrega:{" "}
+                        <strong className="font-mono text-[#1A1A1A]">
+                          {resumoDados.entrega || "-"}
+                        </strong>
+                      </span>
+                      <span>
+                        Itens Finais:{" "}
+                        <strong className="text-[#1A1A1A]">{resumoDados.total_itens_pedido}</strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Pendências de Matéria-Prima (Compras) */}
+                  <div className="bg-white p-3.5 rounded-sm border border-[#FFE082] shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#8B5A2B] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">inventory_2</span>
+                        Matérias-Primas Faltantes (Tipo C)
+                      </span>
+                      <span className="text-lg font-bold text-[#8B5A2B] font-mono">
+                        {resumoDados.gerencial_faltando?.resumo?.materias_primas_faltando || 0}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] text-[#5D4037] pt-1">
+                      <span className="px-2 py-0.5 rounded bg-[#FFF8E1] border border-[#FFE082]">
+                        Com OC aberta:{" "}
+                        <strong>{resumoDados.gerencial_faltando?.resumo?.mp_com_oc || 0}</strong>
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-[#EEF2FF] border border-[#C7D2FE] text-[#312E81]">
+                        OC vinculada ao pedido:{" "}
+                        <strong>
+                          {resumoDados.gerencial_faltando?.resumo?.mp_vinculadas_pedido || 0}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Pendências de Componentes por Fábrica (Produção) */}
+                  <div className="bg-white p-3.5 rounded-sm border border-[#90CAF9] shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#1565C0] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">
+                          precision_manufacturing
+                        </span>
+                        Componentes Faltantes (Tipo P)
+                      </span>
+                      <span className="text-lg font-bold text-[#1565C0] font-mono">
+                        {resumoDados.gerencial_faltando?.resumo?.componentes_faltando || 0}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] text-[#0D47A1] pt-1">
+                      <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9]">
+                        Fábricas com pendência:{" "}
+                        <strong>
+                          {resumoDados.gerencial_faltando?.resumo?.total_fabricas || 0}
+                        </strong>
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-white border border-[#BBDEFB]">
+                        Com OP aberta:{" "}
+                        <strong>{resumoDados.gerencial_faltando?.resumo?.comp_com_op || 0}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SELETOR DE ESCOPO: RESOLVER O PEDIDO INTEIRO OU UM ITEM ESPECÍFICO DO PEDIDO */}
+                <div className="bg-white p-3 rounded-sm border border-[#E0E0E0] shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#424242]">
+                      Escopo da Análise — Selecione o Pedido Completo ou um Item do Pedido:
+                    </span>
+                    <span className="text-[11px] text-[#757575]">
+                      {resumoItemEscopo === "TODOS"
+                        ? `Exibindo consolidado de todos os ${resumoDados.total_itens_pedido} itens do pedido`
+                        : `Filtrado para o item ${resumoItemEscopo}`}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-0.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        carregarResumoPedido(resumoDados.pedido, "TODOS", resumoBaixa, resumoTipo)
+                      }
+                      className={`px-3 py-1.5 rounded-sm text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
+                        resumoItemEscopo === "TODOS"
+                          ? "bg-[#222222] text-white border-[#222222]"
+                          : "bg-[#FAFAFA] text-[#424242] border-[#D5D5D5] hover:bg-[#F0F0F0]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">layers</span>
+                      <span>Pedido Completo ({resumoDados.total_itens_pedido} itens)</span>
+                    </button>
+
+                    {(resumoDados.itens_do_pedido || []).map((itPed, idx) => {
+                      const selecionado = resumoItemEscopo === itPed.item_final;
+                      const disp = itPed.status === "Disponível";
+                      return (
+                        <button
+                          key={`${itPed.item_final}_${idx}`}
+                          type="button"
+                          onClick={() =>
+                            carregarResumoPedido(
+                              resumoDados.pedido,
+                              itPed.item_final,
+                              resumoBaixa,
+                              resumoTipo,
+                              itPed.fabrica
+                            )
+                          }
+                          title={`${itPed.descricao || ""} • Fábrica: ${itPed.fabrica} • Fila #${itPed.posicao_fila}`}
+                          className={`px-2.5 py-1.5 rounded-sm text-xs border transition-colors flex items-center gap-1.5 ${
+                            selecionado
+                              ? "bg-[#8B5A2B] text-white border-[#8B5A2B] font-bold"
+                              : disp
+                              ? "bg-white text-[#2E7D32] border-[#C8E6C9] hover:bg-[#E8F5E9]/40"
+                              : "bg-white text-[#C62828] border-[#FFCDD2] hover:bg-[#FFEBEE]/40"
+                          }`}
+                        >
+                          <span className="font-mono text-[10px] opacity-80">
+                            #{itPed.posicao_fila}
+                          </span>
+                          <span className="font-mono">{itPed.item_final}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              selecionado
+                                ? "bg-white/20 text-white"
+                                : disp
+                                ? "bg-[#E8F5E9] text-[#2E7D32]"
+                                : "bg-[#FFEBEE] text-[#C62828]"
+                            }`}
+                          >
+                            {disp ? "OK" : `Falta ${itPed.componentes_faltando}`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* BARRA DE ABAS (O QUE FALTA RESOLVER vs DISPONÍVEIS) E FILTROS (BAIXA / ORIGEM) */}
+                <div className="px-4 py-2 bg-white border border-[#E0E0E0] rounded-sm flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setAbaResumo("faltando")}
+                      className={`py-1.5 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-colors ${
+                        abaResumo === "faltando"
+                          ? "border-[#C62828] text-[#C62828]"
+                          : "border-transparent text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">warning</span>
+                      <span>
+                        O que falta para resolver{" "}
+                        {resumoItemEscopo === "TODOS" ? "o Pedido" : `o Item ${resumoItemEscopo}`}{" "}
+                        ({resumoDados.total_faltando || 0})
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setAbaResumo("disponiveis")}
+                      className={`py-1.5 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-colors ${
+                        abaResumo === "disponiveis"
+                          ? "border-[#2E7D32] text-[#2E7D32]"
+                          : "border-transparent text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                      <span>Insumos já Disponíveis ({resumoDados.total_disponiveis || 0})</span>
+                    </button>
+                  </div>
+
+                  {/* Filtros Baixa e Tipo do Resumo */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-[#666666]">Baixa:</span>
+                      <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-[10px]">
+                        {["todos", "S", "N"].map((bOpt) => (
+                          <button
+                            key={bOpt}
+                            type="button"
+                            onClick={() => {
+                              setResumoBaixa(bOpt);
+                              carregarResumoPedido(
+                                resumoDados.pedido,
+                                resumoItemEscopo,
+                                bOpt,
+                                resumoTipo
+                              );
+                            }}
+                            className={`px-2 py-0.5 font-medium border-l first:border-l-0 border-[#D5D5D5] ${
+                              resumoBaixa === bOpt
+                                ? "bg-[#222222] text-white"
+                                : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                            }`}
+                          >
+                            {bOpt === "todos" ? "Todas" : bOpt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-[#666666]">Tipo:</span>
+                      <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-[10px]">
+                        {[
+                          { k: "todos", l: "Todos" },
+                          { k: "C", l: "Matéria-Prima (C)" },
+                          { k: "P", l: "Componente (P)" },
+                        ].map((tOpt) => (
+                          <button
+                            key={tOpt.k}
+                            type="button"
+                            onClick={() => {
+                              setResumoTipo(tOpt.k);
+                              carregarResumoPedido(
+                                resumoDados.pedido,
+                                resumoItemEscopo,
+                                resumoBaixa,
+                                tOpt.k
+                              );
+                            }}
+                            className={`px-2 py-0.5 font-medium border-l first:border-l-0 border-[#D5D5D5] ${
+                              resumoTipo === tOpt.k
+                                ? "bg-[#222222] text-white"
+                                : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                            }`}
+                          >
+                            {tOpt.l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEÇÕES GERENCIAIS: MATÉRIAS-PRIMAS (C) E COMPONENTES AGRUPADOS POR FÁBRICA (P) */}
+                {abaResumo === "faltando"
+                  ? renderSecaoGerencial(
+                      resumoDados.gerencial_faltando,
+                      true,
+                      resumoItemEscopo === "TODOS" && resumoDados.total_itens_pedido > 1
+                    )
+                  : renderSecaoGerencial(
+                      resumoDados.gerencial_disponiveis,
+                      false,
+                      resumoItemEscopo === "TODOS" && resumoDados.total_itens_pedido > 1
+                    )}
+              </>
+            )}
+          </div>
+
+          {/* Rodapé do Modal de Resumo */}
+          <div className="px-5 py-3.5 border-t border-[#E0E0E0] bg-[#FAFAFA] flex items-center justify-between">
+            <span className="text-[11px] text-[#757575]">
+              {resumoDados
+                ? `Pedido #${resumoDados.pedido || "-"} • ${resumoDados.total_insumos} insumo(s) avaliado(s) no escopo`
+                : ""}
+            </span>
+            <button
+              type="button"
+              onClick={fecharResumoPedido}
+              className="px-4 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors"
+            >
+              Fechar Resumo
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }

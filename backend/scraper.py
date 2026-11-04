@@ -20,6 +20,12 @@ HOME_URL = f"{INTRANET_BASE}/"
 LOGIN_URL = f"{INTRANET_BASE}/home/login/"
 SITUACAO_PEDIDOS_URL = f"{INTRANET_BASE}/pcp/situacao_pedidos2.php"
 ESTRUTURA_PEDIDO_URL = f"{INTRANET_BASE}/JSN001/json-pedido-estrutura.php"
+OC_ATRASADAS_URL = f"{INTRANET_BASE}/sup/oc_atrasadas.php"
+OC_ATRASADAS_URLS = [
+    f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=&sit_oc=S",
+    f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=",
+    f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=2050-12-31&familia=",
+]
 
 DEFAULT_HEADERS = {
     "User-Agent": (
@@ -509,3 +515,296 @@ def consultar_pedidos_simulados(
         "pedidos_encontrados": sorted(encontrados_set),
         "pedidos_sem_estrutura": sem_estrutura,
     }
+
+
+def _limpar_celula_php(valor: Any) -> str:
+    """
+    Remove mensagens de Notice/Warning do PHP injetadas dentro das células HTML
+    (ex: 'Notice : Undefined index: num_pedido in C:\\Intranet\\sup\\oc_atrasadas.php on line 248 0').
+    """
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    texto = re.sub(
+        r"(?:Notice|Warning|Deprecated|Fatal error)\s*:.*?on line\s+\d+",
+        "",
+        texto,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return re.sub(r"\s+", " ", texto).strip().rstrip(".")
+
+
+def parse_oc_texto_vinculo(texto: Any) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Extrai (pedido_vinculado, item_final_vinculado) do campo Texto da Ordem de Compra (OC).
+    Exemplos suportados:
+      - 'ped - 204298 | it - 1AMCOZI715821A' -> ('204298', '1AMCOZI715821A')
+      - 'PED 206524 IT 1CMLU160000177 9 MTS'  -> ('206524', '1CMLU160000177')
+      - 'PEDIDO 207549'                      -> ('207549', None)
+      - 'OP 1980060 PEDIDO 206860'           -> ('206860', None)
+      - 'ped - 0 | it - 1MAMC22CBFLALU'      -> ('0', '1MAMC22CBFLALU')
+      - '209478'                             -> ('209478', None)
+    Ignora números curtos de requisição interna (ex: 'PEDIDO 0068 SAMUEL') quando não há 'IT 1...'.
+    """
+    raw = _limpar_celula_php(texto)
+    if not raw:
+        return None, None
+
+    t = raw.upper()
+    m_it = re.search(r"\bIT(?:EM)?[\s.:_-]*([123][A-Z0-9]{4,})\b", t)
+    item_final = m_it.group(1).strip() if m_it else None
+
+    m_ped = re.search(r"\bPED(?:IDO)?[\s.:_-]*(\d+)\b", t)
+    pedido = None
+    if m_ped:
+        dig = m_ped.group(1).lstrip("0") or "0"
+        if dig == "0":
+            if item_final:
+                pedido = "0"
+        elif len(dig) >= 5 or item_final is not None:
+            pedido = dig
+    elif re.fullmatch(r"(?:18|19|20|21)\d{4}", t):
+        pedido = t
+
+    return pedido, item_final
+
+
+def parse_oc_abertas_html(html: str, sit_oc_origem: str = "") -> List[Dict[str, Any]]:
+    """
+    Faz o parse da tabela de Ordens de Compra em `/sup/oc_atrasadas.php` (com ou sem `sit_oc=S`).
+    Colunas de `/sup/oc_atrasadas.php`:
+      O.C. | Emissão OC | Abertura OC | Prev.Entrega | Saldo | Pedido | Data Pedido |
+      Item | Descrição | Fornecedor | Prazo | Comprador | Previsão | Programador | Família | Texto
+    """
+    soup = BeautifulSoup(html or "", "lxml")
+    table = soup.find("table", attrs={"border": "1"})
+    if table is None:
+        tables = soup.find_all("table")
+        for tb in reversed(tables):
+            if len(tb.find_all("tr")) > 2:
+                table = tb
+                break
+    if table is None:
+        return []
+
+    rows = table.find_all("tr")
+    if len(rows) < 2:
+        return []
+
+    headers_raw = [cell.get_text(" ", strip=True) for cell in rows[0].find_all(["td", "th"])]
+    headers_norm = [_norm_header(h) for h in headers_raw]
+
+    idx_map: Dict[str, int] = {}
+    for idx, hn in enumerate(headers_norm):
+        if hn in ("o c", "oc", "ordem compra", "nro oc"):
+            idx_map.setdefault("oc", idx)
+        elif "emiss" in hn:
+            idx_map.setdefault("emissao", idx)
+        elif "abertura" in hn:
+            idx_map.setdefault("abertura", idx)
+        elif ("prev" in hn and "entreg" in hn) or "origem" in hn:
+            idx_map.setdefault("prev_entrega", idx)
+        elif hn == "saldo":
+            idx_map.setdefault("saldo", idx)
+        elif hn == "unidade":
+            idx_map.setdefault("unidade", idx)
+        elif hn == "pedido":
+            idx_map.setdefault("pedido_compra", idx)
+        elif "data" in hn and "pedido" in hn:
+            idx_map.setdefault("data_pedido_compra", idx)
+        elif hn == "item" or ("cod" in hn and "item" in hn):
+            idx_map.setdefault("item", idx)
+        elif "descri" in hn:
+            idx_map.setdefault("descricao", idx)
+        elif "raz" in hn and "social" in hn:
+            idx_map.setdefault("raz_social_reduz", idx)
+        elif hn == "fornecedor":
+            idx_map.setdefault("fornecedor", idx)
+        elif hn == "prazo":
+            idx_map.setdefault("prazo", idx)
+        elif "previs" in hn:
+            idx_map.setdefault("previsao", idx)
+        elif "comprador" in hn:
+            idx_map.setdefault("comprador", idx)
+        elif "programador" in hn:
+            idx_map.setdefault("programador", idx)
+        elif "fam" in hn:
+            idx_map.setdefault("familia", idx)
+        elif hn == "texto" or "obs" in hn:
+            idx_map.setdefault("texto", idx)
+
+    if "oc" not in idx_map or "item" not in idx_map:
+        return []
+
+    def _cell(vals: List[str], key: str) -> str:
+        c_i = idx_map.get(key)
+        if c_i is None or c_i >= len(vals):
+            return ""
+        return _limpar_celula_php(vals[c_i])
+
+    registros: List[Dict[str, Any]] = []
+    for tr in rows[1:]:
+        tds = [td.get_text(" ", strip=True) for td in tr.find_all("td")]
+        if not tds or len(tds) <= idx_map["item"]:
+            continue
+
+        item_code = normalizar_cod_item(_cell(tds, "item"))
+        oc_num = _cell(tds, "oc")
+        if not item_code or not oc_num:
+            continue
+
+        texto_oc = _cell(tds, "texto")
+        ped_vinc, it_vinc = parse_oc_texto_vinculo(texto_oc)
+        forn_reduz = _cell(tds, "raz_social_reduz") or _cell(tds, "fornecedor")
+
+        prev_entrega = _cell(tds, "prev_entrega")
+        prev_reprog = _cell(tds, "previsao")
+        if prev_reprog in ("--", "-", ""):
+            prev_reprog = ""
+        if prev_entrega in ("--", "-", ""):
+            prev_entrega = ""
+
+        previsao_efetiva = prev_reprog or prev_entrega
+        ped_compra = _cell(tds, "pedido_compra")
+        if ped_compra == "0":
+            ped_compra = ""
+
+        registros.append(
+            {
+                "oc_numero": oc_num,
+                "item": item_code,
+                "descricao": _cell(tds, "descricao"),
+                "saldo": parse_numero_flexivel(_cell(tds, "saldo"), default=0.0),
+                "unidade": _cell(tds, "unidade"),
+                "emissao_oc": _cell(tds, "emissao"),
+                "abertura_oc": _cell(tds, "abertura"),
+                "data_origem": prev_entrega or previsao_efetiva,
+                "previsao": previsao_efetiva,
+                "fornecedor": forn_reduz,
+                "comprador": _cell(tds, "comprador"),
+                "programador": _cell(tds, "programador"),
+                "prazo": _cell(tds, "prazo"),
+                "pedido_compra": ped_compra,
+                "data_pedido_compra": _cell(tds, "data_pedido_compra"),
+                "familia": _cell(tds, "familia"),
+                "texto": texto_oc,
+                "pedido_vinculado": ped_vinc,
+                "item_final_vinculado": it_vinc,
+                "sit_oc": sit_oc_origem or ("A" if not ped_compra else "P"),
+            }
+        )
+
+    return registros
+
+
+def consultar_oc_abertas_intranet(
+    usuario: Optional[str] = None,
+    senha: Optional[str] = None,
+    timeout: float = 45.0,
+) -> List[Dict[str, Any]]:
+    """
+    Consulta as Ordens de Compra de matérias-primas em `/sup/oc_atrasadas.php` combinando:
+      1. `http://192.168.0.6/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=&sit_oc=S` (OCs em aberto situação A)
+      2. `http://192.168.0.6/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=` (OCs situação padrão até a data atual)
+      3. `http://192.168.0.6/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=2050-12-31&familia=` (OCs situação padrão com entrega programada futura)
+    Desduplica por `(oc_numero, item)` preservando a ordem acima.
+    """
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    user_eff = str(usuario or _settings.INTRANET_DEFAULT_USER).strip()
+    pass_eff = str(senha or _settings.INTRANET_DEFAULT_PASS)
+
+    consultas = [
+        (
+            f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=&sit_oc=S",
+            "A",
+        ),
+        (
+            f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=",
+            "P",
+        ),
+        (
+            f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=2050-12-31&familia=",
+            "P",
+        ),
+    ]
+
+    consolidado: List[Dict[str, Any]] = []
+    vistos: set = set()
+
+    with httpx.Client(headers=DEFAULT_HEADERS, timeout=timeout) as client:
+        _autenticar_intranet(client, usuario=user_eff, senha=pass_eff)
+        for url, sit_flag in consultas:
+            try:
+                resp = client.get(url, follow_redirects=True)
+                if _foi_redirecionado_para_login(resp):
+                    _autenticar_intranet(client, usuario=user_eff, senha=pass_eff)
+                    resp = client.get(url, follow_redirects=True)
+                resp.raise_for_status()
+                html = _decodificar_html(resp)
+                rows_parsed = parse_oc_abertas_html(html, sit_oc_origem=sit_flag)
+                for reg in rows_parsed:
+                    chave = (str(reg.get("oc_numero") or ""), str(reg.get("item") or ""))
+                    if chave not in vistos:
+                        vistos.add(chave)
+                        consolidado.append(reg)
+            except Exception as exc:
+                print(f"[OC Intranet] Aviso ao consultar {url}: {exc}")
+
+    return consolidado
+
+
+def carregar_ou_atualizar_oc_abertas(
+    forcar_intranet: bool = False,
+    usuario: Optional[str] = None,
+    senha: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Carrega a lista de OCs em aberto do cache local (`oc_abertas_cache.pkl`) ou atualiza da Intranet
+    quando `forcar_intranet=True` ou quando o cache ainda não existe.
+    """
+    import pickle
+
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    cache_path = _settings.OC_CACHE_FILE
+
+    if not forcar_intranet and cache_path.exists():
+        try:
+            with open(cache_path, "rb") as f:
+                dados = pickle.load(f)
+            if isinstance(dados, list) and len(dados) > 0:
+                return dados
+        except Exception as exc:
+            print(f"[OC Cache] Aviso ao ler cache de OCs: {exc}")
+
+    try:
+        dados_intranet = consultar_oc_abertas_intranet(usuario=usuario, senha=senha)
+        if dados_intranet:
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(cache_path, "wb") as f:
+                    pickle.dump(dados_intranet, f)
+            except Exception as exc:
+                print(f"[OC Cache] Aviso ao salvar cache de OCs: {exc}")
+            return dados_intranet
+    except Exception as exc:
+        print(f"[OC Intranet] Aviso ao consultar OCs na Intranet (usando cache se disponível): {exc}")
+
+    if cache_path.exists():
+        try:
+            with open(cache_path, "rb") as f:
+                dados = pickle.load(f)
+            if isinstance(dados, list):
+                return dados
+        except Exception:
+            pass
+
+    return []
+
