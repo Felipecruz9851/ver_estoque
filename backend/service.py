@@ -1206,11 +1206,35 @@ def _obter_fila_calculada(
     )
 
     # 3. Abatimento cumulativo vetorizado do estoque Situação L na ordem da fila
-    consumo_acumulado = comp_agg.groupby("Item")["Consumo"].cumsum()
-    consumo_anterior = consumo_acumulado - comp_agg["Consumo"]
-    comp_agg["estoque_disp_fila"] = (comp_agg["estoque"] - consumo_anterior).clip(lower=0.0)
-    comp_agg["Disponivel"] = (comp_agg["estoque_disp_fila"] + 1e-6) >= comp_agg["Consumo"]
-    comp_agg["Falta"] = (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0)
+    # O estoque no ERP é armazenado com 2 casas decimais (ex: 0.78), enquanto a estrutura (Consumo)
+    # possui 3 a 4 casas decimais (ex: 0.783), gerando resíduos de arredondamento (ex: 0.003).
+    comp_agg["_consumo_efetivo"] = np.where(
+        comp_agg["Consumo"] >= 0.01,
+        comp_agg["Consumo"].round(2),
+        comp_agg["Consumo"],
+    )
+    consumo_acumulado = comp_agg.groupby("Item")["_consumo_efetivo"].cumsum()
+    consumo_anterior = (consumo_acumulado - comp_agg["_consumo_efetivo"]).round(4)
+    comp_agg["estoque_disp_fila"] = (comp_agg["estoque"] - consumo_anterior).clip(lower=0.0).round(4)
+    falta_bruta = (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0)
+    comp_agg["Disponivel"] = (
+        ((comp_agg["estoque_disp_fila"] + 1e-6) >= comp_agg["Consumo"])
+        | (
+            (comp_agg["estoque_disp_fila"] > 0)
+            & (comp_agg["Consumo"].round(2) <= (comp_agg["estoque_disp_fila"].round(2) + 1e-6))
+        )
+        | (
+            (comp_agg["estoque_disp_fila"] > 0)
+            & (falta_bruta <= 0.01 + 1e-6)
+            & (comp_agg["Consumo"] >= 0.05)
+        )
+    )
+    comp_agg["Falta"] = np.where(
+        comp_agg["Disponivel"],
+        0.0,
+        (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0).round(4),
+    )
+    comp_agg = comp_agg.drop(columns=["_consumo_efetivo"])
 
     # 4. Consolida métricas por Item Final mantendo exatamente a ordenação `_ordem_fila`
     totais_fila = (
