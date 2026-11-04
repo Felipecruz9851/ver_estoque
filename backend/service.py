@@ -442,10 +442,11 @@ def _construir_mapas_enriquecimento(
     }
 
 
-def gerar_dataframe_cons(salvar_excel: bool = False) -> pd.DataFrame:
+def gerar_dataframe_cons(salvar_excel: bool = False, forcar_oc: bool = False) -> pd.DataFrame:
     """
     Gera o DataFrame 'cons' completo através de calc_data(dfs) sobre o snapshot mais recente,
     SEM filtros restritivos (preserva Tipo 'C', 'P', 'T', 'F' e todas as datas de entrega).
+    Quando forcar_oc=True, atualiza também a base de OCs abertas diretamente na Intranet.
     """
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando snapshot...")
     dfs, caminho = carregar_snapshot()
@@ -500,7 +501,7 @@ def gerar_dataframe_cons(salvar_excel: bool = False) -> pd.DataFrame:
         df_consumo.to_excel(dest_excel, index=False)
 
     global _cache_cons, _cache_timestamp, _cache_data_calculo, _cache_snapshot_nome, _cache_data_snapshot, _enriquecimento
-    _enriquecimento = _construir_mapas_enriquecimento(dfs, df_consumo)
+    _enriquecimento = _construir_mapas_enriquecimento(dfs, df_consumo, forcar_oc=forcar_oc)
     _cache_cons = df_consumo
     _cache_timestamp = time.time()
     _cache_data_calculo = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -511,10 +512,10 @@ def gerar_dataframe_cons(salvar_excel: bool = False) -> pd.DataFrame:
     return df_consumo
 
 
-def obter_cons_com_cache(recarregar: bool = False) -> pd.DataFrame:
-    """Retorna o DataFrame 'cons' base com cache em memória (recarregar=True relê o snapshot)."""
+def obter_cons_com_cache(recarregar: bool = False, forcar_oc: bool = False) -> pd.DataFrame:
+    """Retorna o DataFrame 'cons' base com cache em memória (recarregar=True relê o snapshot e forcar_oc=True busca OCs frescas na Intranet)."""
     if _cache_cons is None or recarregar:
-        return gerar_dataframe_cons()
+        return gerar_dataframe_cons(forcar_oc=forcar_oc)
     return _cache_cons
 
 
@@ -1127,6 +1128,7 @@ def _obter_fila_calculada(
     baixa_filtro: str = "TODOS",
     tipo_filtro: str = "TODOS",
     recarregar: bool = False,
+    forcar_oc: bool = False,
     session_id: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
     """
@@ -1134,7 +1136,7 @@ def _obter_fila_calculada(
     seguindo estritamente a ordem de Data de Abertura da OP (e itens sem data ao final da lista).
     """
     if recarregar or _cache_cons is None:
-        gerar_dataframe_cons()
+        gerar_dataframe_cons(forcar_oc=forcar_oc)
 
     sess = obter_sessao(session_id)
     b_norm = baixa_filtro if baixa_filtro in ("S", "N") else "TODOS"
@@ -1286,11 +1288,13 @@ def analisar_itens_finais(
     page: int = 0,
     page_size: int = 50,
     recarregar: bool = False,
+    forcar_oc: bool = False,
     session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Retorna os itens finais paginados após o abatimento cumulativo de estoque na fila,
     aplicando filtros de visualização e retornando métricas e estado da simulação da sessão.
+    Quando recarregar=True, se forcar_oc=True (ou padrão na recarga manual), sincroniza OCs frescas da Intranet.
     """
     filtros = filtros or {}
 
@@ -1309,6 +1313,7 @@ def analisar_itens_finais(
         baixa_filtro=baixa_filtro,
         tipo_filtro=tipo_filtro,
         recarregar=recarregar,
+        forcar_oc=forcar_oc,
         session_id=session_id,
     )
     info_carga = obter_info_carregamento()

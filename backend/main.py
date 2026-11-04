@@ -68,11 +68,14 @@ def _resolver_session_id(request: Request, response: Optional[Response] = None) 
 
 def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = None) -> Dict[str, Any]:
     if method == "obter_estoque_itens_finais":
+        recarregar = payload.get("recarregar", False)
+        forcar_oc = payload.get("forcar_oc", recarregar)
         return service.analisar_itens_finais(
             filtros=payload.get("filtros"),
             page=payload.get("page", 0),
             page_size=payload.get("page_size", 50),
-            recarregar=payload.get("recarregar", False),
+            recarregar=recarregar,
+            forcar_oc=forcar_oc,
             session_id=session_id,
         )
     if method == "obter_detalhes_item_final":
@@ -94,15 +97,11 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             session_id=session_id,
         )
     if method == "recarregar_dados_estoque":
-        if payload.get("atualizar_oc"):
-            try:
-                service.scraper.carregar_ou_atualizar_oc_abertas(forcar_intranet=True)
-            except Exception:
-                pass
-        service.obter_cons_com_cache(recarregar=True)
+        forcar_oc = payload.get("atualizar_oc", True)
+        service.obter_cons_com_cache(recarregar=True, forcar_oc=forcar_oc)
         return {
             "status": "ok",
-            "mensagem": "Dados de estoque recarregados com sucesso.",
+            "mensagem": "Dados de estoque e OCs recarregados com sucesso.",
             "session_id": session_id,
         }
     if method == "exportar_analise_estoque":

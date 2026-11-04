@@ -6,3 +6,4 @@ __pycache__/
 backend/data/exports/
 *.pkl
 *.parquet
+backend/data/snapshots/*/

@@ -120,7 +120,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       if (isReset) {
         setLoading(true);
         if (recarregarCache) {
-          setLoadingMsg("Recalculando árvore BFS e fila cumulativa...");
+          setLoadingMsg("Recalculando árvore BFS e atualizando OCs na Intranet...");
         } else {
           setLoadingMsg("Calculando fila de estoque...");
         }
@@ -145,6 +145,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           page: paginaDestino,
           page_size: pageSize,
           recarregar: recarregarCache,
+          forcar_oc: recarregarCache,
         };
 
         const res = await apiCall("obter_estoque_itens_finais", payload);
