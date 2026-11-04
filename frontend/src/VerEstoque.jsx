@@ -617,7 +617,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                     <th scope="col" className="p-2.5 text-right">Consumo</th>
                     {isAbaFaltando && (
                       <th scope="col" className="p-2.5 text-right font-bold text-[#C62828]">
-                        Falta Resolver
+                        Falta
                       </th>
                     )}
                     <th scope="col" className="p-2.5">Ordem de Compra (OC)</th>
@@ -903,7 +903,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           <th scope="col" className="p-2.5 text-right">Consumo</th>
                           {isAbaFaltando && (
                             <th scope="col" className="p-2.5 text-right font-bold text-[#C62828]">
-                              Falta Resolver
+                              Falta
                             </th>
                           )}
                           <th scope="col" className="p-2.5">OP Componente</th>
