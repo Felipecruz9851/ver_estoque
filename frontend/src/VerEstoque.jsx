@@ -1799,7 +1799,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   {renderColumnHeader("fabrica", "Local Produção", "min-w-[130px]")}
                   {renderColumnHeader("data_abertura", "Abertura OP ▾", "min-w-[115px] bg-[#F2F2F2]/60", "center")}
                   {renderColumnHeader("saldo", "Saldo Pedido", "min-w-[90px]", "right")}
-                  {renderColumnHeader("entrega", "Entrega", "min-w-[95px]", "center")}
+                  {renderColumnHeader("entrega", "Entrega Pedido", "min-w-[95px]", "center")}
                   <th scope="col" className="p-2.5 text-center min-w-[130px] font-semibold text-[#424242]">
                     Disponibilidade
                   </th>
