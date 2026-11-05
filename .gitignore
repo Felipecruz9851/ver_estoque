@@ -7,3 +7,4 @@ backend/data/exports/
 *.pkl
 *.parquet
 backend/data/snapshots/*/
+docs/vault/.obsidian/workspace.json
