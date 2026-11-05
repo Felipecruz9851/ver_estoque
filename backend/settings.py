@@ -7,8 +7,15 @@ BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND_DIR.parent
 
 DATA_DIR = Path(os.environ.get("VER_ESTOQUE_DATA_DIR", BACKEND_DIR / "data"))
-# Pasta onde os snapshots são disponibilizados manualmente.
+# Pasta onde os snapshots são armazenados e consumidos.
 SNAPSHOTS_DIR = Path(os.environ.get("VER_ESTOQUE_SNAPSHOTS_DIR", DATA_DIR / "snapshots"))
+# Endereço remoto fornecedor dos snapshots oficiais
+SNAPSHOTS_REMOTE_URL = os.environ.get(
+    "VER_ESTOQUE_SNAPSHOTS_REMOTE_URL", "http://366n:8001/api/snapshots"
+)
+SNAPSHOTS_AUTO_SYNC = os.environ.get(
+    "VER_ESTOQUE_SNAPSHOTS_AUTO_SYNC", "true"
+).lower() in ("1", "true", "yes")
 EXPORTS_DIR = DATA_DIR / "exports"
 OC_CACHE_FILE = DATA_DIR / "oc_abertas_cache.pkl"
 

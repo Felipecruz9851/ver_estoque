@@ -37,6 +37,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
   const [dataCarregamento, setDataCarregamento] = useState("");
+  const [snapshotNome, setSnapshotNome] = useState("");
   const [sessionId, setSessionId] = useState("");
 
   // Estados de carregamento e paginação contínua (Infinite Scroll)
@@ -120,7 +121,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       if (isReset) {
         setLoading(true);
         if (recarregarCache) {
-          setLoadingMsg("Recalculando árvore BFS e atualizando OCs na Intranet...");
+          setLoadingMsg("Sincronizando snapshots de 366n, atualizando OCs e recalculando fila...");
         } else {
           setLoadingMsg("Calculando fila de estoque...");
         }
@@ -146,6 +147,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           page_size: pageSize,
           recarregar: recarregarCache,
           forcar_oc: recarregarCache,
+          sincronizar_snapshot: recarregarCache,
         };
 
         const res = await apiCall("obter_estoque_itens_finais", payload);
@@ -175,6 +177,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         if (res.locais_producao) setLocaisProducao(res.locais_producao);
         if (res.data_carga) setDataCarga(res.data_carga);
         if (res.data_carregamento) setDataCarregamento(res.data_carregamento);
+        if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
       } catch (e) {
         alert("Erro ao carregar análise de estoque: " + e.message);
@@ -1255,14 +1258,14 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           {(dataCarga || dataCarregamento) && (
             <div
               className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-[#F9F9F9] border border-[#E0E0E0] rounded-sm text-left shadow-2xs"
-              title={`Base de dados ERP: ${dataCarga}\nProcessado em memória: ${dataCarregamento || dataCarga}`}
+              title={`Snapshot: ${snapshotNome || "ERP"}\nBase de dados ERP: ${dataCarga}\nProcessado em memória: ${dataCarregamento || dataCarga}\nServidor: 366n:8001`}
             >
               <span className="material-symbols-outlined text-[16px] text-[#757575]">
                 schedule
               </span>
               <div className="flex flex-col leading-none">
                 <span className="text-[9px] font-semibold text-[#888888] uppercase tracking-wider">
-                  Dados Carregados
+                  Dados Carregados {snapshotNome ? `(${snapshotNome})` : ""}
                 </span>
                 <span className="text-[11px] font-semibold text-[#1A1A1A] font-mono mt-0.5">
                   {dataCarga || dataCarregamento}

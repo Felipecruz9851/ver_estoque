@@ -98,12 +98,20 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
         )
     if method == "recarregar_dados_estoque":
         forcar_oc = payload.get("atualizar_oc", True)
-        service.obter_cons_com_cache(recarregar=True, forcar_oc=forcar_oc)
+        sincronizar_snapshot = payload.get("sincronizar_snapshot", True)
+        service.obter_cons_com_cache(
+            recarregar=True, forcar_oc=forcar_oc, sincronizar_snapshot=sincronizar_snapshot
+        )
         return {
             "status": "ok",
-            "mensagem": "Dados de estoque e OCs recarregados com sucesso.",
+            "mensagem": "Snapshots, dados de estoque e OCs recarregados com sucesso.",
             "session_id": session_id,
         }
+    if method == "sincronizar_snapshots":
+        forcar = bool(payload.get("forcar", False))
+        resultado = service.sincronizar_base_snapshots(forcar=forcar)
+        resultado["session_id"] = session_id
+        return resultado
     if method == "exportar_analise_estoque":
         return service.exportar_analise_excel(filtros=payload.get("filtros"), session_id=session_id)
     if method == "simular_pedidos":
@@ -138,6 +146,11 @@ def call_method(method: str, req: CallPayload, request: Request, response: Respo
 @router.get("/snapshots")
 def snapshots():
     return [p.name for p in listar_snapshots()]
+
+
+@router.post("/snapshots/sync")
+def sync_snapshots(forcar: bool = False):
+    return service.sincronizar_base_snapshots(forcar=forcar)
 
 
 app = FastAPI(title="Ver Estoque")
@@ -176,6 +189,7 @@ async def session_cookie_middleware(request: Request, call_next):
 
 
 app.include_router(router, prefix="/ver_estoque/api")
+app.include_router(router, prefix="/api")
 app.mount("/ver_estoque/exports", StaticFiles(directory=str(settings.EXPORTS_DIR)), name="exports")
 
 _dist = settings.FRONTEND_DIST

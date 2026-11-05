@@ -1,2 +1,7 @@
-Cole aqui os snapshots (snapshot_*.pkl ou pastas snapshot_*/ com .parquet).
-O mais recente e usado automaticamente.
+Pasta de snapshots locais do Ver Estoque.
+
+Origem dos snapshots:
+1. Sincronização automática/sob demanda a partir de http://366n:8001/api/snapshots
+2. Cópias manuais de 'snapshot_*.pkl' ou diretórios 'snapshot_*/' (parquet).
+
+O snapshot mais recente é utilizado automaticamente pelo motor de cálculo.

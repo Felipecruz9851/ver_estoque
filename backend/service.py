@@ -20,7 +20,7 @@ import polars as pl
 if __package__:
     from . import scraper, settings
     from .calculo import calc_data, sanitizar_dataframe
-    from .snapshots import carregar_snapshot, data_snapshot
+    from .snapshots import carregar_snapshot, data_snapshot, sincronizar_snapshots_remotos
 else:
     import sys
     from pathlib import Path
@@ -31,7 +31,7 @@ else:
     import scraper
     import settings
     from calculo import calc_data, sanitizar_dataframe
-    from snapshots import carregar_snapshot, data_snapshot
+    from snapshots import carregar_snapshot, data_snapshot, sincronizar_snapshots_remotos
 
 # Cache em memória do snapshot base (imutável após carga)
 _cache_cons: Optional[pd.DataFrame] = None
@@ -442,12 +442,36 @@ def _construir_mapas_enriquecimento(
     }
 
 
-def gerar_dataframe_cons(salvar_excel: bool = False, forcar_oc: bool = False) -> pd.DataFrame:
+def sincronizar_base_snapshots(forcar: bool = False) -> Dict[str, Any]:
+    """Sincroniza snapshots a partir da API remota (366n:8001) e recarrega o cache em memória."""
+    res = sincronizar_snapshots_remotos(forcar=forcar)
+    if res.get("baixados") or forcar:
+        gerar_dataframe_cons(forcar_oc=False, sincronizar_snapshot=False)
+    return res
+
+
+def gerar_dataframe_cons(
+    salvar_excel: bool = False,
+    forcar_oc: bool = False,
+    sincronizar_snapshot: bool = False,
+) -> pd.DataFrame:
     """
     Gera o DataFrame 'cons' completo através de calc_data(dfs) sobre o snapshot mais recente,
     SEM filtros restritivos (preserva Tipo 'C', 'P', 'T', 'F' e todas as datas de entrega).
+    Quando sincronizar_snapshot=True (ou settings.SNAPSHOTS_AUTO_SYNC), consulta e atualiza
+    snapshots remotos via http://366n:8001/api/snapshots.
     Quando forcar_oc=True, atualiza também a base de OCs abertas diretamente na Intranet.
     """
+    if sincronizar_snapshot or settings.SNAPSHOTS_AUTO_SYNC:
+        try:
+            res_sync = sincronizar_snapshots_remotos(forcar=False)
+            if res_sync.get("baixados"):
+                print(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] Novos snapshots baixados do servidor remoto: {res_sync['baixados']}"
+                )
+        except Exception as e_sync:
+            print(f"[SNAPSHOT] Aviso: Falha não impeditiva ao sincronizar com servidor remoto: {e_sync}")
+
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando snapshot...")
     dfs, caminho = carregar_snapshot()
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Snapshot '{caminho.name}' carregado. Executando calc_data...")
@@ -512,10 +536,17 @@ def gerar_dataframe_cons(salvar_excel: bool = False, forcar_oc: bool = False) ->
     return df_consumo
 
 
-def obter_cons_com_cache(recarregar: bool = False, forcar_oc: bool = False) -> pd.DataFrame:
+def obter_cons_com_cache(
+    recarregar: bool = False,
+    forcar_oc: bool = False,
+    sincronizar_snapshot: bool = False,
+) -> pd.DataFrame:
     """Retorna o DataFrame 'cons' base com cache em memória (recarregar=True relê o snapshot e forcar_oc=True busca OCs frescas na Intranet)."""
     if _cache_cons is None or recarregar:
-        return gerar_dataframe_cons(forcar_oc=forcar_oc)
+        return gerar_dataframe_cons(
+            forcar_oc=forcar_oc,
+            sincronizar_snapshot=sincronizar_snapshot or recarregar,
+        )
     return _cache_cons
 
 
@@ -1136,7 +1167,7 @@ def _obter_fila_calculada(
     seguindo estritamente a ordem de Data de Abertura da OP (e itens sem data ao final da lista).
     """
     if recarregar or _cache_cons is None:
-        gerar_dataframe_cons(forcar_oc=forcar_oc)
+        gerar_dataframe_cons(forcar_oc=forcar_oc, sincronizar_snapshot=recarregar)
 
     sess = obter_sessao(session_id)
     b_norm = baixa_filtro if baixa_filtro in ("S", "N") else "TODOS"
