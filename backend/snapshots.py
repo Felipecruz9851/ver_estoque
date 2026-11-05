@@ -1,14 +1,18 @@
 """
 Módulo de snapshots do projeto Ver Estoque.
 
-Suporta leitura e sincronização automática/sob demanda a partir do endpoint remoto:
+Suporta leitura e sincronização automática/sob demanda de arquivos Parquet
+a partir das pastas de snapshot disponibilizadas no endpoint remoto:
   http://366n:8001/api/snapshots
 
-Formatos aceitos:
-  - `snapshot_<nome>.pkl`  -> pickle com dict[str, DataFrame] (ordens, cons, estoque, ...)
-  - `snapshot_<nome>/`     -> diretório com `<tabela>.parquet`
+Consome diretamente apenas as tabelas essenciais para a ferramenta:
+  - `ordens.parquet`
+  - `cons.parquet`
+  - `estoque.parquet`
+  - `_sync_meta.json` (metadados de versão e integridade)
 
-Seleciona o snapshot mais recente (por data de modificação).
+Não consome nem descompacta arquivos monolíticos `.pkl`, reduzindo drasticamente
+o tráfego de rede (de centenas de MB para ~2.5 MB) e acelerando o tempo de carga.
 """
 
 from datetime import datetime
@@ -16,7 +20,6 @@ from email.utils import parsedate_to_datetime
 import json
 import os
 from pathlib import Path
-import pickle
 import shutil
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -32,77 +35,113 @@ if __package__:
 else:
     import settings
 
-TABELAS_NECESSARIAS = ("ordens", "cons", "estoque")
+TABELAS_NECESSARIAS: Tuple[str, ...] = ("ordens", "cons", "estoque")
+ARQUIVOS_SINCRONIZAR: Tuple[str, ...] = tuple(f"{t}.parquet" for t in TABELAS_NECESSARIAS) + ("_sync_meta.json",)
 
 
 def _mtime(p: Path) -> float:
+    """Retorna o timestamp da modificação mais recente entre os arquivos Parquet de uma pasta ou arquivo."""
     if p.is_dir():
         arquivos = [f.stat().st_mtime for f in p.glob("*.parquet")]
         return max(arquivos) if arquivos else p.stat().st_mtime
     return p.stat().st_mtime
 
 
-def desempacotar_snapshot_parquet(pkl_path: Path) -> Path:
+def limpar_arquivos_desnecessarios(snapshot_dir: Optional[Path] = None) -> List[str]:
     """
-    Desempacota um arquivo snapshot .pkl em um diretório com arquivos .parquet.
-    Cria ou atualiza `_sync_meta.json` para rastreamento de integridade e versão.
+    Remove arquivos .pkl legados e tabelas .parquet não consumidas pelo Ver Estoque
+    (mantendo estritamente ordens.parquet, cons.parquet, estoque.parquet e _sync_meta.json).
+    Libera espaço em disco eliminando centenas de MBs desnecessários.
     """
-    dest_dir = pkl_path.parent / pkl_path.stem
-    dest_dir.mkdir(parents=True, exist_ok=True)
+    base_dir = snapshot_dir or settings.SNAPSHOTS_DIR
+    removidos: List[str] = []
 
-    with open(pkl_path, "rb") as f:
-        raw = pickle.load(f)
+    if not base_dir.exists():
+        return removidos
 
-    pkl_mtime = pkl_path.stat().st_mtime
-    pkl_size = pkl_path.stat().st_size
-
-    for nome_tabela, df_val in raw.items():
-        if df_val is None:
-            continue
+    # 1. Remove qualquer .pkl da raiz do diretório de snapshots
+    for f in base_dir.glob("*.pkl"):
         try:
-            target_parquet = dest_dir / f"{nome_tabela}.parquet"
-            if isinstance(df_val, pl.DataFrame):
-                df_val.write_parquet(target_parquet)
-            elif isinstance(df_val, pd.DataFrame):
-                pl.from_pandas(df_val).write_parquet(target_parquet)
-            else:
-                continue
-
-            if pkl_mtime > 0:
-                os.utime(target_parquet, (pkl_mtime, pkl_mtime))
+            f.unlink()
+            removidos.append(f.name)
+            print(f"[LIMPEZA] Arquivo .pkl legado removido: {f.name}")
         except Exception as e:
-            print(f"[SNAPSHOT DESEMPACOTAR] Aviso ao salvar tabela '{nome_tabela}': {e}")
+            print(f"[LIMPEZA] Aviso ao remover {f.name}: {e}")
 
-    meta = {
-        "pkl_name": pkl_path.name,
-        "pkl_mtime": pkl_mtime,
-        "pkl_size": pkl_size,
-        "desempacotado_em": datetime.now().isoformat(),
-    }
-    with open(dest_dir / "_sync_meta.json", "w", encoding="utf-8") as f:
-        json.dump(meta, f, indent=2)
+    # 2. Em cada pasta snapshot_*, remove tabelas e arquivos não utilizados
+    for pasta in base_dir.glob("snapshot_*"):
+        if not pasta.is_dir():
+            continue
+        for arq in list(pasta.iterdir()):
+            if arq.is_file() and arq.name not in ARQUIVOS_SINCRONIZAR:
+                try:
+                    arq.unlink()
+                    removidos.append(f"{pasta.name}/{arq.name}")
+                    print(f"[LIMPEZA] Arquivo desnecessário removido: {pasta.name}/{arq.name}")
+                except Exception as e:
+                    print(f"[LIMPEZA] Aviso ao remover {pasta.name}/{arq.name}: {e}")
 
-    return dest_dir
+    return removidos
+
+
+def _abrir_requisicao_arquivo(remote_url: str, pasta: str, nome_arquivo: str, timeout_sec: int = 20):
+    """
+    Abre a requisição para um arquivo remoto testando rotas RESTful compatíveis:
+    1. POSIX standard: `/api/snapshots/{pasta}/{nome_arquivo}`
+    2. Fallback Windows: `/api/snapshots/{pasta}%5C{nome_arquivo}` (para Starlette sem :path)
+    """
+    caminho_win = f"{pasta}\\{nome_arquivo}"
+    url_posix = f"{remote_url}/{urllib.parse.quote(pasta)}/{urllib.parse.quote(nome_arquivo)}"
+    url_win = f"{remote_url}/{urllib.parse.quote(caminho_win)}"
+
+    erros = []
+    for u in (url_posix, url_win):
+        try:
+            req = urllib.request.Request(
+                u,
+                headers={"User-Agent": "VerEstoque/1.0 (+http://localhost)", "Accept": "*/*"},
+            )
+            resp = urllib.request.urlopen(req, timeout=timeout_sec)
+            return resp, u
+        except urllib.error.HTTPError as e:
+            erros.append(f"{u} -> {e.code}")
+            if e.code == 404 and u != url_win:
+                continue
+            raise
+        except Exception as e:
+            erros.append(f"{u} -> {e}")
+            if u != url_win:
+                continue
+            raise
+
+    raise FileNotFoundError(f"Arquivo '{pasta}/{nome_arquivo}' não acessível nas rotas tentadas: {erros}")
 
 
 def sincronizar_snapshots_remotos(
     url: Optional[str] = None,
     forcar: bool = False,
-    desempacotar: bool = True,
     timeout_sec: int = 20,
+    limpar_desnecessarios: bool = True,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Consome os snapshots disponibilizados no endpoint remoto (ex: http://366n:8001/api/snapshots).
-    Compara cabeçalhos (Last-Modified, Content-Length) com o diretório local `settings.SNAPSHOTS_DIR`.
+    Localiza as pastas de snapshot disponíveis e sincroniza exclusivamente os arquivos .parquet
+    essenciais ('ordens', 'cons', 'estoque') e metadados '_sync_meta.json'.
+
+    Compara cabeçalhos HTTP (Last-Modified, Content-Length) com os arquivos locais.
     Baixa somente arquivos novos ou modificados de forma atômica e segura.
+    Não baixa nem utiliza arquivos monolíticos .pkl.
     """
     remote_url = (url or settings.SNAPSHOTS_REMOTE_URL).strip().rstrip("/")
     resultado: Dict[str, Any] = {
         "sucesso": False,
         "url": remote_url,
-        "total_remotos": 0,
+        "pastas_remotas": [],
+        "total_pastas": 0,
         "baixados": [],
         "ja_atualizados": [],
+        "removidos": [],
         "erros": [],
         "mensagem": "",
     }
@@ -120,80 +159,107 @@ def sincronizar_snapshots_remotos(
             resultado["mensagem"] = f"Resposta inesperada do endpoint: {data}"
             return resultado
 
-        # Seleciona apenas arquivos baixáveis (.pkl)
-        candidatos = [
+        # Seleciona pastas de snapshots (prefixo 'snapshot_' e sem extensões de arquivos avulsos)
+        pastas_candidatas = [
             arq
             for arq in arquivos_remotos
-            if isinstance(arq, str) and arq.lower().endswith(".pkl") and not arq.startswith(".")
+            if isinstance(arq, str)
+            and arq.startswith("snapshot_")
+            and not arq.lower().endswith((".pkl", ".tmp", ".txt", ".json", ".bak"))
         ]
-        resultado["total_remotos"] = len(candidatos)
+        resultado["pastas_remotas"] = pastas_candidatas
+        resultado["total_pastas"] = len(pastas_candidatas)
 
-        for nome_arquivo in candidatos:
-            file_url = f"{remote_url}/{urllib.parse.quote(nome_arquivo)}"
-            local_path = settings.SNAPSHOTS_DIR / nome_arquivo
+        for pasta_nome in pastas_candidatas:
+            local_pasta = settings.SNAPSHOTS_DIR / pasta_nome
+            local_pasta.mkdir(parents=True, exist_ok=True)
 
-            try:
-                req_file = urllib.request.Request(
-                    file_url,
-                    headers={"User-Agent": "VerEstoque/1.0"},
-                )
-                with urllib.request.urlopen(req_file, timeout=timeout_sec) as res:
-                    headers = dict(res.headers)
-                    raw_len = headers.get("content-length")
-                    remote_size = int(raw_len) if raw_len and raw_len.isdigit() else None
-                    raw_lm = headers.get("last-modified")
-                    remote_dt = parsedate_to_datetime(raw_lm) if raw_lm else None
-                    remote_mtime = remote_dt.timestamp() if remote_dt else None
+            for nome_arquivo in ARQUIVOS_SINCRONIZAR:
+                local_path = local_pasta / nome_arquivo
+                eh_obrigatorio = nome_arquivo.replace(".parquet", "") in TABELAS_NECESSARIAS
 
-                    # Verifica se o arquivo local já está sincronizado
-                    precisa_baixar = False
-                    if not local_path.exists() or forcar:
-                        precisa_baixar = True
-                    else:
-                        local_size = local_path.stat().st_size
-                        local_mtime = local_path.stat().st_mtime
-                        if remote_size is not None and local_size != remote_size:
-                            precisa_baixar = True
-                        elif remote_mtime is not None and (remote_mtime - local_mtime) > 2.0:
-                            precisa_baixar = True
-
-                    if not precisa_baixar:
-                        resultado["ja_atualizados"].append(nome_arquivo)
-                        continue
-
-                    # Download com escrita atômica via .tmp
-                    temp_path = local_path.with_suffix(".tmp")
-                    print(
-                        f"[{datetime.now().strftime('%H:%M:%S')}] Baixando '{nome_arquivo}' de {file_url} "
-                        f"({(remote_size or 0) / (1024 * 1024):.1f} MB)..."
+                try:
+                    res_file, file_url = _abrir_requisicao_arquivo(
+                        remote_url=remote_url,
+                        pasta=pasta_nome,
+                        nome_arquivo=nome_arquivo,
+                        timeout_sec=timeout_sec,
                     )
-                    with open(temp_path, "wb") as f_out:
-                        shutil.copyfileobj(res, f_out, length=1024 * 1024)
+                    with res_file as res:
+                        headers = dict(res.headers)
+                        raw_len = headers.get("content-length")
+                        remote_size = int(raw_len) if raw_len and raw_len.isdigit() else None
+                        raw_lm = headers.get("last-modified")
+                        remote_dt = parsedate_to_datetime(raw_lm) if raw_lm else None
+                        remote_mtime = remote_dt.timestamp() if remote_dt else None
 
-                    if temp_path.exists():
-                        temp_path.replace(local_path)
-                        if remote_mtime is not None:
-                            os.utime(local_path, (remote_mtime, remote_mtime))
+                        precisa_baixar = False
+                        if not local_path.exists() or forcar:
+                            precisa_baixar = True
+                        else:
+                            local_size = local_path.stat().st_size
+                            local_mtime = local_path.stat().st_mtime
+                            if remote_size is not None and local_size != remote_size:
+                                precisa_baixar = True
+                            elif remote_mtime is not None and abs(remote_mtime - local_mtime) > 2.0:
+                                precisa_baixar = True
 
-                        if desempacotar:
-                            try:
-                                desempacotar_snapshot_parquet(local_path)
-                            except Exception as e_unpack:
-                                print(f"[SNAPSHOT SYNC] Aviso ao desempacotar '{nome_arquivo}': {e_unpack}")
+                        if not precisa_baixar:
+                            resultado["ja_atualizados"].append(f"{pasta_nome}/{nome_arquivo}")
+                            continue
 
-                        resultado["baixados"].append(nome_arquivo)
+                        # Download atômico com verificação de integridade
+                        temp_path = local_path.with_name(f"_{nome_arquivo}.tmp")
                         print(
-                            f"[{datetime.now().strftime('%H:%M:%S')}] Snapshot '{nome_arquivo}' sincronizado com sucesso."
+                            f"[{datetime.now().strftime('%H:%M:%S')}] Baixando '{pasta_nome}/{nome_arquivo}' "
+                            f"({(remote_size or 0) / 1024:.1f} KB)..."
                         )
+                        with open(temp_path, "wb") as f_out:
+                            shutil.copyfileobj(res, f_out, length=1024 * 512)
 
-            except Exception as e_file:
-                resultado["erros"].append({"arquivo": nome_arquivo, "erro": str(e_file)})
-                print(f"[SNAPSHOT SYNC] Erro ao sincronizar '{nome_arquivo}': {e_file}")
+                        # Validação de integridade para arquivos Parquet
+                        if nome_arquivo.endswith(".parquet"):
+                            try:
+                                _ = pl.read_parquet(temp_path, n_rows=1)
+                            except Exception as e_pqt:
+                                if temp_path.exists():
+                                    temp_path.unlink()
+                                raise ValueError(f"Arquivo Parquet baixado corrompido: {e_pqt}")
+
+                        if temp_path.exists():
+                            temp_path.replace(local_path)
+                            if remote_mtime is not None:
+                                os.utime(local_path, (remote_mtime, remote_mtime))
+
+                            resultado["baixados"].append(f"{pasta_nome}/{nome_arquivo}")
+                            print(
+                                f"[{datetime.now().strftime('%H:%M:%S')}] Tabela '{pasta_nome}/{nome_arquivo}' "
+                                "sincronizada com sucesso."
+                            )
+
+                except urllib.error.HTTPError as e_http:
+                    if e_http.code == 404:
+                        if eh_obrigatorio:
+                            resultado["erros"].append(
+                                {"arquivo": f"{pasta_nome}/{nome_arquivo}", "erro": "Tabela obrigatória ausente (404)"}
+                            )
+                        # Se não for obrigatório (ex: metadados opcionais), ignora silenciosamente
+                    else:
+                        resultado["erros"].append({"arquivo": f"{pasta_nome}/{nome_arquivo}", "erro": str(e_http)})
+                except Exception as e_file:
+                    resultado["erros"].append({"arquivo": f"{pasta_nome}/{nome_arquivo}", "erro": str(e_file)})
+                    print(f"[SNAPSHOT SYNC] Erro ao sincronizar '{pasta_nome}/{nome_arquivo}': {e_file}")
+
+        # Limpeza de arquivos desnecessários se requisitado
+        if limpar_desnecessarios:
+            resultado["removidos"] = limpar_arquivos_desnecessarios(settings.SNAPSHOTS_DIR)
 
         resultado["sucesso"] = True
         resultado["mensagem"] = (
-            f"Sincronização concluída: {len(resultado['baixados'])} baixado(s), "
-            f"{len(resultado['ja_atualizados'])} já atualizado(s), {len(resultado['erros'])} erro(s)."
+            f"Sincronização Parquet concluída: {len(resultado['baixados'])} baixado(s), "
+            f"{len(resultado['ja_atualizados'])} já atualizado(s), "
+            f"{len(resultado['removidos'])} arquivo(s) desnecessário(s) removido(s), "
+            f"{len(resultado['erros'])} erro(s)."
         )
 
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError) as e_net:
@@ -214,47 +280,34 @@ def sincronizar_snapshots_remotos(
 
 
 def listar_snapshots(deduplicar: bool = True) -> List[Path]:
-    """Snapshots válidos, do mais recente para o mais antigo."""
+    """
+    Retorna a lista de diretórios de snapshots válidos contendo as tabelas Parquet necessárias,
+    ordenados do mais recente para o mais antigo.
+    """
     cands: List[Path] = []
+    if not settings.SNAPSHOTS_DIR.exists():
+        return cands
+
     for p in settings.SNAPSHOTS_DIR.glob("snapshot_*"):
-        if p.is_file() and p.suffix.lower() == ".pkl":
-            cands.append(p)
-        elif p.is_dir() and any(p.glob("*.parquet")):
-            cands.append(p)
+        if p.is_dir():
+            tabelas_locais = {f.stem for f in p.glob("*.parquet")}
+            if all(t in tabelas_locais for t in TABELAS_NECESSARIAS):
+                cands.append(p)
 
-    cands_sorted = sorted(cands, key=_mtime, reverse=True)
-
-    if not deduplicar:
-        return cands_sorted
-
-    # Deduplicação inteligente: se existir pasta e arquivo .pkl com mesmo radical,
-    # prefere o diretório parquet se atualizado, ou o item com maior _mtime.
-    unicos: Dict[str, Path] = {}
-    for p in cands_sorted:
-        stem = p.stem
-        if stem not in unicos:
-            unicos[stem] = p
-        else:
-            atual = unicos[stem]
-            if p.is_dir() and abs(_mtime(p) - _mtime(atual)) < 5.0:
-                unicos[stem] = p
-            elif _mtime(p) > _mtime(atual):
-                unicos[stem] = p
-
-    return sorted(unicos.values(), key=_mtime, reverse=True)
+    return sorted(cands, key=_mtime, reverse=True)
 
 
 def localizar_snapshot(nome: Optional[str] = None, tentar_sync: bool = True) -> Path:
-    """Localiza o snapshot a ser utilizado. Se nenhum existir localmente, tenta sincronizar da API remota."""
+    """Localiza o diretório de snapshot a ser utilizado. Se nenhum existir, tenta sincronizar da API remota."""
     cands = listar_snapshots()
     if not cands and tentar_sync:
-        print("[SNAPSHOT] Nenhum snapshot local encontrado. Tentando sincronizar com servidor remoto...")
+        print("[SNAPSHOT] Nenhum snapshot Parquet local encontrado. Tentando sincronizar com servidor remoto...")
         sincronizar_snapshots_remotos()
         cands = listar_snapshots()
 
     if not cands:
         raise FileNotFoundError(
-            f"Nenhum snapshot encontrado em {settings.SNAPSHOTS_DIR} e o servidor remoto não retornou arquivos. "
+            f"Nenhum snapshot Parquet válido encontrado em {settings.SNAPSHOTS_DIR}. "
             "Verifique a conectividade com http://366n:8001/api/snapshots."
         )
 
@@ -267,21 +320,25 @@ def localizar_snapshot(nome: Optional[str] = None, tentar_sync: bool = True) -> 
 
 
 def data_snapshot(path: Optional[Path] = None) -> str:
+    """Retorna a data e hora formatada do snapshot."""
     path = path or localizar_snapshot()
     return datetime.fromtimestamp(_mtime(path)).strftime("%d/%m/%Y %H:%M:%S")
 
 
 def carregar_snapshot(path: Optional[Path] = None) -> Tuple[Dict[str, pd.DataFrame], Path]:
-    """Carrega o snapshot como dict de DataFrames pandas. Retorna (dfs, caminho_usado)."""
+    """
+    Carrega as tabelas essenciais do snapshot como dicionário de DataFrames Pandas
+    lidos diretamente de arquivos Parquet via Polars. Retorna (dfs, caminho_usado).
+    """
     path = path or localizar_snapshot()
-    if path.is_dir():
-        dfs = {p.stem: pl.read_parquet(p).to_pandas() for p in path.glob("*.parquet") if not p.name.startswith("_")}
-    else:
-        with open(path, "rb") as f:
-            raw = pickle.load(f)
-        dfs = {k: (v.to_pandas() if isinstance(v, pl.DataFrame) else v) for k, v in raw.items()}
+    if not path.is_dir():
+        raise ValueError(f"O snapshot em '{path}' deve ser um diretório com arquivos Parquet.")
 
-    faltando = [t for t in TABELAS_NECESSARIAS if dfs.get(t) is None]
-    if faltando:
-        raise ValueError(f"Snapshot '{path.name}' incompleto: faltam as tabelas {faltando}.")
+    dfs: Dict[str, pd.DataFrame] = {}
+    for t in TABELAS_NECESSARIAS:
+        pqt_file = path / f"{t}.parquet"
+        if not pqt_file.exists():
+            raise FileNotFoundError(f"Snapshot '{path.name}' incompleto: tabela '{t}.parquet' não encontrada.")
+        dfs[t] = pl.read_parquet(pqt_file).to_pandas()
+
     return dfs, path

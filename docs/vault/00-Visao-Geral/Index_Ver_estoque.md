@@ -38,7 +38,7 @@ graph TD
 
     subgraph Infra["04 - Infraestrutura e Dados"]
         SERVICE --> SNAP_MGR["snapshots.py<br>[[Gerenciador_Snapshots]]"]
-        SNAP_MGR --> PARQUET_DIR[("Base Parquet & Pickle<br>[[Snapshots_Parquet_Estoque]]")]
+        SNAP_MGR --> PARQUET_DIR[("Base Parquet Nativa<br>[[Snapshots_Parquet_Estoque]]")]
         SERVICE --> SCRAPER["scraper.py<br>[[Scraper_Intranet_PCP]]"]
         SCRAPER --> OC_CACHE[("Cache OCs Abertas (.pkl)<br>[[Cache_Ordens_Compra_OCs]]")]
     end
@@ -46,7 +46,7 @@ graph TD
     subgraph Automacoes["05 - Automações e Integrações"]
         BAT["iniciar.bat<br>[[Script_Inicializacao_Bat]]"] -->|Inicia Servidor| API_MAIN
         SYNC_AUTO["Sincronizador Remoto<br>[[Sincronizacao_Remota_Snapshots]]"] -->|Download Atômico| SNAP_MGR
-        EXT_REMOTE["Servidor Remoto 366n<br>(http://366n:8001/api/snapshots)"] -.->|Stream PKL| SYNC_AUTO
+        EXT_REMOTE["Servidor Remoto 366n<br>(http://366n:8001/api/snapshots)"] -.->|Sync Parquet Granular| SYNC_AUTO
         FERIADOS_CLI["feriados.py CLI<br>[[Coleta_Feriados_PCP]]"] -->|Extrai Feriados| FERIADOS
         INTRANET["Intranet PCP / Compras<br>(192.168.0.6)"] -.->|Scraping| SCRAPER
     end
