@@ -606,34 +606,39 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                 : "Nenhuma matéria-prima comprada neste filtro."}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Tabela de Matérias-Primas e Insumos Comprados"
+              className="overflow-auto max-h-[min(520px,65vh)] relative focus:outline-none"
+            >
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px]">
+                <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
                   <tr>
-                    <th scope="col" className="p-2.5">Matéria-Prima</th>
-                    <th scope="col" className="p-2.5">Descrição</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Matéria-Prima</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Descrição</th>
                     {exibirItensAfetados && (
-                      <th scope="col" className="p-2.5">Item(ns) do Pedido</th>
+                      <th scope="col" className="p-2.5 bg-[#FAFAFA]">Item(ns) do Pedido</th>
                     )}
-                    <th scope="col" className="p-2.5 text-center">Baixa</th>
-                    <th scope="col" className="p-2.5 text-right">Saldo Total Estoque</th>
-                    <th scope="col" className="p-2.5 text-right">Saldo na Fila</th>
-                    <th scope="col" className="p-2.5 text-right">Consumo</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Baixa</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo Total Estoque</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo na Fila</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Consumo</th>
                     {isAbaFaltando && (
-                      <th scope="col" className="p-2.5 text-right font-bold text-[#C62828]">
+                      <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right font-bold text-[#C62828]">
                         Falta
                       </th>
                     )}
-                    <th scope="col" className="p-2.5">Ordem de Compra (OC)</th>
-                    <th scope="col" className="p-2.5 text-center">Previsão OC</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Ordem de Compra (OC)</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Previsão OC</th>
                     <th
                       scope="col"
-                      className="p-2.5 text-right"
+                      className="p-2.5 bg-[#FAFAFA] text-right"
                       title="Soma do saldo em OCs com previsão de entrega até a data de abertura da ordem"
                     >
                       Saldo OC até Abertura
                     </th>
-                    <th scope="col" className="p-2.5">Vínculo / Observação OC</th>
+                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Vínculo / Observação OC</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
@@ -759,15 +764,15 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 : "bg-[#F5F5F5] text-[#757575] border border-[#E0E0E0]"
                             }`}
                           >
-                            {mp.oc_saldo_ate_abertura ?? 0}
+                            {Number(mp.oc_saldo_ate_abertura || 0).toLocaleString("pt-BR", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })}
                           </span>
                           <span className="text-[10px] text-[#666666]">
                             {mp.oc_data_abertura_ref ? (
                               <>
                                 até <strong>{mp.oc_data_abertura_ref}</strong>
-                                {mp.oc_qtd_ate_abertura > 0
-                                  ? ` (${mp.oc_qtd_ate_abertura} OC)`
-                                  : ""}
                               </>
                             ) : (
                               "Sem dt. abertura"
@@ -778,7 +783,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               className="text-[9px] text-[#1565C0]"
                               title="Saldo total somando todas as OCs abertas deste item (incluindo previsões após a abertura da ordem)"
                             >
-                              Total OC: {mp.oc_saldo_total_item}
+                              Total OC: {Number(mp.oc_saldo_total_item || 0).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              })}
                             </span>
                           )}
                         </div>
@@ -892,27 +900,32 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   </div>
 
                   {/* Tabela de Componentes da Fábrica */}
-                  <div className="overflow-x-auto">
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-label={`Tabela de Componentes da Fábrica ${grupo.fabrica}`}
+                    className="overflow-auto max-h-[min(520px,65vh)] relative focus:outline-none"
+                  >
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px]">
+                      <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
                         <tr>
-                          <th scope="col" className="p-2.5">Componente</th>
-                          <th scope="col" className="p-2.5">Descrição</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA]">Componente</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA]">Descrição</th>
                           {exibirItensAfetados && (
-                            <th scope="col" className="p-2.5">Item(ns) do Pedido</th>
+                            <th scope="col" className="p-2.5 bg-[#FAFAFA]">Item(ns) do Pedido</th>
                           )}
-                          <th scope="col" className="p-2.5 text-center">Baixa</th>
-                          <th scope="col" className="p-2.5 text-right">Saldo Total Estoque</th>
-                          <th scope="col" className="p-2.5 text-right">Saldo na Fila</th>
-                          <th scope="col" className="p-2.5 text-right">Consumo</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Baixa</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo Total Estoque</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo na Fila</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Consumo</th>
                           {isAbaFaltando && (
-                            <th scope="col" className="p-2.5 text-right font-bold text-[#C62828]">
+                            <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right font-bold text-[#C62828]">
                               Falta
                             </th>
                           )}
-                          <th scope="col" className="p-2.5">OP Componente</th>
-                          <th scope="col" className="p-2.5 text-center">Abertura OP</th>
-                          <th scope="col" className="p-2.5 text-center">Entrega OP</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA]">OP Componente</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Abertura OP</th>
+                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Entrega OP</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#EEEEEE] tabular-nums">

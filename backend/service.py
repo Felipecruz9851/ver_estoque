@@ -1670,8 +1670,10 @@ def _enriquecer_insumo_gerencial(
         if dt_ab_ordem_sort and dt_ab_ordem_sort != "9999-12-31":
             for x in todas_it:
                 p_sort = str(x.get("previsao_sort") or "")
-                if not p_sort:
+                if not p_sort or p_sort == "9999-12-31":
                     _, p_sort = _parse_data_br_flex(x.get("previsao"))
+                if not p_sort or p_sort == "9999-12-31":
+                    _, p_sort = _parse_data_br_flex(x.get("data_origem"))
                 if p_sort and p_sort != "9999-12-31" and p_sort <= dt_ab_ordem_sort:
                     oc_saldo_ate_abertura += float(x.get("saldo") or 0.0)
                     oc_qtd_ate_abertura += 1
@@ -2061,6 +2063,7 @@ def obter_resumo_pedido(
         ref_dt_abertura = (
             dt_abertura_ref_principal
             or (itens_finais_afetados[0].get("data_abertura", "") if itens_finais_afetados else "")
+            or primeiro_it.get("data_abertura", "")
         )
 
         info_ger = _enriquecer_insumo_gerencial(
