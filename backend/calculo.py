@@ -171,8 +171,13 @@ def calc_data(dfs):
     consumo_com_pedido = consumo[consumo["Pedido"] > 0]
     consumo_sem_pedido = consumo[consumo["Pedido"] == 0]
 
+    # Deduplica ordens_op por (Item, Pedido) para evitar produto cartesiano
+    # que multiplicava indevidamente as linhas de consumo quando havia mais de uma OP aberta
+    ordens_op_com_pedido = ordens_op[ordens_op["Pedido"] > 0].drop_duplicates(
+        subset=["Item", "Pedido"]
+    )
     consumo_com_pedido = consumo_com_pedido.merge(
-        ordens_op[ordens_op["Pedido"] > 0],
+        ordens_op_com_pedido,
         on=["Item", "Pedido"],
         how="left",
     )

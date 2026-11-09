@@ -44,14 +44,14 @@ EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 # =====================================================================
 PRAZOS_EXPEDICAO = [
     # valores únicos
-    {"tipo": "valores", "itens": [7, 9, 95, 202, 762, 724], "prazo": 3},
-    {"tipo": "valores", "itens": [201, 203, 241, 261], "prazo": 3},
+    {"tipo": "valores", "itens": [7, 9, 95, 762, 724], "prazo": 3},
+    {"tipo": "valores", "itens": [201, 202, 203, 241, 261], "prazo": 3},
     {"tipo": "valores", "itens": [700], "prazo": 3},
     {"tipo": "valores", "itens": [601, 602, 603], "prazo": 10},
     # intervalos
     {"tipo": "intervalo", "de": 50, "ate": 90, "prazo": 3},
     {"tipo": "intervalo", "de": 1000, "ate": 1999, "prazo": 3},
-    {"tipo": "intervalo", "de": 2000, "ate": 2999, "prazo": 8},
+    {"tipo": "intervalo", "de": 2000, "ate": 2999, "prazo": 3},
     {"tipo": "intervalo", "de": 3000, "ate": 3999, "prazo": 8},
     {"tipo": "intervalo", "de": 4000, "ate": 5999, "prazo": 8},
     {"tipo": "intervalo", "de": 6000, "ate": 6999, "prazo": 8},
@@ -116,5 +116,3 @@ def nome_prazo_expedicao(prazo: int) -> str:
     except (ValueError, TypeError):
         p = 0
     return NOMES_PRAZO_EXPEDICAO.get(p, f"{p} dias")
-
-
