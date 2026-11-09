@@ -18,6 +18,7 @@ tags: [codigo, frontend, javascript, react, ui]
 * `handleLimparSimulacao()`: Reseta todas as simulações ativas da sessão, restaurando a visão original do estoque.
 * `handleExportarExcel()`: Solicita a geração e download da planilha Excel com a análise completa de atendimento e insumos.
 * `abrirResumoPedido(numPedido, itemFinalOpcional)`: Consulta o endpoint gerencial e exibe o modal `<dialog>` com KPIs do pedido, faltas de MP e componentes por fábrica.
+* `abrirMatrizFaltantes()` / `carregarMatrizFaltantes()` / `handleExportarMatrizExcel()`: Controla o modal `<dialog>` da Matriz Pivot de Componentes Produzidos Faltantes (`Tipo == 'P'`), com menu de seleção de filtros para cálculo (`locais_item_final`, `locais_componente`, `escopo_abatimento`, `baixa`) e exibição agrupada por Local do Item Pai × Local do Componente com colunas dinâmicas de Prazo de Expedição (calculado pelo Representante).
 * `abrirModalDetalhes(item)`: Abre a inspeção detalhada de todos os insumos consumidos por um item final específico.
 
 ## Dependências (Grafo)

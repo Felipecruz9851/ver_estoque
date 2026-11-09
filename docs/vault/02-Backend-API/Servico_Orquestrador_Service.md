@@ -18,6 +18,9 @@ tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 * `_enriquecer_insumo_gerencial(insumo_dict, mapas, ...)`: Enriquece itens filhos com datas de OPs de componentes (`Tipo == 'P'`) e previsão de OCs de matérias-primas (`Tipo == 'C'`).
 * `obter_detalhes_item_final(...)`: Retorna insumos e componentes detalhados de um item final com divisão em Matéria-Prima e Componentes por Fábrica.
 * `obter_resumo_pedido(...)`: Consolida a visão executiva de tudo o que falta para produzir um pedido ou item final específico.
+* `obter_opcoes_filtros_faltantes(session_id)`: Retorna todas as fábricas de Itens Finais, fábricas de Componentes Produzidos (`Tipo == 'P'`) e prazos de expedição disponíveis para o menu de filtros.
+* `obter_matriz_faltantes_producao(filtros, session_id)`: Calcula a Matriz Pivot de componentes produzidos faltantes agrupada por Local de Produção do Item Pai × Local de Produção do Componente × Prazo de Expedição (baseado no Representante via `settings.prazo_por_representante`).
+* `exportar_matriz_faltantes_excel(filtros, session_id)`: Exporta a Matriz Pivot de componentes produzidos faltantes para arquivo `.xlsx`.
 * `simular_pedidos(...)`: Consulta estruturas e saldos via Intranet para injetar novos pedidos na fila cumulativa da sessão do usuário.
 * `exportar_analise_excel(...)`: Gera arquivo `.xlsx` completo com formatação executiva na pasta de exportações.
 

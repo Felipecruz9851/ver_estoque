@@ -1222,11 +1222,14 @@ def _obter_fila_calculada(
             raiz_Entrega_Pedido=("raiz_Entrega Pedido", "first"),
             raiz_Data_Abertura=("raiz_Data Abertura", "first"),
             raiz_Cliente=("raiz_Cliente", "first"),
+            raiz_Representante=("raiz_Representante", "first"),
             simulado=("simulado", "any"),
             origem_simulacao=("origem_simulacao", "first"),
         )
     )
+    filas["prazo_expedicao"] = filas["raiz_Representante"].apply(settings.prazo_por_representante)
     filas["_dt_abertura_sort"] = pd.to_datetime(filas["raiz_Data_Abertura"], errors="coerce")
+    filas["_dt_entrega_sort"] = pd.to_datetime(filas["raiz_Entrega_Pedido"], errors="coerce")
     filas = filas.sort_values(
         by=["_dt_abertura_sort", "raiz_Pedido_Str", "raiz_Item Final", "raiz_Fábrica"],
         ascending=[True, True, True, True],
@@ -1247,7 +1250,11 @@ def _obter_fila_calculada(
             Ordem_Prod=("Ordem Prod", "first"),
             Saldo=("Saldo", "first"),
         )
-        .merge(filas[group_cols + ["_ordem_fila"]], on=group_cols, how="left")
+        .merge(
+            filas[group_cols + ["_ordem_fila", "raiz_Representante", "prazo_expedicao"]],
+            on=group_cols,
+            how="left",
+        )
         .sort_values(by=["Item", "_ordem_fila"], ascending=[True, True])
         .reset_index(drop=True)
     )
@@ -2201,6 +2208,545 @@ def exportar_analise_excel(
         "total": len(df_export),
         "session_id": str(session_id or "default"),
     }
+
+
+def _resolver_local_prod_componente(comp_item: Any, local_prod_raw: Any) -> str:
+    """Resolve o local de produção (fábrica) de um componente produzido (Tipo P)."""
+    it = scraper.normalizar_cod_item(comp_item)
+    lp = str(local_prod_raw or "").strip()
+    if lp in ("", "0", ".", "None", "nan"):
+        lp = (
+            _enriquecimento.get("local_prod", {}).get(it)
+            or _enriquecimento.get("fabrica_item", {}).get(it)
+            or ""
+        )
+    return lp if lp else "NÃO INFORMADO"
+
+
+def obter_opcoes_filtros_faltantes(session_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Retorna as listas de opções disponíveis para o menu de filtros de cálculo da Matriz Pivot:
+    - locais_item_final: Todos os Locais de Produção do Item Final (raiz_Fábrica) que possuem estrutura
+    - locais_componente: Todos os Locais de Produção de Componentes Produzidos (Tipo == 'P')
+    - prazos_disponiveis: Todos os prazos de expedição disponíveis (calculados pelo Representante)
+    """
+    itens_full, comp_agg_full, locais_producao = _obter_fila_calculada(
+        baixa_filtro="TODOS",
+        tipo_filtro="P",
+        session_id=session_id,
+    )
+
+    if not comp_agg_full.empty and "raiz_Fábrica" in comp_agg_full.columns:
+        locais_item_final = sorted(
+            {
+                str(x).strip()
+                for x in comp_agg_full["raiz_Fábrica"].dropna().unique()
+                if str(x).strip() and str(x).strip() != "0"
+            }
+        )
+    else:
+        locais_item_final = sorted(
+            {str(x).strip() for x in locais_producao if str(x).strip() and str(x).strip() != "0"}
+        )
+
+    locais_comp_set: Set[str] = set()
+    prazos_set: Set[int] = {3, 8, 10}
+
+    if not comp_agg_full.empty:
+        sub_p = comp_agg_full[comp_agg_full["Tipo"].astype(str).str.upper() == "P"]
+        for rec in sub_p[["Item", "Local_Prod"]].drop_duplicates().to_dict("records"):
+            lp = _resolver_local_prod_componente(rec.get("Item"), rec.get("Local_Prod"))
+            if lp:
+                locais_comp_set.add(lp)
+
+        if "prazo_expedicao" in comp_agg_full.columns:
+            for p_val in comp_agg_full["prazo_expedicao"].dropna().unique():
+                try:
+                    prazos_set.add(int(p_val))
+                except (ValueError, TypeError):
+                    pass
+
+    prazos_ordenados = sorted(prazos_set)
+    prazos_meta = [
+        {
+            "prazo": int(p),
+            "key": str(int(p)),
+            "label": settings.nome_prazo_expedicao(int(p)),
+        }
+        for p in prazos_ordenados
+    ]
+
+    return {
+        "locais_item_final": locais_item_final,
+        "locais_componente": sorted(locais_comp_set),
+        "prazos_disponiveis": prazos_ordenados,
+        "prazos_colunas": prazos_meta,
+        "session_id": str(session_id or "default"),
+    }
+
+
+def obter_matriz_faltantes_producao(
+    filtros: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Calcula e retorna a Matriz Pivot de Componentes Produzidos Faltantes (Tipo == 'P')
+    agrupada por:
+      Local de Produção do Item Pai (raiz_Fábrica)
+      × Local de Produção do Componente Produzido (fabrica_componente)
+      × Colunas de Prazo de Expedição (calculado com base no Representante: todos os disponíveis).
+
+    Suporta filtros marcados pelo usuário para cálculo:
+      - locais_item_final: lista de locais do item final selecionados (vazio = todos)
+      - locais_componente: lista de locais do componente produzido selecionados (vazio = todos)
+      - baixa: 'todos' | 'S' | 'N'
+      - escopo_abatimento: 'global' (respeita fila global) | 'filtrado' (abate estoque apenas entre os locais marcados)
+      - data_inicio / data_fim: filtro de janela de Data de Abertura da OP do item pai
+      - busca: filtro textual por código/descrição de componente, item final ou pedido
+    """
+    filtros = filtros or {}
+
+    raw_locais_pai = filtros.get("locais_item_final") or []
+    if isinstance(raw_locais_pai, str):
+        raw_locais_pai = [x.strip() for x in raw_locais_pai.split(",") if x.strip()]
+    locais_pai_sel = {str(x).strip().upper() for x in raw_locais_pai if str(x).strip()}
+
+    raw_locais_comp = filtros.get("locais_componente") or []
+    if isinstance(raw_locais_comp, str):
+        raw_locais_comp = [x.strip() for x in raw_locais_comp.split(",") if x.strip()]
+    locais_comp_sel = {str(x).strip().upper() for x in raw_locais_comp if str(x).strip()}
+
+    baixa_filtro = str(filtros.get("baixa", "todos") or "todos").strip().upper()
+    escopo_abatimento = str(filtros.get("escopo_abatimento", "global") or "global").strip().lower()
+    data_inicio_raw = filtros.get("data_inicio")
+    data_fim_raw = filtros.get("data_fim")
+    busca_filtro = str(filtros.get("busca", "") or "").strip().upper()
+
+    opcoes_base = obter_opcoes_filtros_faltantes(session_id=session_id)
+
+    itens_full, comp_agg_full, _ = _obter_fila_calculada(
+        baixa_filtro=baixa_filtro,
+        tipo_filtro="P",
+        session_id=session_id,
+    )
+
+    if itens_full.empty or comp_agg_full.empty:
+        return {
+            "grupos": [],
+            "linhas_planas": [],
+            "prazos_colunas": opcoes_base["prazos_colunas"],
+            "totais_gerais": {
+                "total_grupos": 0,
+                "total_componentes_distintos": 0,
+                "total_linhas_matriz": 0,
+                "soma_falta_geral": 0.0,
+                "somas_por_prazo": {c["key"]: 0.0 for c in opcoes_base["prazos_colunas"]},
+                "total_pedidos_afetados": 0,
+            },
+            "opcoes_filtros": opcoes_base,
+            "session_id": str(session_id or "default"),
+        }
+
+    # Prepara DataFrame de trabalho apenas para componentes produzidos (Tipo == 'P')
+    comp_p = comp_agg_full[comp_agg_full["Tipo"].astype(str).str.upper() == "P"].copy()
+    if comp_p.empty:
+        return {
+            "grupos": [],
+            "linhas_planas": [],
+            "prazos_colunas": opcoes_base["prazos_colunas"],
+            "totais_gerais": {
+                "total_grupos": 0,
+                "total_componentes_distintos": 0,
+                "total_linhas_matriz": 0,
+                "soma_falta_geral": 0.0,
+                "somas_por_prazo": {c["key"]: 0.0 for c in opcoes_base["prazos_colunas"]},
+                "total_pedidos_afetados": 0,
+            },
+            "opcoes_filtros": opcoes_base,
+            "session_id": str(session_id or "default"),
+        }
+
+    # Resolve local de produção de cada componente produzido de forma vetorizada via mapa único
+    pares_comp = comp_p[["Item", "Local_Prod"]].drop_duplicates().to_dict("records")
+    mapa_local_comp = {
+        (r["Item"], r["Local_Prod"]): _resolver_local_prod_componente(r["Item"], r["Local_Prod"])
+        for r in pares_comp
+    }
+    comp_p["fabrica_componente"] = [
+        mapa_local_comp.get((it, lp), "NÃO INFORMADO")
+        for it, lp in zip(comp_p["Item"], comp_p["Local_Prod"])
+    ]
+
+    # Enriquecimento com metadados da fila do item pai (descrição, datas, saldo, cliente)
+    cols_meta_pai = [
+        "_ordem_fila",
+        "_dt_abertura_sort",
+        "_dt_entrega_sort",
+        "_dt_abertura_br",
+        "_dt_entrega_br",
+        "raiz_Descricao",
+        "raiz_Cliente",
+        "raiz_Saldo",
+        "simulado",
+        "origem_simulacao",
+    ]
+    cols_meta_exist = [c for c in cols_meta_pai if c in itens_full.columns]
+    comp_p = comp_p.merge(
+        itens_full[cols_meta_exist],
+        on="_ordem_fila",
+        how="left",
+    )
+
+    # Aplica filtros de Local do Item Final, Local do Componente Produzido e Janela de Entrega do Pedido
+    mask = pd.Series(True, index=comp_p.index)
+
+    if locais_pai_sel:
+        mask &= comp_p["raiz_Fábrica"].astype(str).str.strip().str.upper().isin(locais_pai_sel)
+
+    if locais_comp_sel:
+        mask &= comp_p["fabrica_componente"].astype(str).str.strip().str.upper().isin(locais_comp_sel)
+
+    if data_inicio_raw and str(data_inicio_raw).strip():
+        dt_in_str = str(data_inicio_raw).strip()
+        dt_in = pd.to_datetime(dt_in_str, errors="coerce", dayfirst="/" in dt_in_str)
+        if pd.notna(dt_in) and "_dt_entrega_sort" in comp_p.columns:
+            mask &= comp_p["_dt_entrega_sort"].dt.floor("D") >= dt_in.floor("D")
+
+    if data_fim_raw and str(data_fim_raw).strip():
+        dt_fi_str = str(data_fim_raw).strip()
+        dt_fi = pd.to_datetime(dt_fi_str, errors="coerce", dayfirst="/" in dt_fi_str)
+        if pd.notna(dt_fi) and "_dt_entrega_sort" in comp_p.columns:
+            mask &= comp_p["_dt_entrega_sort"].dt.floor("D") <= dt_fi.floor("D")
+
+    comp_filtrado = comp_p[mask].copy()
+
+    # Se escopo_abatimento == 'filtrado', recalcula o abatimento cumulativo de estoque
+    # considerando exclusivamente as ordens que passaram pelos filtros de cálculo marcados
+    if escopo_abatimento == "filtrado" and not comp_filtrado.empty:
+        comp_filtrado = comp_filtrado.sort_values(
+            by=["Item", "_ordem_fila"], ascending=[True, True]
+        ).reset_index(drop=True)
+        comp_filtrado["Consumo"] = comp_filtrado["Consumo"].round(2)
+        comp_filtrado["estoque"] = comp_filtrado["estoque"].round(2)
+        cons_acum = comp_filtrado.groupby("Item")["Consumo"].cumsum().round(2)
+        cons_ant = (cons_acum - comp_filtrado["Consumo"]).round(2)
+        comp_filtrado["estoque_disp_fila"] = (
+            (comp_filtrado["estoque"] - cons_ant).clip(lower=0.0).round(2)
+        )
+        comp_filtrado["Disponivel"] = (
+            comp_filtrado["estoque_disp_fila"] + 1e-6
+        ) >= comp_filtrado["Consumo"]
+        comp_filtrado["Falta"] = np.where(
+            comp_filtrado["Disponivel"],
+            0.0,
+            (comp_filtrado["Consumo"] - comp_filtrado["estoque_disp_fila"]).clip(lower=0.0).round(2),
+        )
+
+    # Seleciona apenas os itens produzidos FALTANTES (Falta > 0)
+    faltantes_df = comp_filtrado[(~comp_filtrado["Disponivel"]) & (comp_filtrado["Falta"] > 0)].copy()
+
+    # Filtro textual de busca (se informado)
+    if busca_filtro and not faltantes_df.empty:
+        m_item = faltantes_df["Item"].astype(str).str.upper().str.contains(busca_filtro, na=False)
+        m_desc = faltantes_df["Den_Item"].astype(str).str.upper().str.contains(busca_filtro, na=False)
+        m_pai = faltantes_df["raiz_Item Final"].astype(str).str.upper().str.contains(busca_filtro, na=False)
+        m_ped = faltantes_df["raiz_Pedido_Str"].astype(str).str.upper().str.contains(busca_filtro, na=False)
+        m_rep = faltantes_df["raiz_Representante"].astype(str).str.upper().str.contains(busca_filtro, na=False)
+        faltantes_df = faltantes_df[m_item | m_desc | m_pai | m_ped | m_rep].copy()
+
+    prazos_colunas = opcoes_base["prazos_colunas"]
+    prazos_keys = [c["key"] for c in prazos_colunas]
+
+    if faltantes_df.empty:
+        return {
+            "grupos": [],
+            "linhas_planas": [],
+            "prazos_colunas": prazos_colunas,
+            "totais_gerais": {
+                "total_grupos": 0,
+                "total_componentes_distintos": 0,
+                "total_linhas_matriz": 0,
+                "soma_falta_geral": 0.0,
+                "somas_por_prazo": {k: 0.0 for k in prazos_keys},
+                "total_pedidos_afetados": 0,
+            },
+            "opcoes_filtros": opcoes_base,
+            "session_id": str(session_id or "default"),
+        }
+
+    faltantes_df["prazo_expedicao"] = (
+        pd.to_numeric(faltantes_df["prazo_expedicao"], errors="coerce").fillna(0).astype(int)
+    )
+
+    # Garante que qualquer prazo presente nos faltantes esteja representado nas colunas
+    prazos_presentes = sorted(
+        set(opcoes_base["prazos_disponiveis"]) | set(faltantes_df["prazo_expedicao"].unique())
+    )
+    prazos_colunas = [
+        {
+            "prazo": int(p),
+            "key": str(int(p)),
+            "label": settings.nome_prazo_expedicao(int(p)),
+        }
+        for p in prazos_presentes
+    ]
+    prazos_keys = [c["key"] for c in prazos_colunas]
+
+    # Agrupamento ultra-rápido em O(N) sem iterrows() para Matriz Pivot:
+    # (Local Produção Item Pai, Local Produção Componente, Código do Componente)
+    faltantes_df = faltantes_df.sort_values(
+        by=["raiz_Fábrica", "fabrica_componente", "Item", "_ordem_fila"],
+        ascending=[True, True, True, True],
+    )
+
+    acum_por_chave: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    todos_pedidos_afetados: Set[str] = set()
+    componentes_distintos_set: Set[str] = set()
+    somas_gerais_por_prazo: Dict[str, float] = {k: 0.0 for k in prazos_keys}
+
+    for r_row in faltantes_df.to_dict("records"):
+        fab_pai_str = str(r_row.get("raiz_Fábrica") or "NÃO INFORMADO").strip()
+        fab_comp_str = str(r_row.get("fabrica_componente") or "NÃO INFORMADO").strip()
+        comp_str = str(r_row.get("Item") or "").strip()
+        chave = (fab_pai_str, fab_comp_str, comp_str)
+
+        falta_val = round(float(r_row.get("Falta") or 0.0), 2)
+        consumo_val = round(float(r_row.get("Consumo") or 0.0), 2)
+        est_disp_val = round(float(r_row.get("estoque_disp_fila") or 0.0), 2)
+        prazo_int = int(r_row.get("prazo_expedicao") or 0)
+        prazo_k = str(prazo_int)
+
+        ped_s = str(r_row.get("raiz_Pedido_Str") or "").strip()
+        if ped_s:
+            todos_pedidos_afetados.add(ped_s)
+
+        rep_raw = r_row.get("raiz_Representante")
+        rep_str = ""
+        if rep_raw is not None and pd.notna(rep_raw):
+            try:
+                rep_int = int(float(str(rep_raw).strip().rstrip(".")))
+                rep_str = str(rep_int) if rep_int > 0 else ""
+            except Exception:
+                rep_str = str(rep_raw).strip()
+
+        ocorrencia = {
+            "posicao_fila": int(r_row["_ordem_fila"]) + 1,
+            "pedido": ped_s,
+            "item_final": str(r_row.get("raiz_Item Final") or ""),
+            "descricao_pai": str(r_row.get("raiz_Descricao") or ""),
+            "cliente": str(r_row.get("raiz_Cliente") or ""),
+            "representante": rep_str,
+            "prazo_expedicao": prazo_int,
+            "data_abertura": str(r_row.get("_dt_abertura_br") or ""),
+            "entrega": str(r_row.get("_dt_entrega_br") or ""),
+            "consumo": consumo_val,
+            "saldo_fila": est_disp_val,
+            "falta": falta_val,
+        }
+
+        acc = acum_por_chave.get(chave)
+        if acc is None:
+            componentes_distintos_set.add(comp_str)
+            acc = {
+                "fabrica_pai": fab_pai_str,
+                "fabrica_componente": fab_comp_str,
+                "item": comp_str,
+                "descricao": str(r_row.get("Den_Item") or ""),
+                "baixa": str(r_row.get("Baixa") or "").upper(),
+                "estoque_total": round(float(r_row.get("estoque") or 0.0), 2),
+                "saldo_fila_min": est_disp_val,
+                "consumo_total": consumo_val,
+                "falta_por_prazo": {k: 0.0 for k in prazos_keys},
+                "falta_total": falta_val,
+                "ordem_prod_raw": r_row.get("Ordem_Prod"),
+                "pedidos_set": {ped_s} if ped_s else set(),
+                "representantes_list": [rep_str] if rep_str else [],
+                "itens_pais_afetados": [ocorrencia],
+            }
+            acc["falta_por_prazo"][prazo_k] = falta_val
+            acum_por_chave[chave] = acc
+        else:
+            acc["consumo_total"] = round(acc["consumo_total"] + consumo_val, 2)
+            acc["falta_total"] = round(acc["falta_total"] + falta_val, 2)
+            if est_disp_val < acc["saldo_fila_min"]:
+                acc["saldo_fila_min"] = est_disp_val
+            acc["falta_por_prazo"][prazo_k] = round(
+                acc["falta_por_prazo"].get(prazo_k, 0.0) + falta_val, 2
+            )
+            if ped_s:
+                acc["pedidos_set"].add(ped_s)
+            if rep_str and rep_str not in acc["representantes_list"]:
+                acc["representantes_list"].append(rep_str)
+            acc["itens_pais_afetados"].append(ocorrencia)
+
+        somas_gerais_por_prazo[prazo_k] = round(
+            somas_gerais_por_prazo.get(prazo_k, 0.0) + falta_val, 2
+        )
+
+    grupos_dict: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    linhas_planas: List[Dict[str, Any]] = []
+
+    for (fab_pai_str, fab_comp_str, comp_str), acc in acum_por_chave.items():
+        itens_pais_afetados = acc["itens_pais_afetados"]
+        ped_ref = itens_pais_afetados[0]["pedido"] if itens_pais_afetados else ""
+        it_pai_ref = itens_pais_afetados[0]["item_final"] if itens_pais_afetados else ""
+        dt_ab_ref = itens_pais_afetados[0]["data_abertura"] if itens_pais_afetados else ""
+
+        info_ger = _enriquecer_insumo_gerencial(
+            comp_item=comp_str,
+            tipo_comp="P",
+            local_prod_raw=fab_comp_str,
+            op_prod_raw=acc["ordem_prod_raw"],
+            raiz_pedido_str=ped_ref,
+            raiz_item_final=it_pai_ref,
+            raiz_data_abertura=dt_ab_ref,
+        )
+
+        pedidos_sorted = sorted(acc["pedidos_set"])
+        reps_list = acc.get("representantes_list") or []
+        linha_item = {
+            "fabrica_pai": fab_pai_str,
+            "fabrica_componente": fab_comp_str,
+            "item": comp_str,
+            "descricao": acc["descricao"],
+            "representante": ", ".join(reps_list) if reps_list else "-",
+            "representantes_afetados": reps_list,
+            "baixa": acc["baixa"],
+            "estoque_total": acc["estoque_total"],
+            "saldo_fila_min": acc["saldo_fila_min"],
+            "consumo_total": acc["consumo_total"],
+            "falta_por_prazo": acc["falta_por_prazo"],
+            "falta_total": acc["falta_total"],
+            "qtd_ocorrencias": len(itens_pais_afetados),
+            "qtd_pedidos_afetados": len(pedidos_sorted),
+            "pedidos_afetados": pedidos_sorted,
+            "itens_pais_afetados": itens_pais_afetados[:15],
+            "ordem_prod": info_ger["ordem_prod"],
+            "op_data_abertura": info_ger["op_data_abertura"],
+            "op_data_entrega": info_ger["op_data_entrega"],
+            "op_saldo": info_ger["op_saldo"],
+            "op_vinculo": info_ger["op_vinculo"],
+            "ops_abertas": info_ger["ops_abertas"],
+        }
+
+        grupos_dict.setdefault((fab_pai_str, fab_comp_str), []).append(linha_item)
+        linhas_planas.append(linha_item)
+
+    # Monta a lista de grupos (Local Item Pai × Local Componente) ordenada por maior falta
+    grupos_lista: List[Dict[str, Any]] = []
+    for (fab_pai_str, fab_comp_str), itens_grp in grupos_dict.items():
+        itens_grp.sort(key=lambda x: (-x["falta_total"], x["item"]))
+        somas_prazo_grp = {
+            k: round(sum(x["falta_por_prazo"].get(k, 0.0) for x in itens_grp), 2)
+            for k in prazos_keys
+        }
+        falta_total_grp = round(sum(x["falta_total"] for x in itens_grp), 2)
+        com_op_grp = sum(1 for x in itens_grp if bool(x.get("ordem_prod")))
+
+        grupos_lista.append(
+            {
+                "fabrica_pai": fab_pai_str,
+                "fabrica_componente": fab_comp_str,
+                "total_componentes": len(itens_grp),
+                "total_com_op": com_op_grp,
+                "falta_total_grupo": falta_total_grp,
+                "somas_por_prazo": somas_prazo_grp,
+                "itens": itens_grp,
+            }
+        )
+
+    grupos_lista.sort(
+        key=lambda g: (
+            g["fabrica_pai"],
+            -g["falta_total_grupo"],
+            g["fabrica_componente"],
+        )
+    )
+    linhas_planas.sort(
+        key=lambda x: (
+            x["fabrica_pai"],
+            x["fabrica_componente"],
+            -x["falta_total"],
+            x["item"],
+        )
+    )
+
+    soma_falta_geral = round(sum(somas_gerais_por_prazo.values()), 2)
+
+    return {
+        "grupos": grupos_lista,
+        "linhas_planas": linhas_planas,
+        "prazos_colunas": prazos_colunas,
+        "totais_gerais": {
+            "total_grupos": len(grupos_lista),
+            "total_componentes_distintos": len(componentes_distintos_set),
+            "total_linhas_matriz": len(linhas_planas),
+            "soma_falta_geral": soma_falta_geral,
+            "somas_por_prazo": somas_gerais_por_prazo,
+            "total_pedidos_afetados": len(todos_pedidos_afetados),
+        },
+        "opcoes_filtros": opcoes_base,
+        "session_id": str(session_id or "default"),
+    }
+
+
+def exportar_matriz_faltantes_excel(
+    filtros: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Exporta a Matriz Pivot de Componentes Produzidos Faltantes (Local Pai × Local Componente × Prazos de Expedição)
+    para um arquivo Excel (.xlsx) no diretório de exportações.
+    """
+    res = obter_matriz_faltantes_producao(filtros=filtros, session_id=session_id)
+    linhas = res.get("linhas_planas") or []
+    prazos_colunas = res.get("prazos_colunas") or []
+
+    if not linhas:
+        return {"erro": "Nenhum componente produzido faltante encontrado para os filtros selecionados."}
+
+    registros_excel: List[Dict[str, Any]] = []
+    for row in linhas:
+        reg: Dict[str, Any] = {
+            "Local Produção Item Pai": row["fabrica_pai"],
+            "Local Produção Componente": row["fabrica_componente"],
+            "Código Componente": row["item"],
+            "Descrição Componente": row["descricao"],
+            "Representante": row.get("representante") or "-",
+            "Baixa": row["baixa"],
+            "Estoque Físico Total (L)": row["estoque_total"],
+            "Consumo no Grupo": row["consumo_total"],
+        }
+        for col_p in prazos_colunas:
+            k = col_p["key"]
+            lbl = f"Falta {col_p['label']}"
+            reg[lbl] = row["falta_por_prazo"].get(k, 0.0)
+
+        reg["Total Faltante"] = row["falta_total"]
+        reg["OP Aberta"] = row["ordem_prod"] or ""
+        reg["Vínculo OP"] = row["op_vinculo"] or ""
+        reg["Saldo OP"] = row["op_saldo"]
+        reg["Abertura OP"] = row["op_data_abertura"] or ""
+        reg["Entrega OP"] = row["op_data_entrega"] or ""
+        reg["Qtd Pedidos Afetados"] = row["qtd_pedidos_afetados"]
+        reg["Pedidos Afetados"] = ", ".join(row.get("pedidos_afetados") or [])
+        registros_excel.append(reg)
+
+    df_export = pd.DataFrame(registros_excel)
+    sess_tag = (session_id[:8] if session_id and session_id != "default" else "export")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nome_arquivo = f"matriz_faltantes_producao_{sess_tag}_{timestamp}.xlsx"
+    caminho_arquivo = settings.EXPORTS_DIR / nome_arquivo
+
+    df_export.to_excel(caminho_arquivo, index=False)
+    return {
+        "status": "ok",
+        "url": f"/ver_estoque/exports/{nome_arquivo}",
+        "nome": nome_arquivo,
+        "total": len(df_export),
+        "session_id": str(session_id or "default"),
+    }
+
 
 
 if __name__ == "__main__":

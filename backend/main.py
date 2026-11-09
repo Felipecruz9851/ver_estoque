@@ -96,6 +96,18 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             tipo=payload.get("tipo"),
             session_id=session_id,
         )
+    if method == "obter_opcoes_filtros_faltantes":
+        return service.obter_opcoes_filtros_faltantes(session_id=session_id)
+    if method == "obter_matriz_faltantes_producao":
+        return service.obter_matriz_faltantes_producao(
+            filtros=payload.get("filtros"),
+            session_id=session_id,
+        )
+    if method == "exportar_matriz_faltantes_excel":
+        return service.exportar_matriz_faltantes_excel(
+            filtros=payload.get("filtros"),
+            session_id=session_id,
+        )
     if method == "recarregar_dados_estoque":
         forcar_oc = payload.get("atualizar_oc", True)
         sincronizar_snapshot = payload.get("sincronizar_snapshot", True)

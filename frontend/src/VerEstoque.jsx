@@ -35,6 +35,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const tableId = useId();
   const simDialogTitleId = useId();
   const resumoDialogTitleId = useId();
+  const matrizDialogTitleId = useId();
   const userFieldId = useId();
   const passFieldId = useId();
 
@@ -42,6 +43,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const scrollContainerRef = useRef(null);
   const simDialogRef = useRef(null);
   const resumoDialogRef = useRef(null);
+  const matrizDialogRef = useRef(null);
 
   // Estados de dados
   const [itens, setItens] = useState([]);
@@ -124,6 +126,34 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const [resumoBaixa, setResumoBaixa] = useState("todos"); // 'todos' | 'S' | 'N'
   const [resumoTipo, setResumoTipo] = useState("todos"); // 'todos' | 'C' | 'P'
   const [resumoItemEscopo, setResumoItemEscopo] = useState("TODOS"); // 'TODOS' | cod_item_final
+
+  // Modal / Tela de Matriz Pivot de Componentes Produzidos Faltantes (Local Pai × Local Comp × Prazo Expedição)
+  const [opcoesMatriz, setOpcoesMatriz] = useState({
+    locais_item_final: [],
+    locais_componente: [],
+    prazos_disponiveis: [3, 8, 10],
+    prazos_colunas: [
+      { prazo: 3, key: "3", label: "MG e franquia" },
+      { prazo: 8, key: "8", label: "Fora de MG" },
+      { prazo: 10, key: "10", label: "Revenda e Nordeste" },
+    ],
+  });
+  const [matrizLocaisPaiSel, setMatrizLocaisPaiSel] = useState([]);
+  const [matrizLocaisCompSel, setMatrizLocaisCompSel] = useState([]);
+  const [matrizBuscaLocalPai, setMatrizBuscaLocalPai] = useState("");
+  const [matrizBuscaLocalComp, setMatrizBuscaLocalComp] = useState("");
+  const [matrizBaixa, setMatrizBaixa] = useState("todos"); // 'todos' | 'S' | 'N'
+  const [matrizEscopoAbatimento, setMatrizEscopoAbatimento] = useState("global"); // 'global' | 'filtrado'
+  const [matrizDataInicio, setMatrizDataInicio] = useState("");
+  const [matrizDataFim, setMatrizDataFim] = useState("");
+  const [matrizBuscaItem, setMatrizBuscaItem] = useState("");
+  const [matrizMenuAberto, setMatrizMenuAberto] = useState(true);
+  const [matrizModoVisao, setMatrizModoVisao] = useState("agrupado"); // 'agrupado' | 'consolidado'
+  const [matrizDados, setMatrizDados] = useState(null);
+  const [carregandoMatriz, setCarregandoMatriz] = useState(false);
+  const [exportandoMatriz, setExportandoMatriz] = useState(false);
+  const [erroMatriz, setErroMatriz] = useState("");
+  const [gruposExpandidos, setGruposExpandidos] = useState({});
 
   // Fecha menu de coluna ao clicar fora
   useEffect(() => {
@@ -560,6 +590,426 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const fecharResumoPedido = () => {
     if (resumoDialogRef.current && resumoDialogRef.current.open) {
       resumoDialogRef.current.close();
+    }
+  };
+
+  // --- Ações da Tela / Modal de Matriz Pivot de Componentes Produzidos Faltantes ---
+  const carregarMatrizFaltantes = async (overrideParams = {}) => {
+    const locaisPai = overrideParams.locais_item_final ?? matrizLocaisPaiSel;
+    const locaisComp = overrideParams.locais_componente ?? matrizLocaisCompSel;
+    const bFiltro = overrideParams.baixa ?? matrizBaixa;
+    const escopoAbat = overrideParams.escopo_abatimento ?? matrizEscopoAbatimento;
+    const dtIni = overrideParams.data_inicio ?? matrizDataInicio;
+    const dtFim = overrideParams.data_fim ?? matrizDataFim;
+    const txtBusca = overrideParams.busca ?? matrizBuscaItem;
+
+    setCarregandoMatriz(true);
+    setErroMatriz("");
+    try {
+      const res = await apiCall("obter_matriz_faltantes_producao", {
+        filtros: {
+          locais_item_final: locaisPai,
+          locais_componente: locaisComp,
+          baixa: bFiltro,
+          escopo_abatimento: escopoAbat,
+          data_inicio: dtIni,
+          data_fim: dtFim,
+          busca: txtBusca,
+        },
+      });
+      if (res && res.erro) throw new Error(res.erro);
+      setMatrizDados(res);
+      if (res.opcoes_filtros) {
+        setOpcoesMatriz(res.opcoes_filtros);
+      }
+      setGruposExpandidos({});
+    } catch (e) {
+      setErroMatriz(e.message || "Não foi possível calcular a matriz de componentes faltantes.");
+    } finally {
+      setCarregandoMatriz(false);
+    }
+  };
+
+  const abrirMatrizFaltantes = async () => {
+    setErroMatriz("");
+    setMatrizMenuAberto(true);
+
+    if (matrizDialogRef.current && !matrizDialogRef.current.open) {
+      matrizDialogRef.current.showModal();
+    }
+
+    try {
+      const opRes = await apiCall("obter_opcoes_filtros_faltantes", {});
+      if (opRes && !opRes.erro) {
+        setOpcoesMatriz(opRes);
+        const paiInicial =
+          matrizLocaisPaiSel.length > 0
+            ? matrizLocaisPaiSel
+            : filtroLocal
+            ? [filtroLocal]
+            : opRes.locais_item_final || [];
+        const compInicial =
+          matrizLocaisCompSel.length > 0
+            ? matrizLocaisCompSel
+            : opRes.locais_componente || [];
+
+        setMatrizLocaisPaiSel(paiInicial);
+        setMatrizLocaisCompSel(compInicial);
+
+        if (!matrizDados) {
+          await carregarMatrizFaltantes({
+            locais_item_final: paiInicial,
+            locais_componente: compInicial,
+            baixa: filtroBaixa,
+            data_inicio: filtroDataInicio,
+            data_fim: filtroDataFim,
+          });
+        }
+      }
+    } catch (e) {
+      setErroMatriz(e.message || "Erro ao carregar opções de filtros.");
+    }
+  };
+
+  const fecharMatrizFaltantes = () => {
+    if (matrizDialogRef.current && matrizDialogRef.current.open) {
+      matrizDialogRef.current.close();
+    }
+  };
+
+  const toggleLocalPaiMatriz = (local) => {
+    setMatrizLocaisPaiSel((prev) =>
+      prev.includes(local) ? prev.filter((x) => x !== local) : [...prev, local]
+    );
+  };
+
+  const toggleLocalCompMatriz = (local) => {
+    setMatrizLocaisCompSel((prev) =>
+      prev.includes(local) ? prev.filter((x) => x !== local) : [...prev, local]
+    );
+  };
+
+  const handleExportarMatrizExcel = async () => {
+    try {
+      setExportandoMatriz(true);
+      const res = await apiCall("exportar_matriz_faltantes_excel", {
+        filtros: {
+          locais_item_final: matrizLocaisPaiSel,
+          locais_componente: matrizLocaisCompSel,
+          baixa: matrizBaixa,
+          escopo_abatimento: matrizEscopoAbatimento,
+          data_inicio: matrizDataInicio,
+          data_fim: matrizDataFim,
+          busca: matrizBuscaItem,
+        },
+      });
+      if (res && res.erro) throw new Error(res.erro);
+      if (res.url) {
+        const a = document.createElement("a");
+        a.href = res.url;
+        a.download = res.nome || "matriz_faltantes_producao.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (e) {
+      alert("Erro ao exportar Matriz Excel: " + e.message);
+    } finally {
+      setExportandoMatriz(false);
+    }
+  };
+
+  // Exporta uma tabela da Matriz Pivot como imagem PNG de alta definição (por fábrica do componente ou grupo)
+  const exportarTabelaMatrizComoImagem = ({
+    tituloPrincipal,
+    subtitulo,
+    itens,
+    prazosCols,
+    incluirLocalPai = true,
+    nomeArquivoBase = "tabela_faltantes",
+  }) => {
+    try {
+      if (!itens || itens.length === 0) {
+        alert("Não há linhas nesta tabela para gerar a imagem.");
+        return;
+      }
+
+      const truncar = (str, maxLen) => {
+        const s = String(str ?? "-").trim() || "-";
+        return s.length > maxLen ? s.slice(0, maxLen - 1) + "…" : s;
+      };
+
+      const colunas = [
+        ...(incluirLocalPai
+          ? [{ key: "fabrica_pai", label: "Local Item Pai", width: 150, align: "left" }]
+          : []),
+        { key: "item", label: "Componente (P)", width: 135, align: "left", mono: true, bold: true },
+        { key: "descricao", label: "Descrição", width: 255, align: "left" },
+        { key: "representante", label: "Representante", width: 125, align: "left", mono: true },
+        { key: "baixa", label: "Baixa", width: 62, align: "center", mono: true },
+        { key: "estoque_total", label: "Estoque (L)", width: 105, align: "right", mono: true },
+        ...(prazosCols || []).map((colP) => ({
+          key: `prazo_${colP.key}`,
+          prazoKey: colP.key,
+          label: colP.label,
+          width: 145,
+          align: "right",
+          mono: true,
+          isPrazo: true,
+        })),
+        {
+          key: "falta_total",
+          label: "Total Faltante",
+          width: 130,
+          align: "right",
+          mono: true,
+          isTotal: true,
+        },
+        { key: "ordem_prod", label: "OP Componente", width: 120, align: "left", mono: true },
+        { key: "op_data_entrega", label: "Entrega OP", width: 100, align: "center", mono: true },
+      ];
+
+      const padX = 24;
+      const padY = 20;
+      const headerBannerH = 66;
+      const tableHeaderH = 38;
+      const rowH = 30;
+      const footerH = 38;
+
+      const tableW = colunas.reduce((acc, c) => acc + c.width, 0);
+      const totalW = tableW + padX * 2;
+      const totalH =
+        padY * 2 + headerBannerH + tableHeaderH + itens.length * rowH + footerH;
+
+      const scale = 2; // 2x Retina para máxima nitidez
+      const canvas = document.createElement("canvas");
+      canvas.width = totalW * scale;
+      canvas.height = totalH * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+
+      // Fundo geral branco
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, totalW, totalH);
+
+      // Banner superior institucional
+      ctx.fillStyle = "#0D47A1";
+      ctx.fillRect(padX, padY, tableW, headerBannerH);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 16px Inter, Segoe UI, Arial, sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      ctx.fillText(tituloPrincipal || "Faltantes Produzidos por Fábrica", padX + 16, padY + 24);
+
+      ctx.fillStyle = "#E3F2FD";
+      ctx.font = "12px Inter, Segoe UI, Arial, sans-serif";
+      const dataGeracao = new Date().toLocaleString("pt-BR");
+      const subTexto = `${subtitulo || ""} • ${itens.length} componente(s) • Gerado em ${dataGeracao}`;
+      ctx.fillText(subTexto, padX + 16, padY + 47);
+
+      // Cabeçalho da tabela
+      const yHead = padY + headerBannerH;
+      let curX = padX;
+      colunas.forEach((col) => {
+        if (col.isPrazo) {
+          ctx.fillStyle = "#E3F2FD";
+        } else if (col.isTotal) {
+          ctx.fillStyle = "#FFEBEE";
+        } else {
+          ctx.fillStyle = "#F5F5F5";
+        }
+        ctx.fillRect(curX, yHead, col.width, tableHeaderH);
+
+        ctx.strokeStyle = "#D5D5D5";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(curX, yHead, col.width, tableHeaderH);
+
+        ctx.fillStyle = col.isPrazo ? "#0D47A1" : col.isTotal ? "#C62828" : "#222222";
+        ctx.font = "bold 11px Inter, Segoe UI, Arial, sans-serif";
+        ctx.textAlign = col.align === "right" ? "right" : col.align === "center" ? "center" : "left";
+        const textX =
+          col.align === "right"
+            ? curX + col.width - 10
+            : col.align === "center"
+            ? curX + col.width / 2
+            : curX + 10;
+        ctx.fillText(truncar(col.label, 24), textX, yHead + tableHeaderH / 2);
+        curX += col.width;
+      });
+
+      // Linhas de dados e cálculo de subtotais
+      const subtotaisPrazo = {};
+      (prazosCols || []).forEach((colP) => {
+        subtotaisPrazo[colP.key] = 0;
+      });
+      let subtotalFaltaGeral = 0;
+
+      itens.forEach((row, idx) => {
+        const yRow = yHead + tableHeaderH + idx * rowH;
+        const bgBase = idx % 2 === 0 ? "#FFFFFF" : "#FAFAFA";
+
+        subtotalFaltaGeral += Number(row.falta_total || 0);
+        (prazosCols || []).forEach((colP) => {
+          subtotaisPrazo[colP.key] =
+            (subtotaisPrazo[colP.key] || 0) + Number(row.falta_por_prazo?.[colP.key] || 0);
+        });
+
+        let xCell = padX;
+        colunas.forEach((col) => {
+          let valTexto = "-";
+          let txtColor = "#222222";
+          let cellBg = bgBase;
+          let isBold = Boolean(col.bold);
+
+          if (col.key === "fabrica_pai") {
+            valTexto = truncar(row.fabrica_pai, 20);
+            txtColor = "#0D47A1";
+            isBold = true;
+          } else if (col.key === "item") {
+            valTexto = truncar(row.item, 18);
+          } else if (col.key === "descricao") {
+            valTexto = truncar(row.descricao, 34);
+            txtColor = "#424242";
+          } else if (col.key === "representante") {
+            valTexto = truncar(row.representante || "-", 18);
+            txtColor = "#333333";
+          } else if (col.key === "baixa") {
+            valTexto = row.baixa || "-";
+            txtColor = row.baixa === "S" ? "#2E7D32" : "#757575";
+            isBold = true;
+          } else if (col.key === "estoque_total") {
+            valTexto = formatarQtd(row.estoque_total || 0);
+          } else if (col.isPrazo) {
+            const vP = Number(row.falta_por_prazo?.[col.prazoKey] || 0);
+            valTexto = vP > 0 ? formatarQtd(vP) : "-";
+            if (vP > 0) {
+              cellBg = "#F0F7FF";
+              txtColor = "#0D47A1";
+              isBold = true;
+            } else {
+              txtColor = "#BDBDBD";
+            }
+          } else if (col.isTotal) {
+            valTexto = formatarQtd(row.falta_total || 0);
+            cellBg = "#FFF5F5";
+            txtColor = "#C62828";
+            isBold = true;
+          } else if (col.key === "ordem_prod") {
+            valTexto = row.ordem_prod ? `OP #${row.ordem_prod}` : "Sem OP";
+            txtColor = row.ordem_prod ? "#0D47A1" : "#C62828";
+            isBold = true;
+          } else if (col.key === "op_data_entrega") {
+            valTexto = row.op_data_entrega || "-";
+          }
+
+          ctx.fillStyle = cellBg;
+          ctx.fillRect(xCell, yRow, col.width, rowH);
+
+          ctx.strokeStyle = "#EAEAEA";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(xCell, yRow, col.width, rowH);
+
+          ctx.fillStyle = txtColor;
+          const fontFam = col.mono
+            ? "JetBrains Mono, Consolas, monospace"
+            : "Inter, Segoe UI, Arial, sans-serif";
+          ctx.font = `${isBold ? "bold " : ""}11px ${fontFam}`;
+          ctx.textAlign =
+            col.align === "right" ? "right" : col.align === "center" ? "center" : "left";
+          const tx =
+            col.align === "right"
+              ? xCell + col.width - 10
+              : col.align === "center"
+              ? xCell + col.width / 2
+              : xCell + 10;
+          ctx.fillText(valTexto, tx, yRow + rowH / 2);
+
+          xCell += col.width;
+        });
+      });
+
+      // Linha final de SUBTOTAL POR PRAZO DE ENTREGA (tfoot)
+      const yFoot = yHead + tableHeaderH + itens.length * rowH;
+      let xFoot = padX;
+      const qtdColsAntesPrazos = colunas.findIndex((c) => c.isPrazo);
+      const idxFimAntesPrazos =
+        qtdColsAntesPrazos > 0 ? qtdColsAntesPrazos : colunas.length - 3;
+      const larguraBlocoLabel = colunas
+        .slice(0, idxFimAntesPrazos)
+        .reduce((acc, c) => acc + c.width, 0);
+
+      // Célula mesclada do rótulo "SUBTOTAL FALTA POR PRAZO DE ENTREGA"
+      ctx.fillStyle = "#ECEFF1";
+      ctx.fillRect(xFoot, yFoot, larguraBlocoLabel, footerH);
+      ctx.strokeStyle = "#B0BEC5";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(xFoot, yFoot, larguraBlocoLabel, footerH);
+
+      ctx.fillStyle = "#1A1A1A";
+      ctx.font = "bold 11px Inter, Segoe UI, Arial, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(
+        `SUBTOTAL POR PRAZO DE ENTREGA (${itens.length} itens):`,
+        xFoot + larguraBlocoLabel - 12,
+        yFoot + footerH / 2
+      );
+      xFoot += larguraBlocoLabel;
+
+      // Células de subtotal para cada prazo e total geral
+      colunas.slice(idxFimAntesPrazos).forEach((col) => {
+        let cellBg = "#ECEFF1";
+        let txtColor = "#1A1A1A";
+        let textoSub = "";
+
+        if (col.isPrazo) {
+          const somaP = subtotaisPrazo[col.prazoKey] || 0;
+          cellBg = "#E3F2FD";
+          txtColor = "#0D47A1";
+          textoSub = formatarQtd(somaP);
+        } else if (col.isTotal) {
+          cellBg = "#FFCDD2";
+          txtColor = "#B71C1C";
+          textoSub = formatarQtd(subtotalFaltaGeral);
+        }
+
+        ctx.fillStyle = cellBg;
+        ctx.fillRect(xFoot, yFoot, col.width, footerH);
+        ctx.strokeStyle = "#B0BEC5";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(xFoot, yFoot, col.width, footerH);
+
+        if (textoSub) {
+          ctx.fillStyle = txtColor;
+          ctx.font = "bold 12px JetBrains Mono, Consolas, monospace";
+          ctx.textAlign = "right";
+          ctx.fillText(textoSub, xFoot + col.width - 10, yFoot + footerH / 2);
+        }
+        xFoot += col.width;
+      });
+
+      // Dispara o download do PNG
+      const slug = String(nomeArquivoBase || "tabela")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9_-]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .toLowerCase();
+      const dataStr = new Date().toISOString().slice(0, 10);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `faltantes_${slug}_${dataStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }, "image/png");
+    } catch (err) {
+      alert("Erro ao gerar imagem da tabela: " + err.message);
     }
   };
 
@@ -1301,6 +1751,18 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               </div>
             </div>
           )}
+
+          {/* BOTÃO MATRIZ PIVOT DE COMPONENTES PRODUZIDOS FALTANTES */}
+          <button
+            onClick={abrirMatrizFaltantes}
+            disabled={loading}
+            className="px-3.5 py-1.5 rounded-sm bg-[#0D47A1] text-white text-xs font-medium hover:bg-[#093170] transition-colors flex items-center gap-1.5 shadow-sm"
+            title="Abrir Matriz Pivot de itens produzidos faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[16px]">pivot_table_chart</span>
+            <span>Faltas Produzidos (Matriz)</span>
+          </button>
 
           {/* BOTÃO RESUMO GERENCIAL DO PEDIDO */}
           <button
@@ -3039,6 +3501,1470 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               className="px-4 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors"
             >
               Fechar Resumo
+            </button>
+          </div>
+        </div>
+      </dialog>
+
+      {/* MODAL NATIVO <dialog> DE MATRIZ PIVOT DE COMPONENTES PRODUZIDOS FALTANTES */}
+      <dialog
+        ref={matrizDialogRef}
+        aria-labelledby={matrizDialogTitleId}
+        className="w-full max-w-[95%] rounded-sm shadow-2xl border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto"
+      >
+        <div className="flex flex-col max-h-[94vh]">
+          {/* Cabeçalho da Matriz Pivot */}
+          <div className="px-5 py-3.5 border-b border-[#E0E0E0] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-[#0D47A1]">
+                  pivot_table_chart
+                </span>
+                <h2 id={matrizDialogTitleId} className="text-sm font-bold text-[#1A1A1A]">
+                  Matriz Pivot — Componentes Produzidos Faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição
+                </h2>
+              </div>
+              <p className="text-[11px] text-[#666666]">
+                Agrupamento por fábrica do item final e fábrica do componente produzido (Tipo P), exibindo os saldos faltantes em colunas por prazo de expedição (calculado com base no Representante).
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMatrizMenuAberto((prev) => !prev)}
+                className={`px-3 py-1.5 rounded-sm text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
+                  matrizMenuAberto
+                    ? "bg-[#E3F2FD] text-[#0D47A1] border-[#90CAF9]"
+                    : "bg-white text-[#424242] border-[#D5D5D5] hover:bg-[#F2F2F2]"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">tune</span>
+                <span>{matrizMenuAberto ? "Ocultar Menu de Filtros" : "Abrir Menu de Filtros"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportarMatrizExcel}
+                disabled={exportandoMatriz || carregandoMatriz || !matrizDados?.linhas_planas?.length}
+                className="px-3.5 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {exportandoMatriz ? "hourglass_top" : "download"}
+                </span>
+                <span>{exportandoMatriz ? "Exportando..." : "Exportar Matriz Excel"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={fecharMatrizFaltantes}
+                className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#EEEEEE] transition-colors"
+                aria-label="Fechar matriz de componentes faltantes"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Corpo da Tela da Matriz Pivot */}
+          <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-[#F9F9F9]">
+            {erroMatriz && (
+              <div
+                role="alert"
+                className="p-3 rounded-sm bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] text-xs flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[16px]">error</span>
+                <span>{erroMatriz}</span>
+              </div>
+            )}
+
+            {/* MENU DE OPÇÕES DE FILTROS PARA CÁLCULO */}
+            {matrizMenuAberto && (
+              <section className="bg-white border border-[#D5D5D5] rounded-sm p-4 shadow-2xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#EEEEEE]">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-[#0D47A1]">
+                      checklist
+                    </span>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]">
+                      Menu de Opções de Filtros para Cálculo
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-[#666666]">
+                    Marque os locais desejados para compor o cálculo • Prazos de expedição trazem todos os disponíveis automaticamente
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* COLUNA 1: LOCAL DE PRODUÇÃO DO ITEM FINAL (PAI) */}
+                  <div className="border border-[#E0E0E0] rounded-sm p-3 bg-[#FAFAFA] flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#1A1A1A] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px] text-[#0D47A1]">
+                          domain
+                        </span>
+                        1. Local Produção do Item Final (Pai)
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded bg-[#E3F2FD] text-[#0D47A1] text-[10px] font-bold">
+                        {matrizLocaisPaiSel.length}/{opcoesMatriz.locais_item_final.length}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={matrizBuscaLocalPai}
+                        onChange={(e) => setMatrizBuscaLocalPai(e.target.value)}
+                        placeholder="Filtrar local do item final..."
+                        className="flex-1 px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#0D47A1]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMatrizLocaisPaiSel(opcoesMatriz.locais_item_final || [])}
+                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#F0F0F0]"
+                        title="Marcar todos os locais de produção do item final"
+                      >
+                        Todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMatrizLocaisPaiSel([])}
+                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#FFEBEE] text-[#C62828]"
+                        title="Desmarcar todos"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+
+                    <div className="max-h-36 overflow-y-auto bg-white border border-[#E0E0E0] rounded-sm p-2 grid grid-cols-2 gap-1.5">
+                      {(opcoesMatriz.locais_item_final || [])
+                        .filter((loc) =>
+                          loc.toUpperCase().includes(matrizBuscaLocalPai.trim().toUpperCase())
+                        )
+                        .map((loc) => {
+                          const checked = matrizLocaisPaiSel.includes(loc);
+                          return (
+                            <label
+                              key={loc}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] cursor-pointer select-none border transition-colors ${
+                                checked
+                                  ? "bg-[#E3F2FD]/70 border-[#90CAF9] text-[#0D47A1] font-semibold"
+                                  : "bg-white border-transparent hover:bg-[#F5F5F5] text-[#424242]"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleLocalPaiMatriz(loc)}
+                                className="accent-[#0D47A1] rounded-xs"
+                              />
+                              <span className="truncate" title={loc}>
+                                {loc}
+                              </span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* COLUNA 2: LOCAL DE PRODUÇÃO DO COMPONENTE PRODUZIDO */}
+                  <div className="border border-[#E0E0E0] rounded-sm p-3 bg-[#FAFAFA] flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-[#1A1A1A] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px] text-[#8B5A2B]">
+                          precision_manufacturing
+                        </span>
+                        2. Local do Componente Produzido (P)
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded bg-[#FFF8E1] text-[#8B5A2B] border border-[#FFE082] text-[10px] font-bold">
+                        {matrizLocaisCompSel.length}/{opcoesMatriz.locais_componente.length}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={matrizBuscaLocalComp}
+                        onChange={(e) => setMatrizBuscaLocalComp(e.target.value)}
+                        placeholder="Filtrar local do componente..."
+                        className="flex-1 px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#8B5A2B]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMatrizLocaisCompSel(opcoesMatriz.locais_componente || [])}
+                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#F0F0F0]"
+                        title="Marcar todos os locais de produção de componentes"
+                      >
+                        Todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMatrizLocaisCompSel([])}
+                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#FFEBEE] text-[#C62828]"
+                        title="Desmarcar todos"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+
+                    <div className="max-h-36 overflow-y-auto bg-white border border-[#E0E0E0] rounded-sm p-2 grid grid-cols-2 gap-1.5">
+                      {(opcoesMatriz.locais_componente || [])
+                        .filter((loc) =>
+                          loc.toUpperCase().includes(matrizBuscaLocalComp.trim().toUpperCase())
+                        )
+                        .map((loc) => {
+                          const checked = matrizLocaisCompSel.includes(loc);
+                          return (
+                            <label
+                              key={loc}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] cursor-pointer select-none border transition-colors ${
+                                checked
+                                  ? "bg-[#FFF8E1] border-[#FFE082] text-[#5D4037] font-semibold"
+                                  : "bg-white border-transparent hover:bg-[#F5F5F5] text-[#424242]"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleLocalCompMatriz(loc)}
+                                className="accent-[#8B5A2B] rounded-xs"
+                              />
+                              <span className="truncate" title={loc}>
+                                {loc}
+                              </span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* COLUNA 3: PRAZOS DE EXPEDIÇÃO E PARÂMETROS DE CÁLCULO */}
+                  <div className="border border-[#E0E0E0] rounded-sm p-3 bg-[#FAFAFA] flex flex-col justify-between gap-2.5">
+                    <div className="space-y-2.5">
+                      <div>
+                        <span className="text-[11px] font-bold text-[#1A1A1A] flex items-center gap-1 mb-1">
+                          <span className="material-symbols-outlined text-[14px] text-[#2E7D32]">
+                            local_shipping
+                          </span>
+                          3. Prazos de Expedição (Base Representante)
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#E0E0E0] rounded-sm">
+                          {(matrizDados?.prazos_colunas || opcoesMatriz.prazos_colunas || []).map(
+                            (pCol) => (
+                              <span
+                                key={pCol.key}
+                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]"
+                              >
+                                ✓ {pCol.label}
+                              </span>
+                            )
+                          )}
+                          <span className="text-[10px] text-[#666666] ml-1">
+                            (Todos disponíveis incluídos nas colunas)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Modo de Abatimento do Estoque */}
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-semibold text-[#555555] mb-0.5">
+                            Escopo de Abatimento
+                          </label>
+                          <select
+                            value={matrizEscopoAbatimento}
+                            onChange={(e) => setMatrizEscopoAbatimento(e.target.value)}
+                            className="px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#0D47A1]"
+                            title="Fila Global: abate o estoque na fila completa e filtra os faltantes. Apenas Selecionados: abate o estoque exclusivamente entre os locais marcados."
+                          >
+                            <option value="global">Fila Global Completa</option>
+                            <option value="filtrado">Apenas Locais Marcados</option>
+                          </select>
+                        </div>
+
+                        {/* Baixa do Componente */}
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-semibold text-[#555555] mb-0.5">
+                            Baixa Componente
+                          </label>
+                          <select
+                            value={matrizBaixa}
+                            onChange={(e) => setMatrizBaixa(e.target.value)}
+                            className="px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#0D47A1]"
+                          >
+                            <option value="todos">Todas (S e N)</option>
+                            <option value="S">Apenas Baixa Sim (S)</option>
+                            <option value="N">Apenas Baixa Não (N)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Janela de Entrega do Pedido */}
+                      <div className="flex flex-col">
+                        <label
+                          className="text-[10px] font-semibold text-[#555555] mb-0.5"
+                          title="Filtra os itens pais pela data de Entrega do Pedido"
+                        >
+                          Entrega do Pedido (Opcional)
+                        </label>
+                        <div className="flex items-center gap-1 bg-white border border-[#D5D5D5] rounded-sm px-2 py-0.5">
+                          <input
+                            type="date"
+                            value={matrizDataInicio}
+                            onChange={(e) => setMatrizDataInicio(e.target.value)}
+                            className="text-xs bg-transparent focus:outline-none flex-1"
+                            title="Data inicial de Entrega do Pedido"
+                          />
+                          <span className="text-[10px] text-[#757575]">até</span>
+                          <input
+                            type="date"
+                            value={matrizDataFim}
+                            onChange={(e) => setMatrizDataFim(e.target.value)}
+                            className="text-xs bg-transparent focus:outline-none flex-1"
+                            title="Data final de Entrega do Pedido"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => carregarMatrizFaltantes()}
+                      disabled={carregandoMatriz}
+                      className="w-full py-2 px-4 rounded-sm bg-[#0D47A1] text-white text-xs font-bold hover:bg-[#093170] transition-colors flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-60"
+                    >
+                      <span
+                        className={`material-symbols-outlined text-[16px] ${
+                          carregandoMatriz ? "animate-spin" : ""
+                        }`}
+                      >
+                        {carregandoMatriz ? "progress_activity" : "calculate"}
+                      </span>
+                      <span>
+                        {carregandoMatriz
+                          ? "Calculando Matriz Pivot..."
+                          : "Calcular / Atualizar Matriz Pivot"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* CONTEÚDO DOS RESULTADOS DA MATRIZ PIVOT */}
+            {carregandoMatriz ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575] bg-white border border-[#E0E0E0] rounded-sm">
+                <span className="material-symbols-outlined text-3xl animate-spin text-[#0D47A1]">
+                  progress_activity
+                </span>
+                <span className="text-xs font-medium">
+                  Calculando itens produzidos faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição...
+                </span>
+              </div>
+            ) : !matrizDados ? (
+              <div className="py-12 text-center text-xs text-[#757575] bg-white border border-[#E0E0E0] rounded-sm">
+                Marque os filtros desejados acima e clique em <strong>Calcular / Atualizar Matriz Pivot</strong>.
+              </div>
+            ) : (
+              <>
+                {/* CARDS DE TOTAIS GERAIS E SOMAS POR PRAZO DE EXPEDIÇÃO */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  <div className="bg-white p-3 rounded-sm border border-[#E0E0E0] shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666] block">
+                      Pares Local Pai × Comp.
+                    </span>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="text-lg font-bold text-[#1A1A1A] font-mono">
+                        {(matrizDados.totais_gerais?.total_grupos || 0).toLocaleString("pt-BR")}
+                      </span>
+                      <span className="text-[10px] text-[#757575]">
+                        {(matrizDados.totais_gerais?.total_componentes_distintos || 0).toLocaleString("pt-BR")} comp. únicos
+                      </span>
+                    </div>
+                  </div>
+
+                  {(matrizDados.prazos_colunas || []).map((colP) => {
+                    const valorPrazo =
+                      matrizDados.totais_gerais?.somas_por_prazo?.[colP.key] || 0;
+                    return (
+                      <div
+                        key={colP.key}
+                        className="bg-white p-3 rounded-sm border border-[#90CAF9] shadow-2xs"
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#0D47A1] flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[13px]">
+                            local_shipping
+                          </span>
+                          Falta: {colP.label}
+                        </span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="text-lg font-bold text-[#0D47A1] font-mono">
+                            {formatarQtd(valorPrazo)}
+                          </span>
+                          <span className="text-[10px] text-[#666666]">peças</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="bg-[#FFEBEE]/50 p-3 rounded-sm border border-[#EF9A9A] shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#C62828] block">
+                      Total Faltante Geral
+                    </span>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="text-lg font-bold text-[#C62828] font-mono">
+                        {formatarQtd(matrizDados.totais_gerais?.soma_falta_geral || 0)}
+                      </span>
+                      <span className="text-[10px] text-[#C62828] font-semibold">
+                        {(matrizDados.totais_gerais?.total_pedidos_afetados || 0).toLocaleString("pt-BR")} pedidos
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BARRA DE BUSCA RÁPIDA E ALTERNADOR DE VISÃO */}
+                <div className="bg-white px-4 py-2.5 rounded-sm border border-[#E0E0E0] flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+                    <span className="material-symbols-outlined text-[18px] text-[#757575]">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      value={matrizBuscaItem}
+                      onChange={(e) => setMatrizBuscaItem(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          carregarMatrizFaltantes({ busca: e.target.value });
+                        }
+                      }}
+                      placeholder="Buscar componente, descrição, representante, item pai ou pedido..."
+                      className="flex-1 px-2.5 py-1 text-xs bg-[#FAFAFA] border border-[#D5D5D5] rounded-sm focus:outline-none focus:bg-white focus:border-[#0D47A1]"
+                    />
+                    {matrizBuscaItem && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMatrizBuscaItem("");
+                          carregarMatrizFaltantes({ busca: "" });
+                        }}
+                        className="text-xs text-[#C62828] hover:underline px-1.5"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-[#666666]">
+                      Exibição da Matriz:
+                    </span>
+                    <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setMatrizModoVisao("agrupado")}
+                        className={`px-3 py-1 font-semibold flex items-center gap-1 transition-colors ${
+                          matrizModoVisao === "agrupado"
+                            ? "bg-[#0D47A1] text-white"
+                            : "bg-white text-[#424242] hover:bg-[#F2F2F2]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">view_agenda</span>
+                        <span>Local Pai × Local Comp</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMatrizModoVisao("fabrica_comp")}
+                        className={`px-3 py-1 font-semibold flex items-center gap-1 border-l border-[#D5D5D5] transition-colors ${
+                          matrizModoVisao === "fabrica_comp"
+                            ? "bg-[#0D47A1] text-white"
+                            : "bg-white text-[#424242] hover:bg-[#F2F2F2]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">
+                          precision_manufacturing
+                        </span>
+                        <span>Por Fábrica do Componente</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMatrizModoVisao("consolidado")}
+                        className={`px-3 py-1 font-semibold flex items-center gap-1 border-l border-[#D5D5D5] transition-colors ${
+                          matrizModoVisao === "consolidado"
+                            ? "bg-[#0D47A1] text-white"
+                            : "bg-white text-[#424242] hover:bg-[#F2F2F2]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">table_rows</span>
+                        <span>Tabela Pivot Única</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LISTAGEM DA MATRIZ PIVOT */}
+                {(() => {
+                  const prazosCols = matrizDados.prazos_colunas || [];
+                  const termoFiltroLocal = matrizBuscaItem.trim().toUpperCase();
+
+                  const mapPrazoNome = (pNum) => {
+                    const p = Number(pNum || 0);
+                    if (p === 3) return "MG e franquia";
+                    if (p === 8) return "Fora de MG";
+                    if (p === 10) return "Revenda e Nordeste";
+                    return p > 0 ? `${p} dias` : "Sem Rep.";
+                  };
+
+                  const filtrarLinha = (itemObj) => {
+                    if (!termoFiltroLocal) return true;
+                    if (itemObj.item?.toUpperCase().includes(termoFiltroLocal)) return true;
+                    if (itemObj.descricao?.toUpperCase().includes(termoFiltroLocal)) return true;
+                    if (itemObj.representante?.toUpperCase().includes(termoFiltroLocal)) return true;
+                    if (itemObj.fabrica_pai?.toUpperCase().includes(termoFiltroLocal)) return true;
+                    if (itemObj.fabrica_componente?.toUpperCase().includes(termoFiltroLocal))
+                      return true;
+                    if (
+                      (itemObj.pedidos_afetados || []).some((p) =>
+                        p.toUpperCase().includes(termoFiltroLocal)
+                      )
+                    )
+                      return true;
+                    if (
+                      (itemObj.itens_pais_afetados || []).some((ip) =>
+                        ip.item_final?.toUpperCase().includes(termoFiltroLocal)
+                      )
+                    )
+                      return true;
+                    return false;
+                  };
+
+                  if ((matrizDados.grupos || []).length === 0) {
+                    return (
+                      <div className="py-12 text-center text-xs text-[#2E7D32] bg-[#E8F5E9]/30 border border-[#C8E6C9] rounded-sm flex flex-col items-center gap-2">
+                        <span className="material-symbols-outlined text-4xl">check_circle</span>
+                        <strong className="text-sm">
+                          Nenhum componente produzido (Tipo P) faltante para os locais marcados!
+                        </strong>
+                      </div>
+                    );
+                  }
+
+                  // Agrupa todas as linhas filtradas por Local de Produção do Componente (Fábrica)
+                  // para permitir exportar como imagem a tabela completa de qualquer fábrica de componente
+                  const todasLinhasFiltradas = (matrizDados.linhas_planas || []).filter(filtrarLinha);
+                  const mapaPorFabricaComp = {};
+                  todasLinhasFiltradas.forEach((row) => {
+                    const fc = row.fabrica_componente || "NÃO INFORMADO";
+                    if (!mapaPorFabricaComp[fc]) {
+                      mapaPorFabricaComp[fc] = [];
+                    }
+                    mapaPorFabricaComp[fc].push(row);
+                  });
+
+                  if (matrizModoVisao === "consolidado") {
+                    const linhasFiltradas = todasLinhasFiltradas;
+                    const limiteExibicao = gruposExpandidos["__CONSOLIDADO__"] ? linhasFiltradas.length : 150;
+                    const linhasVisiveis = linhasFiltradas.slice(0, limiteExibicao);
+
+                    const subtotaisConsolidado = {};
+                    prazosCols.forEach((colP) => {
+                      subtotaisConsolidado[colP.key] = linhasFiltradas.reduce(
+                        (acc, r) => acc + Number(r.falta_por_prazo?.[colP.key] || 0),
+                        0
+                      );
+                    });
+                    const totalFaltanteConsolidado = linhasFiltradas.reduce(
+                      (acc, r) => acc + Number(r.falta_total || 0),
+                      0
+                    );
+
+                    return (
+                      <div className="border border-[#E0E0E0] rounded-sm bg-white overflow-hidden shadow-2xs">
+                        <div className="px-4 py-2.5 bg-[#E3F2FD]/70 border-b border-[#BBDEFB] flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                exportarTabelaMatrizComoImagem({
+                                  tituloPrincipal:
+                                    "TABELA PIVOT CONSOLIDADA — ITENS PRODUZIDOS FALTANTES",
+                                  subtitulo: `Todos os Locais Selecionados`,
+                                  itens: linhasFiltradas,
+                                  prazosCols,
+                                  incluirLocalPai: true,
+                                  nomeArquivoBase: "matriz_consolidada",
+                                })
+                              }
+                              className="px-2.5 py-1 rounded-sm bg-[#0D47A1] text-white text-xs font-bold hover:bg-[#093170] transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                              title="Exportar esta tabela consolidada como imagem (.png)"
+                            >
+                              <span className="material-symbols-outlined text-[15px]">
+                                photo_camera
+                              </span>
+                              <span>Exportar Imagem (.png)</span>
+                            </button>
+                            <span className="text-xs font-bold text-[#0D47A1]">
+                              Tabela Pivot Consolidada ({linhasFiltradas.length} linhas)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div
+                          tabIndex={0}
+                          role="region"
+                          aria-label="Tabela Pivot Consolidada de Componentes Produzidos Faltantes"
+                          className="overflow-auto max-h-[min(600px,68vh)] relative focus:outline-none"
+                        >
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead className="sticky top-0 z-20 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
+                              <tr>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] whitespace-nowrap">
+                                  Local Item Pai
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] whitespace-nowrap">
+                                  Local Componente
+                                </th>
+                                <th
+                                  scope="col"
+                                  className="p-2.5 bg-[#FAFAFA] sticky left-0 z-20 whitespace-nowrap"
+                                >
+                                  Componente (P)
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA]">
+                                  Descrição
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] whitespace-nowrap">
+                                  Representante
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">
+                                  Baixa
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">
+                                  Estoque (L)
+                                </th>
+                                {prazosCols.map((colP) => (
+                                  <th
+                                    key={colP.key}
+                                    scope="col"
+                                    className="p-2.5 bg-[#E3F2FD]/70 text-[#0D47A1] text-right font-bold whitespace-nowrap border-l border-[#BBDEFB]"
+                                    title={`Saldo faltante para ${colP.label} (calculado pelo Representante)`}
+                                  >
+                                    {colP.label}
+                                  </th>
+                                ))}
+                                <th
+                                  scope="col"
+                                  className="p-2.5 bg-[#FFEBEE]/70 text-[#C62828] text-right font-bold whitespace-nowrap border-l border-[#FFCDD2]"
+                                >
+                                  Total Faltante
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] border-l border-[#EEEEEE]">
+                                  OP Componente
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">
+                                  Entrega OP
+                                </th>
+                                <th scope="col" className="p-2.5 bg-[#FAFAFA]">
+                                  Pedidos / Itens Pais
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                              {linhasVisiveis.map((row, rIdx) => (
+                                <tr
+                                  key={`${row.fabrica_pai}_${row.fabrica_componente}_${row.item}_${rIdx}`}
+                                  className="hover:bg-[#F5F9FF]"
+                                >
+                                  <td className="p-2.5 font-semibold text-[#0D47A1] whitespace-nowrap">
+                                    {row.fabrica_pai}
+                                  </td>
+                                  <td className="p-2.5 font-semibold text-[#5D4037] whitespace-nowrap">
+                                    {row.fabrica_componente}
+                                  </td>
+                                  <th
+                                    scope="row"
+                                    className="p-2.5 font-mono font-bold text-[#1A1A1A] bg-white sticky left-0 z-10 whitespace-nowrap"
+                                  >
+                                    {row.item}
+                                  </th>
+                                  <td
+                                    className="p-2.5 text-[#424242] max-w-[220px] truncate"
+                                    title={row.descricao}
+                                  >
+                                    {row.descricao || "-"}
+                                  </td>
+                                  <td
+                                    className="p-2.5 font-mono text-[#333333] whitespace-nowrap"
+                                    title={`Representante(s): ${row.representante || "-"}`}
+                                  >
+                                    {row.representante || "-"}
+                                  </td>
+                                  <td className="p-2.5 text-center">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                        row.baixa === "S"
+                                          ? "bg-[#E8F5E9] text-[#2E7D32]"
+                                          : "bg-[#F2F2F2] text-[#757575]"
+                                      }`}
+                                    >
+                                      {row.baixa || "-"}
+                                    </span>
+                                  </td>
+                                  <td className="p-2.5 text-right font-mono text-[#424242] bg-[#FAFAFA]">
+                                    {formatarQtd(row.estoque_total)}
+                                  </td>
+                                  {prazosCols.map((colP) => {
+                                    const valP = row.falta_por_prazo?.[colP.key] || 0;
+                                    return (
+                                      <td
+                                        key={colP.key}
+                                        className={`p-2.5 text-right font-mono border-l border-[#EEEEEE] ${
+                                          valP > 0
+                                            ? "font-bold text-[#0D47A1] bg-[#E3F2FD]/25"
+                                            : "text-[#BDBDBD]"
+                                        }`}
+                                      >
+                                        {valP > 0 ? formatarQtd(valP) : "-"}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/35 border-l border-[#FFCDD2]">
+                                    {formatarQtd(row.falta_total)}
+                                  </td>
+                                  <td className="p-2.5 whitespace-nowrap border-l border-[#EEEEEE]">
+                                    {row.ordem_prod ? (
+                                      <div className="flex flex-col leading-tight">
+                                        <span className="font-mono font-bold text-[#0D47A1]">
+                                          OP #{row.ordem_prod}
+                                        </span>
+                                        {row.op_saldo > 0 && (
+                                          <span className="text-[10px] text-[#666666]">
+                                            Saldo: <strong>{formatarQtd(row.op_saldo)}</strong>
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                                        Sem OP
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                                    {row.op_data_entrega || "-"}
+                                  </td>
+                                  <td className="p-2.5">
+                                    <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                      {(row.itens_pais_afetados || []).slice(0, 3).map((af, aIdx) => (
+                                        <span
+                                          key={aIdx}
+                                          className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                          title={`Pedido #${af.pedido || "S/P"} • Entrega Pedido: ${af.entrega || "-"} • Item Pai: ${af.item_final} (${af.descricao_pai || ""}) • Rep: ${af.representante || "-"} (${mapPrazoNome(af.prazo_expedicao)}) • Falta: ${formatarQtd(af.falta)}`}
+                                        >
+                                          {af.pedido ? `#${af.pedido}` : af.item_final}
+                                        </span>
+                                      ))}
+                                      {(row.qtd_ocorrencias || 0) > 3 && (
+                                        <span
+                                          className="px-1.5 py-0.5 rounded bg-[#EEF2FF] text-[#312E81] font-bold text-[10px]"
+                                          title={(row.itens_pais_afetados || [])
+                                            .map(
+                                              (af) =>
+                                                `Ped #${af.pedido || "-"} | Entrega: ${af.entrega || "-"} | Pai: ${af.item_final} | Rep: ${af.representante || "-"} (${mapPrazoNome(af.prazo_expedicao)}) | Falta: ${formatarQtd(af.falta)}`
+                                            )
+                                            .join("\n")}
+                                        >
+                                          +{row.qtd_ocorrencias - 3}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot className="sticky bottom-0 z-10 bg-[#ECEFF1] border-t-2 border-[#B0BEC5] font-bold text-xs tabular-nums shadow-2xs">
+                              <tr>
+                                <td
+                                  colSpan={7}
+                                  className="p-2.5 text-right text-[#1A1A1A] uppercase tracking-wider text-[11px]"
+                                >
+                                  Subtotal por Prazo de Entrega ({linhasFiltradas.length} itens):
+                                </td>
+                                {prazosCols.map((colP) => (
+                                  <td
+                                    key={colP.key}
+                                    className="p-2.5 text-right font-mono font-bold text-[#0D47A1] bg-[#E3F2FD] border-l border-[#90CAF9]"
+                                  >
+                                    {formatarQtd(subtotaisConsolidado[colP.key] || 0)}
+                                  </td>
+                                ))}
+                                <td className="p-2.5 text-right font-mono font-bold text-[#B71C1C] bg-[#FFCDD2]/80 border-l border-[#EF9A9A]">
+                                  {formatarQtd(totalFaltanteConsolidado)}
+                                </td>
+                                <td colSpan={3} className="p-2.5 bg-[#ECEFF1]" />
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                        {linhasFiltradas.length > limiteExibicao && (
+                          <div className="p-2.5 bg-[#FAFAFA] border-t border-[#E0E0E0] text-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGruposExpandidos((prev) => ({
+                                  ...prev,
+                                  __CONSOLIDADO__: true,
+                                }))
+                              }
+                              className="px-3 py-1 text-xs font-semibold text-[#0D47A1] hover:underline"
+                            >
+                              Mostrar todas as {linhasFiltradas.length.toLocaleString("pt-BR")} linhas da matriz
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // MODO 2: AGRUPADO POR LOCAL DE PRODUÇÃO DO COMPONENTE (FÁBRICA DO COMPONENTE)
+                  if (matrizModoVisao === "fabrica_comp") {
+                    const fabricasCompOrdenadas = Object.keys(mapaPorFabricaComp).sort((a, b) => {
+                      const somaA = mapaPorFabricaComp[a].reduce(
+                        (acc, r) => acc + Number(r.falta_total || 0),
+                        0
+                      );
+                      const somaB = mapaPorFabricaComp[b].reduce(
+                        (acc, r) => acc + Number(r.falta_total || 0),
+                        0
+                      );
+                      return somaB - somaA;
+                    });
+
+                    return (
+                      <div className="space-y-4">
+                        {fabricasCompOrdenadas.map((fabComp) => {
+                          const itensFab = mapaPorFabricaComp[fabComp] || [];
+                          if (itensFab.length === 0) return null;
+
+                          const chaveFab = `__FAB_COMP__${fabComp}`;
+                          const expandido = Boolean(gruposExpandidos[chaveFab]);
+                          const limiteFab = expandido ? itensFab.length : 50;
+                          const itensVisiveisFab = itensFab.slice(0, limiteFab);
+
+                          const subtotaisFab = {};
+                          prazosCols.forEach((colP) => {
+                            subtotaisFab[colP.key] = itensFab.reduce(
+                              (acc, r) => acc + Number(r.falta_por_prazo?.[colP.key] || 0),
+                              0
+                            );
+                          });
+                          const totalFaltanteFab = itensFab.reduce(
+                            (acc, r) => acc + Number(r.falta_total || 0),
+                            0
+                          );
+                          const totalComOpFab = itensFab.filter((r) => Boolean(r.ordem_prod)).length;
+
+                          return (
+                            <div
+                              key={chaveFab}
+                              className="border border-[#D5D5D5] rounded-sm bg-white overflow-hidden shadow-2xs"
+                            >
+                              {/* Cabeçalho da Fábrica do Componente com Botão na Frente para Gerar Imagem */}
+                              <div className="px-4 py-2.5 bg-[#FFF8E1] border-b border-[#FFE082] flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      exportarTabelaMatrizComoImagem({
+                                        tituloPrincipal: `FALTANTES PRODUZIDOS — FÁBRICA COMPONENTE: ${fabComp}`,
+                                        subtitulo: `Local de Produção do Componente: ${fabComp}`,
+                                        itens: itensFab,
+                                        prazosCols,
+                                        incluirLocalPai: true,
+                                        nomeArquivoBase: `fabrica_${fabComp}`,
+                                      })
+                                    }
+                                    className="px-2.5 py-1 rounded-sm bg-[#0D47A1] text-white text-xs font-bold hover:bg-[#093170] transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                                    title={`Gerar imagem (.png) da tabela da fábrica ${fabComp}`}
+                                  >
+                                    <span className="material-symbols-outlined text-[15px]">
+                                      photo_camera
+                                    </span>
+                                    <span>Gerar Imagem da Fábrica (.png)</span>
+                                  </button>
+
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#5D4037] text-white text-xs font-bold">
+                                    <span className="material-symbols-outlined text-[14px]">
+                                      precision_manufacturing
+                                    </span>
+                                    Fábrica do Componente: {fabComp}
+                                  </span>
+
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white border border-[#FFE082] text-[#5D4037]">
+                                    {itensFab.length} linha(s)
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-white border border-[#D5D5D5] text-[#424242]">
+                                    Com OP: <strong>{totalComOpFab}</strong>/{itensFab.length}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                  {prazosCols.map((colP) => {
+                                    const subP = subtotaisFab[colP.key] || 0;
+                                    if (subP <= 0) return null;
+                                    return (
+                                      <span
+                                        key={colP.key}
+                                        className="px-2 py-0.5 rounded bg-white border border-[#90CAF9] text-[#0D47A1] font-mono"
+                                      >
+                                        {colP.label}: <strong>{formatarQtd(subP)}</strong>
+                                      </span>
+                                    );
+                                  })}
+                                  <span className="px-2.5 py-0.5 rounded bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] font-mono font-bold">
+                                    Total Fábrica: {formatarQtd(totalFaltanteFab)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div
+                                tabIndex={0}
+                                role="region"
+                                aria-label={`Tabela da Fábrica de Componente ${fabComp}`}
+                                className="overflow-auto max-h-[min(480px,62vh)] relative focus:outline-none"
+                              >
+                                <table className="w-full text-left text-xs border-collapse">
+                                  <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
+                                    <tr>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] whitespace-nowrap">
+                                        Local Item Pai
+                                      </th>
+                                      <th
+                                        scope="col"
+                                        className="p-2.5 bg-[#FAFAFA] sticky left-0 z-20 min-w-[140px]"
+                                      >
+                                        Componente (P)
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] min-w-[200px]">
+                                        Descrição
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] whitespace-nowrap">
+                                        Representante
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">
+                                        Baixa
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">
+                                        Estoque (L)
+                                      </th>
+                                      {prazosCols.map((colP) => (
+                                        <th
+                                          key={colP.key}
+                                          scope="col"
+                                          className="p-2.5 bg-[#E3F2FD]/65 text-[#0D47A1] text-right font-bold whitespace-nowrap border-l border-[#BBDEFB] min-w-[115px]"
+                                        >
+                                          {colP.label}
+                                        </th>
+                                      ))}
+                                      <th
+                                        scope="col"
+                                        className="p-2.5 bg-[#FFEBEE]/65 text-[#C62828] text-right font-bold whitespace-nowrap border-l border-[#FFCDD2] min-w-[115px]"
+                                      >
+                                        Total Faltante
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] border-l border-[#EEEEEE]">
+                                        OP Componente
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">
+                                        Entrega OP
+                                      </th>
+                                      <th scope="col" className="p-2.5 bg-[#FAFAFA]">
+                                        Pedidos / Itens Pais
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                                    {itensVisiveisFab.map((comp, cIdx) => (
+                                      <tr
+                                        key={`${comp.fabrica_pai}_${comp.item}_${cIdx}`}
+                                        className="hover:bg-[#F5F9FF]"
+                                      >
+                                        <td className="p-2.5 font-semibold text-[#0D47A1] whitespace-nowrap">
+                                          {comp.fabrica_pai}
+                                        </td>
+                                        <th
+                                          scope="row"
+                                          className="p-2.5 font-mono font-bold text-[#1A1A1A] bg-white sticky left-0 z-10 whitespace-nowrap"
+                                        >
+                                          {comp.item}
+                                        </th>
+                                        <td
+                                          className="p-2.5 text-[#424242] max-w-[230px] truncate"
+                                          title={comp.descricao}
+                                        >
+                                          {comp.descricao || "-"}
+                                        </td>
+                                        <td
+                                          className="p-2.5 font-mono text-[#333333] whitespace-nowrap"
+                                          title={`Representante(s): ${comp.representante || "-"}`}
+                                        >
+                                          {comp.representante || "-"}
+                                        </td>
+                                        <td className="p-2.5 text-center">
+                                          <span
+                                            className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                              comp.baixa === "S"
+                                                ? "bg-[#E8F5E9] text-[#2E7D32]"
+                                                : "bg-[#F2F2F2] text-[#757575]"
+                                            }`}
+                                          >
+                                            {comp.baixa || "-"}
+                                          </span>
+                                        </td>
+                                        <td className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]">
+                                          {formatarQtd(comp.estoque_total)}
+                                        </td>
+                                        {prazosCols.map((colP) => {
+                                          const valPrazo = comp.falta_por_prazo?.[colP.key] || 0;
+                                          return (
+                                            <td
+                                              key={colP.key}
+                                              className={`p-2.5 text-right font-mono border-l border-[#EEEEEE] ${
+                                                valPrazo > 0
+                                                  ? "font-bold text-[#0D47A1] bg-[#E3F2FD]/25"
+                                                  : "text-[#BDBDBD]"
+                                              }`}
+                                            >
+                                              {valPrazo > 0 ? formatarQtd(valPrazo) : "-"}
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/35 border-l border-[#FFCDD2]">
+                                          {formatarQtd(comp.falta_total)}
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap border-l border-[#EEEEEE]">
+                                          {comp.ordem_prod ? (
+                                            <span className="font-mono font-bold text-[#0D47A1]">
+                                              OP #{comp.ordem_prod}
+                                            </span>
+                                          ) : (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                                              Sem OP
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                                          {comp.op_data_entrega || "-"}
+                                        </td>
+                                        <td className="p-2.5">
+                                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                            {(comp.itens_pais_afetados || [])
+                                              .slice(0, 3)
+                                              .map((af, aIdx) => (
+                                                <span
+                                                  key={aIdx}
+                                                  className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                                  title={`Pedido #${af.pedido || "S/P"} • Entrega Pedido: ${af.entrega || "-"} • Pai: ${af.item_final} • Rep: ${af.representante || "-"} (${mapPrazoNome(af.prazo_expedicao)}) • Falta: ${formatarQtd(af.falta)}`}
+                                                >
+                                                  {af.pedido ? `#${af.pedido}` : af.item_final}
+                                                </span>
+                                              ))}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot className="sticky bottom-0 z-10 bg-[#ECEFF1] border-t-2 border-[#B0BEC5] font-bold text-xs tabular-nums shadow-2xs">
+                                    <tr>
+                                      <td
+                                        colSpan={6}
+                                        className="p-2.5 text-right text-[#1A1A1A] uppercase tracking-wider text-[11px]"
+                                      >
+                                        Subtotal por Prazo de Entrega ({itensFab.length} itens):
+                                      </td>
+                                      {prazosCols.map((colP) => (
+                                        <td
+                                          key={colP.key}
+                                          className="p-2.5 text-right font-mono font-bold text-[#0D47A1] bg-[#E3F2FD] border-l border-[#90CAF9]"
+                                        >
+                                          {formatarQtd(subtotaisFab[colP.key] || 0)}
+                                        </td>
+                                      ))}
+                                      <td className="p-2.5 text-right font-mono font-bold text-[#B71C1C] bg-[#FFCDD2]/80 border-l border-[#EF9A9A]">
+                                        {formatarQtd(totalFaltanteFab)}
+                                      </td>
+                                      <td colSpan={3} className="p-2.5 bg-[#ECEFF1]" />
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  // MODO PADRÃO: AGRUPADO POR LOCAL DO ITEM PAI × LOCAL DO COMPONENTE PRODUZIDO
+                  return (
+                    <div className="space-y-4">
+                      {(matrizDados.grupos || []).map((grp) => {
+                        const itensFiltradosGrp = (grp.itens || []).filter(filtrarLinha);
+                        if (itensFiltradosGrp.length === 0) return null;
+
+                        const chaveGrp = `${grp.fabrica_pai}__${grp.fabrica_componente}`;
+                        const expandido = Boolean(gruposExpandidos[chaveGrp]);
+                        const limiteGrp = expandido ? itensFiltradosGrp.length : 40;
+                        const itensVisiveisGrp = itensFiltradosGrp.slice(0, limiteGrp);
+
+                        const subtotaisGrp = {};
+                        prazosCols.forEach((colP) => {
+                          subtotaisGrp[colP.key] = itensFiltradosGrp.reduce(
+                            (acc, r) => acc + Number(r.falta_por_prazo?.[colP.key] || 0),
+                            0
+                          );
+                        });
+                        const totalFaltanteGrp = itensFiltradosGrp.reduce(
+                          (acc, r) => acc + Number(r.falta_total || 0),
+                          0
+                        );
+                        const itensDaFabricaComp =
+                          mapaPorFabricaComp[grp.fabrica_componente] || itensFiltradosGrp;
+
+                        return (
+                          <div
+                            key={chaveGrp}
+                            className="border border-[#D5D5D5] rounded-sm bg-white overflow-hidden shadow-2xs"
+                          >
+                            {/* Cabeçalho do Grupo: Botão de Imagem na frente + Local Item Pai -> Local Componente + Subtotais */}
+                            <div className="px-4 py-2.5 bg-[#E3F2FD]/70 border-b border-[#BBDEFB] flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    exportarTabelaMatrizComoImagem({
+                                      tituloPrincipal: `FALTANTES PRODUZIDOS — ${grp.fabrica_componente} (ITEM PAI: ${grp.fabrica_pai})`,
+                                      subtitulo: `Item Pai: ${grp.fabrica_pai} ➔ Fábrica Componente: ${grp.fabrica_componente}`,
+                                      itens: itensFiltradosGrp,
+                                      prazosCols,
+                                      incluirLocalPai: false,
+                                      nomeArquivoBase: `${grp.fabrica_componente}_pai_${grp.fabrica_pai}`,
+                                    })
+                                  }
+                                  className="px-2.5 py-1 rounded-sm bg-[#0D47A1] text-white text-xs font-bold hover:bg-[#093170] transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                                  title={`Gerar imagem (.png) desta tabela (${grp.fabrica_pai} ➔ ${grp.fabrica_componente})`}
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">
+                                    photo_camera
+                                  </span>
+                                  <span>Imagem Tabela (.png)</span>
+                                </button>
+
+                                {itensDaFabricaComp.length > itensFiltradosGrp.length && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      exportarTabelaMatrizComoImagem({
+                                        tituloPrincipal: `FALTANTES PRODUZIDOS — FÁBRICA COMPONENTE: ${grp.fabrica_componente}`,
+                                        subtitulo: `Todos os Itens Pais que consomem da Fábrica ${grp.fabrica_componente}`,
+                                        itens: itensDaFabricaComp,
+                                        prazosCols,
+                                        incluirLocalPai: true,
+                                        nomeArquivoBase: `fabrica_${grp.fabrica_componente}`,
+                                      })
+                                    }
+                                    className="px-2 py-1 rounded-sm bg-white border border-[#0D47A1] text-[#0D47A1] text-[11px] font-bold hover:bg-[#E3F2FD] transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                    title={`Gerar imagem (.png) consolidando toda a fábrica de componente ${grp.fabrica_componente}`}
+                                  >
+                                    <span className="material-symbols-outlined text-[14px]">
+                                      imagesmode
+                                    </span>
+                                    <span>Imagem Fábrica {grp.fabrica_componente}</span>
+                                  </button>
+                                )}
+
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#0D47A1] text-white text-xs font-bold">
+                                  <span className="material-symbols-outlined text-[14px]">
+                                    domain
+                                  </span>
+                                  Item Pai: {grp.fabrica_pai}
+                                </span>
+                                <span className="text-[#0D47A1] font-bold text-xs">➔</span>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#FFF8E1] text-[#5D4037] border border-[#FFE082] text-xs font-bold">
+                                  <span className="material-symbols-outlined text-[14px]">
+                                    precision_manufacturing
+                                  </span>
+                                  Componente: {grp.fabrica_componente}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white border border-[#90CAF9] text-[#0D47A1]">
+                                  {itensFiltradosGrp.length} componente(s)
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-white border border-[#D5D5D5] text-[#424242]">
+                                  Com OP: <strong>{grp.total_com_op}</strong>/{grp.total_componentes}
+                                </span>
+                              </div>
+
+                              {/* Subtotais do Grupo por Prazo de Expedição */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                {prazosCols.map((colP) => {
+                                  const subP = subtotaisGrp[colP.key] || 0;
+                                  if (subP <= 0) return null;
+                                  return (
+                                    <span
+                                      key={colP.key}
+                                      className="px-2 py-0.5 rounded bg-white border border-[#90CAF9] text-[#0D47A1] font-mono"
+                                    >
+                                      {colP.label}: <strong>{formatarQtd(subP)}</strong>
+                                    </span>
+                                  );
+                                })}
+                                <span className="px-2.5 py-0.5 rounded bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] font-mono font-bold">
+                                  Total Grupo: {formatarQtd(totalFaltanteGrp)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Tabela Pivot do Grupo */}
+                            <div
+                              tabIndex={0}
+                              role="region"
+                              aria-label={`Matriz Pivot ${grp.fabrica_pai} para ${grp.fabrica_componente}`}
+                              className="overflow-auto max-h-[min(480px,62vh)] relative focus:outline-none"
+                            >
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
+                                  <tr>
+                                    <th
+                                      scope="col"
+                                      className="p-2.5 bg-[#FAFAFA] sticky left-0 z-20 min-w-[140px]"
+                                    >
+                                      Componente (P)
+                                    </th>
+                                    <th scope="col" className="p-2.5 bg-[#FAFAFA] min-w-[210px]">
+                                      Descrição
+                                    </th>
+                                    <th scope="col" className="p-2.5 bg-[#FAFAFA] whitespace-nowrap">
+                                      Representante
+                                    </th>
+                                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">
+                                      Baixa
+                                    </th>
+                                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">
+                                      Estoque Total (L)
+                                    </th>
+                                    {prazosCols.map((colP) => (
+                                      <th
+                                        key={colP.key}
+                                        scope="col"
+                                        className="p-2.5 bg-[#E3F2FD]/65 text-[#0D47A1] text-right font-bold whitespace-nowrap border-l border-[#BBDEFB] min-w-[115px]"
+                                        title={`Saldo faltante do componente para ${colP.label}`}
+                                      >
+                                        {colP.label}
+                                      </th>
+                                    ))}
+                                    <th
+                                      scope="col"
+                                      className="p-2.5 bg-[#FFEBEE]/65 text-[#C62828] text-right font-bold whitespace-nowrap border-l border-[#FFCDD2] min-w-[115px]"
+                                    >
+                                      Total Faltante
+                                    </th>
+                                    <th
+                                      scope="col"
+                                      className="p-2.5 bg-[#FAFAFA] border-l border-[#EEEEEE] min-w-[130px]"
+                                    >
+                                      OP Componente
+                                    </th>
+                                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">
+                                      Entrega OP
+                                    </th>
+                                    <th scope="col" className="p-2.5 bg-[#FAFAFA] min-w-[190px]">
+                                      Pedidos / Itens Pais Afetados
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                                  {itensVisiveisGrp.map((comp, cIdx) => (
+                                    <tr
+                                      key={`${comp.item}_${cIdx}`}
+                                      className="hover:bg-[#F5F9FF]"
+                                    >
+                                      <th
+                                        scope="row"
+                                        className="p-2.5 font-mono font-bold text-[#1A1A1A] bg-white sticky left-0 z-10 whitespace-nowrap"
+                                      >
+                                        {comp.item}
+                                      </th>
+                                      <td
+                                        className="p-2.5 text-[#424242] max-w-[240px] truncate"
+                                        title={comp.descricao}
+                                      >
+                                        {comp.descricao || "-"}
+                                      </td>
+                                      <td
+                                        className="p-2.5 font-mono text-[#333333] whitespace-nowrap"
+                                        title={`Representante(s): ${comp.representante || "-"}`}
+                                      >
+                                        {comp.representante || "-"}
+                                      </td>
+                                      <td className="p-2.5 text-center">
+                                        <span
+                                          className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                            comp.baixa === "S"
+                                              ? "bg-[#E8F5E9] text-[#2E7D32]"
+                                              : "bg-[#F2F2F2] text-[#757575]"
+                                          }`}
+                                        >
+                                          {comp.baixa || "-"}
+                                        </span>
+                                      </td>
+                                      <td className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]">
+                                        {formatarQtd(comp.estoque_total)}
+                                      </td>
+                                      {prazosCols.map((colP) => {
+                                        const valPrazo = comp.falta_por_prazo?.[colP.key] || 0;
+                                        return (
+                                          <td
+                                            key={colP.key}
+                                            className={`p-2.5 text-right font-mono border-l border-[#EEEEEE] ${
+                                              valPrazo > 0
+                                                ? "font-bold text-[#0D47A1] bg-[#E3F2FD]/25"
+                                                : "text-[#BDBDBD]"
+                                            }`}
+                                          >
+                                            {valPrazo > 0 ? formatarQtd(valPrazo) : "-"}
+                                          </td>
+                                        );
+                                      })}
+                                      <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/35 border-l border-[#FFCDD2]">
+                                        {formatarQtd(comp.falta_total)}
+                                      </td>
+                                      <td className="p-2.5 whitespace-nowrap border-l border-[#EEEEEE]">
+                                        {comp.ordem_prod ? (
+                                          <div className="flex flex-col leading-tight">
+                                            <div className="flex items-center gap-1">
+                                              <span className="font-mono font-bold text-[#0D47A1]">
+                                                OP #{comp.ordem_prod}
+                                              </span>
+                                              <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#EEF2FF] text-[#312E81] border border-[#C7D2FE]">
+                                                {comp.op_vinculo === "PEDIDO" ? "Pedido" : "Lote"}
+                                              </span>
+                                            </div>
+                                            {comp.op_saldo > 0 && (
+                                              <span className="text-[10px] text-[#666666]">
+                                                Saldo OP: <strong>{formatarQtd(comp.op_saldo)}</strong>
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                                            Sem OP aberta
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                                        {comp.op_data_entrega ? (
+                                          <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9] text-[#0D47A1] font-semibold">
+                                            {comp.op_data_entrega}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[#9E9E9E]">-</span>
+                                        )}
+                                      </td>
+                                      <td className="p-2.5">
+                                        <div className="flex flex-wrap gap-1 max-w-[230px]">
+                                          {(comp.itens_pais_afetados || [])
+                                            .slice(0, 3)
+                                            .map((af, aIdx) => (
+                                              <span
+                                                key={aIdx}
+                                                className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                                title={`Fila #${af.posicao_fila} • Pedido #${af.pedido || "S/P"} • Entrega Pedido: ${af.entrega || "-"} • Pai: ${af.item_final} (${af.descricao_pai || ""}) • Rep: ${af.representante || "-"} (${mapPrazoNome(af.prazo_expedicao)}) • Falta: ${formatarQtd(af.falta)}`}
+                                              >
+                                                {af.pedido
+                                                  ? `#${af.pedido} (${mapPrazoNome(af.prazo_expedicao)})`
+                                                  : `${af.item_final} (${mapPrazoNome(af.prazo_expedicao)})`}
+                                              </span>
+                                            ))}
+                                          {(comp.qtd_ocorrencias || 0) > 3 && (
+                                            <span
+                                              className="px-1.5 py-0.5 rounded bg-[#EEF2FF] text-[#312E81] font-bold text-[10px] cursor-help"
+                                              title={(comp.itens_pais_afetados || [])
+                                                .map(
+                                                  (af) =>
+                                                    `Fila #${af.posicao_fila} | Ped #${af.pedido || "-"} | Entrega: ${af.entrega || "-"} | Pai: ${af.item_final} | Rep: ${af.representante || "-"} (${mapPrazoNome(af.prazo_expedicao)}) | Falta: ${formatarQtd(af.falta)}`
+                                                )
+                                                .join("\n")}
+                                            >
+                                              +{comp.qtd_ocorrencias - 3}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot className="sticky bottom-0 z-10 bg-[#ECEFF1] border-t-2 border-[#B0BEC5] font-bold text-xs tabular-nums shadow-2xs">
+                                  <tr>
+                                    <td
+                                      colSpan={5}
+                                      className="p-2.5 text-right text-[#1A1A1A] uppercase tracking-wider text-[11px]"
+                                    >
+                                      Subtotal por Prazo de Entrega ({itensFiltradosGrp.length} itens):
+                                    </td>
+                                    {prazosCols.map((colP) => (
+                                      <td
+                                        key={colP.key}
+                                        className="p-2.5 text-right font-mono font-bold text-[#0D47A1] bg-[#E3F2FD] border-l border-[#90CAF9]"
+                                      >
+                                        {formatarQtd(subtotaisGrp[colP.key] || 0)}
+                                      </td>
+                                    ))}
+                                    <td className="p-2.5 text-right font-mono font-bold text-[#B71C1C] bg-[#FFCDD2]/80 border-l border-[#EF9A9A]">
+                                      {formatarQtd(totalFaltanteGrp)}
+                                    </td>
+                                    <td colSpan={3} className="p-2.5 bg-[#ECEFF1]" />
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+
+                            {itensFiltradosGrp.length > limiteGrp && (
+                              <div className="p-2 bg-[#FAFAFA] border-t border-[#EEEEEE] text-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setGruposExpandidos((prev) => ({
+                                      ...prev,
+                                      [chaveGrp]: true,
+                                    }))
+                                  }
+                                  className="text-xs font-semibold text-[#0D47A1] hover:underline"
+                                >
+                                  Ver todos os {itensFiltradosGrp.length} componentes deste grupo
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+
+          {/* Rodapé da Matriz Pivot */}
+          <div className="px-5 py-3 border-t border-[#E0E0E0] bg-[#FAFAFA] flex items-center justify-between">
+            <span className="text-[11px] text-[#757575]">
+              {matrizDados
+                ? `${matrizDados.totais_gerais?.total_grupos || 0} grupo(s) (Local Pai × Local Comp) • ${matrizDados.totais_gerais?.total_linhas_matriz || 0} linha(s) na matriz`
+                : ""}
+            </span>
+            <button
+              type="button"
+              onClick={fecharMatrizFaltantes}
+              className="px-4 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors"
+            >
+              Fechar Matriz
             </button>
           </div>
         </div>

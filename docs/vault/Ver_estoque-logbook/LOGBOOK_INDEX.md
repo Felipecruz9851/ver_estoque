@@ -2,7 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
-| 2026-11-09 | Padronização de todos os dados de estoque, consumo e saldos para 2 casas decimais antes dos cálculos | CONCLUIDO | [[2026-11-09]] |
+| 2026-11-09 | Padronização para 2 casas decimais, KPI Total de Itens Avaliados e Tela de Matriz Pivot de Componentes Produzidos Faltantes (Local Pai × Local Comp × Prazo Expedição) | CONCLUIDO | [[2026-11-09]] |
 | 2026-11-06 | Ajustes na tela de Resumo de Pedidos (soma do saldo de OCs até a abertura e cabeçalho fixo com transição suave entre MP e Componentes) | CONCLUIDO | [[2026-11-06]] |
 | 2026-11-05 | Geração da estrutura completa do vault Obsidian (pastas 00 a 05) e grafo relacional da arquitetura | CONCLUIDO | [[2026-11-05]] |
 | 2026-11-04 | Camada gerencial de insumos (OPs de componentes, OCs de matérias-primas com vínculo por pedido, saldo total, agrupamento por fábrica e Resumo do Pedido) | CONCLUIDO | [[2026-11-04]] |
