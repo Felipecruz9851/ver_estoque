@@ -47,6 +47,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const [itens, setItens] = useState([]);
   const [metricas, setMetricas] = useState({
     total_itens_finais: 0,
+    total_itens_avaliados: 0,
     total_disponiveis: 0,
     total_com_falta: 0,
     total_pedidos: 0,
@@ -1373,10 +1374,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       {/* CONTEÚDO PRINCIPAL AJUSTADO À ALTURA DA TELA (SEM OVERFLOW VERTICAL EXTERNO) */}
       <main className="flex-1 flex flex-col px-6 py-3 w-full max-w-[95%] mx-auto min-h-0 overflow-hidden space-y-2.5">
         {/* CARDS DE RESUMO (COMPACTOS E FIXOS) */}
-        <section className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <section className="shrink-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
             <span className="text-[10px] font-semibold text-[#757575] uppercase tracking-wider block">
-              Total de Itens Finais
+              Total de Ordens
             </span>
             <div className="flex items-baseline justify-between mt-0.5">
               <span className="text-xl font-bold text-[#1A1A1A]">
@@ -1387,6 +1388,19 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   ? `${metricas.total_simulados} simulado(s)/destacado(s)`
                   : "ordens avaliadas"}
               </span>
+            </div>
+          </div>
+
+          <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
+            <span className="text-[10px] font-semibold text-[#1565C0] uppercase tracking-wider block items-center gap-1">
+              <span className="material-symbols-outlined text-[13px]">inventory_2</span>
+              Saldo das ordens avalaidas
+            </span>
+            <div className="flex items-baseline justify-between mt-0.5">
+              <span className="text-xl font-bold text-[#1565C0]">
+                {formatarQtd(metricas.total_itens_avaliados ?? 0)}
+              </span>
+              <span className="text-[11px] text-[#757575]">saldo pedido</span>
             </div>
           </div>
 

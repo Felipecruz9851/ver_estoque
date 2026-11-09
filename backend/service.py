@@ -1356,6 +1356,7 @@ def analisar_itens_finais(
             "itens": [],
             "metricas": {
                 "total_itens_finais": 0,
+                "total_itens_avaliados": 0,
                 "total_disponiveis": 0,
                 "total_com_falta": 0,
                 "total_pedidos": 0,
@@ -1407,6 +1408,15 @@ def analisar_itens_finais(
     total_disponiveis = int((itens_resumo["status"] == "Disponível").sum())
     total_com_falta = int((itens_resumo["status"] == "Com Falta").sum())
     total_pedidos = int(itens_resumo["raiz_Pedido_Str"].replace("", np.nan).dropna().nunique())
+    total_itens_avaliados_raw = round(
+        float(pd.to_numeric(itens_resumo["raiz_Saldo"], errors="coerce").fillna(0.0).sum()),
+        2,
+    )
+    total_itens_avaliados = (
+        int(total_itens_avaliados_raw)
+        if total_itens_avaliados_raw % 1 == 0
+        else total_itens_avaliados_raw
+    )
 
     # Filtro de Status ('disponivel', 'falta', 'todos')
     if status_filtro == "disponivel":
@@ -1491,6 +1501,7 @@ def analisar_itens_finais(
         "itens": registros,
         "metricas": {
             "total_itens_finais": total_itens_finais,
+            "total_itens_avaliados": total_itens_avaliados,
             "total_disponiveis": total_disponiveis,
             "total_com_falta": total_com_falta,
             "total_pedidos": total_pedidos,
