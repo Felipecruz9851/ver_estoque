@@ -81,6 +81,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const [filtroTipo, setFiltroTipo] = useState("todos"); // 'todos' | 'C' | 'P'
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroTipoData, setFiltroTipoData] = useState("abertura_op"); // 'abertura_op' | 'entrega_pedido'
   const [filtroApenasSimulados, setFiltroApenasSimulados] = useState(false);
 
   // Filtros em Títulos de Colunas (Executados 100% no Backend)
@@ -193,6 +194,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             col_filtros: colFiltros,
             data_inicio: filtroDataInicio,
             data_fim: filtroDataFim,
+            tipo_data: filtroTipoData,
           },
           page: paginaDestino,
           page_size: pageSize,
@@ -247,6 +249,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       filtroApenasSimulados,
       filtroDataInicio,
       filtroDataFim,
+      filtroTipoData,
       colFiltros,
       pageSize,
     ]
@@ -265,6 +268,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
     filtroApenasSimulados,
     filtroDataInicio,
     filtroDataFim,
+    filtroTipoData,
     colFiltros,
   ]);
 
@@ -440,6 +444,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           col_filtros: colFiltros,
           data_inicio: filtroDataInicio,
           data_fim: filtroDataFim,
+          tipo_data: filtroTipoData,
         },
       });
       if (res && res.erro) throw new Error(res.erro);
@@ -1942,18 +1947,52 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               />
             </div>
 
-            {/* Filtro: Janela de Data Abertura da Ordem */}
+            {/* Filtro: Janela de Data com Chave Seletora (Abertura OP vs Entrega do Pedido) */}
             <div className="flex flex-col">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Abertura OP (De / Até)
-              </label>
+              <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                <span className="text-[10px] font-medium text-[#666666]">
+                  Período (De / Até):
+                </span>
+                <div
+                  className="inline-flex rounded-sm border border-[#D5D5D5] overflow-hidden bg-[#F5F5F5]"
+                  role="group"
+                  aria-label="Selecionar tipo de data do filtro"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setFiltroTipoData("abertura_op")}
+                    className={`px-1.5 py-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
+                      filtroTipoData === "abertura_op"
+                        ? "bg-[#222222] text-white"
+                        : "bg-white text-[#666666] hover:bg-[#EEEEEE]"
+                    }`}
+                    title="Filtrar pela Data de Abertura da OP"
+                  >
+                    Abertura OP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFiltroTipoData("entrega_pedido")}
+                    className={`px-1.5 py-0.5 text-[10px] font-semibold border-l border-[#D5D5D5] transition-colors cursor-pointer ${
+                      filtroTipoData === "entrega_pedido"
+                        ? "bg-[#0D47A1] text-white"
+                        : "bg-white text-[#666666] hover:bg-[#EEEEEE]"
+                    }`}
+                    title="Filtrar pela Data de Entrega do Pedido"
+                  >
+                    Entrega Pedido
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-1 bg-white border border-[#D5D5D5] rounded-sm px-1.5 py-0.5">
                 <input
                   type="date"
                   value={filtroDataInicio}
                   onChange={(e) => setFiltroDataInicio(e.target.value)}
                   className="text-xs bg-transparent focus:outline-none text-[#1A1A1A] cursor-pointer"
-                  title="Data Início (em branco = considera todas até a data fim)"
+                  title={`Data Início de ${
+                    filtroTipoData === "entrega_pedido" ? "Entrega do Pedido" : "Abertura da OP"
+                  } (em branco = considera todas até a data fim)`}
                 />
                 <span className="text-[10px] text-[#757575] font-medium">até</span>
                 <input
@@ -1961,7 +2000,9 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   value={filtroDataFim}
                   onChange={(e) => setFiltroDataFim(e.target.value)}
                   className="text-xs bg-transparent focus:outline-none text-[#1A1A1A] cursor-pointer"
-                  title="Data Fim (em branco = considera todas a partir da data início)"
+                  title={`Data Fim de ${
+                    filtroTipoData === "entrega_pedido" ? "Entrega do Pedido" : "Abertura da OP"
+                  } (em branco = considera todas a partir da data início)`}
                 />
               </div>
             </div>

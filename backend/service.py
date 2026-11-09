@@ -1344,6 +1344,7 @@ def analisar_itens_finais(
     col_filtros = filtros.get("col_filtros") or {}
     data_inicio_raw = filtros.get("data_inicio")
     data_fim_raw = filtros.get("data_fim")
+    tipo_data_filtro = str(filtros.get("tipo_data", "abertura_op") or "abertura_op").strip().lower()
 
     itens_full, _, locais_producao = _obter_fila_calculada(
         baixa_filtro=baixa_filtro,
@@ -1396,17 +1397,23 @@ def analisar_itens_finais(
         mask_desc = itens_full["raiz_Descricao"].astype(str).str.upper().str.contains(codigo_filtro, na=False)
         mask &= mask_cod | mask_desc
 
+    col_data_sort = (
+        "_dt_entrega_sort"
+        if tipo_data_filtro in ("entrega_pedido", "entrega") and "_dt_entrega_sort" in itens_full.columns
+        else "_dt_abertura_sort"
+    )
+
     if data_inicio_raw and str(data_inicio_raw).strip():
         dt_in_str = str(data_inicio_raw).strip()
         dt_in = pd.to_datetime(dt_in_str, errors="coerce", dayfirst="/" in dt_in_str)
-        if pd.notna(dt_in):
-            mask &= itens_full["_dt_abertura_sort"].dt.floor("D") >= dt_in.floor("D")
+        if pd.notna(dt_in) and col_data_sort in itens_full.columns:
+            mask &= itens_full[col_data_sort].dt.floor("D") >= dt_in.floor("D")
 
     if data_fim_raw and str(data_fim_raw).strip():
         dt_fi_str = str(data_fim_raw).strip()
         dt_fi = pd.to_datetime(dt_fi_str, errors="coerce", dayfirst="/" in dt_fi_str)
-        if pd.notna(dt_fi):
-            mask &= itens_full["_dt_abertura_sort"].dt.floor("D") <= dt_fi.floor("D")
+        if pd.notna(dt_fi) and col_data_sort in itens_full.columns:
+            mask &= itens_full[col_data_sort].dt.floor("D") <= dt_fi.floor("D")
 
     itens_resumo = itens_full[mask]
 
