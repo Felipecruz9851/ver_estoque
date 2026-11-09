@@ -75,21 +75,21 @@ def normalizar_cod_item(valor: Any) -> str:
 def parse_numero_flexivel(valor: Any, default: float = 0.0) -> float:
     """
     Converte strings numéricas tanto no padrão brasileiro ('Qtd. 1,000', '1.234,56', '2,000')
-    quanto no padrão ISO/JSON ('1.8100000', '2.5') para float.
+    quanto no padrão ISO/JSON ('1.8100000', '2.5') para float com 2 casas decimais.
     """
     if valor is None:
-        return default
+        return round(float(default), 2)
     if isinstance(valor, (int, float)):
-        return float(valor)
+        return round(float(valor), 2)
 
     texto = str(valor).strip()
     if not texto or texto == ".":
-        return default
+        return round(float(default), 2)
 
     m_num = re.search(r"-?\d[\d.,]*", texto)
     if not m_num:
-        return default
-    token = m_num.group(0)
+        return round(float(default), 2)
+    token = m_num.group(0).rstrip(".")
 
     if "," in token and "." in token:
         if token.rfind(",") > token.rfind("."):
@@ -98,11 +98,16 @@ def parse_numero_flexivel(valor: Any, default: float = 0.0) -> float:
             token = token.replace(",", "")
     elif "," in token:
         token = token.replace(",", ".")
+    elif "." in token:
+        # Se tem ponto e não tem vírgula:
+        # X.XXX ou XX.XXX (ex: '1.000', '10.000', '2.500') -> milhar brasileiro puro!
+        if re.match(r"^[1-9]\d{0,2}(\.\d{3})+$", token):
+            token = token.replace(".", "")
 
     try:
-        return float(token)
+        return round(float(token), 2)
     except ValueError:
-        return default
+        return round(float(default), 2)
 
 
 def _decodificar_html(resp: httpx.Response) -> str:

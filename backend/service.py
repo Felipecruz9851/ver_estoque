@@ -265,9 +265,9 @@ def _construir_mapas_enriquecimento(
             df_est_clean = df_est.copy()
             df_est_clean["_item_norm"] = df_est_clean["Item"].apply(scraper.normalizar_cod_item)
             if "Qtde." in df_est_clean.columns:
-                qt_num = pd.to_numeric(df_est_clean["Qtde."], errors="coerce").fillna(0.0)
-                soma_est = qt_num.groupby(df_est_clean["_item_norm"]).sum()
-                estoque_map = {str(k): float(v) for k, v in soma_est.to_dict().items() if k}
+                qt_num = pd.to_numeric(df_est_clean["Qtde."], errors="coerce").fillna(0.0).round(2)
+                soma_est = qt_num.groupby(df_est_clean["_item_norm"]).sum().round(2)
+                estoque_map = {str(k): round(float(v), 2) for k, v in soma_est.to_dict().items() if k}
 
             for rec in df_est_clean.drop_duplicates("_item_norm").to_dict("records"):
                 it = rec.get("_item_norm")
@@ -320,7 +320,7 @@ def _construir_mapas_enriquecimento(
 
                 dt_ab_br, dt_ab_sort = _parse_data_br_flex(rec.get("Data Abertura"))
                 dt_ent_br, dt_ent_sort = _parse_data_br_flex(rec.get("Data Entrega"))
-                saldo_op = round(scraper.parse_numero_flexivel(rec.get("Saldo"), default=0.0), 4)
+                saldo_op = round(scraper.parse_numero_flexivel(rec.get("Saldo"), default=0.0), 2)
 
                 op_info = {
                     "ordem_prod": op_str,
@@ -378,7 +378,7 @@ def _construir_mapas_enriquecimento(
             dt_prev_br, dt_prev_sort = _parse_data_br_flex(rec.get("previsao"))
             dt_orig_br, dt_orig_sort = _parse_data_br_flex(rec.get("data_origem"))
             dt_emis_br, _ = _parse_data_br_flex(rec.get("emissao_oc"))
-            saldo_oc = round(float(rec.get("saldo") or 0.0), 4)
+            saldo_oc = round(float(rec.get("saldo") or 0.0), 2)
             ped_vinc = rec.get("pedido_vinculado")
             it_vinc = rec.get("item_final_vinculado")
 
@@ -511,10 +511,24 @@ def gerar_dataframe_cons(
         )
 
     if "Consumo" in df_consumo.columns:
-        df_consumo["Consumo"] = pd.to_numeric(df_consumo["Consumo"], errors="coerce").fillna(0.0)
+        df_consumo["Consumo"] = (
+            pd.to_numeric(df_consumo["Consumo"], errors="coerce").fillna(0.0).round(2)
+        )
 
     if "estoque" in df_consumo.columns:
-        df_consumo["estoque"] = pd.to_numeric(df_consumo["estoque"], errors="coerce").fillna(0.0)
+        df_consumo["estoque"] = (
+            pd.to_numeric(df_consumo["estoque"], errors="coerce").fillna(0.0).round(2)
+        )
+
+    if "Saldo" in df_consumo.columns:
+        df_consumo["Saldo"] = (
+            pd.to_numeric(df_consumo["Saldo"], errors="coerce").fillna(0.0).round(2)
+        )
+
+    if "raiz_Saldo" in df_consumo.columns:
+        df_consumo["raiz_Saldo"] = (
+            pd.to_numeric(df_consumo["raiz_Saldo"], errors="coerce").fillna(0.0).round(2)
+        )
 
     df_consumo["simulado"] = False
     df_consumo["origem_simulacao"] = ""
@@ -780,7 +794,7 @@ def _montar_df_pedido_simulado(
         )
 
         info_saldo = saldos_map.get((num_pedido, cod_item_final)) or {}
-        saldo_val = float(info_saldo.get("quantidade") or 0.0)
+        saldo_val = round(float(info_saldo.get("quantidade") or 0.0), 2)
         if saldo_val <= 0:
             saldo_val = 1.0
 
@@ -814,9 +828,9 @@ def _montar_df_pedido_simulado(
                 continue
 
             qtd_unit = scraper.parse_numero_flexivel(r.get("qtd_necessaria"), default=0.0)
-            consumo_total = qtd_unit * saldo_val
+            consumo_total = round(qtd_unit * saldo_val, 2)
 
-            estoque_l = float(_enriquecimento["estoque"].get(comp_code, 0.0))
+            estoque_l = round(float(_enriquecimento["estoque"].get(comp_code, 0.0)), 2)
             if tipo_raw in ("C", "P"):
                 tipo_comp = tipo_raw
             else:
@@ -1239,35 +1253,19 @@ def _obter_fila_calculada(
     )
 
     # 3. Abatimento cumulativo vetorizado do estoque Situação L na ordem da fila
-    # O estoque no ERP é armazenado com 2 casas decimais (ex: 0.78), enquanto a estrutura (Consumo)
-    # possui 3 a 4 casas decimais (ex: 0.783), gerando resíduos de arredondamento (ex: 0.003).
-    comp_agg["_consumo_efetivo"] = np.where(
-        comp_agg["Consumo"] >= 0.01,
-        comp_agg["Consumo"].round(2),
-        comp_agg["Consumo"],
-    )
-    consumo_acumulado = comp_agg.groupby("Item")["_consumo_efetivo"].cumsum()
-    consumo_anterior = (consumo_acumulado - comp_agg["_consumo_efetivo"]).round(4)
-    comp_agg["estoque_disp_fila"] = (comp_agg["estoque"] - consumo_anterior).clip(lower=0.0).round(4)
-    falta_bruta = (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0)
-    comp_agg["Disponivel"] = (
-        ((comp_agg["estoque_disp_fila"] + 1e-6) >= comp_agg["Consumo"])
-        | (
-            (comp_agg["estoque_disp_fila"] > 0)
-            & (comp_agg["Consumo"].round(2) <= (comp_agg["estoque_disp_fila"].round(2) + 1e-6))
-        )
-        | (
-            (comp_agg["estoque_disp_fila"] > 0)
-            & (falta_bruta <= 0.01 + 1e-6)
-            & (comp_agg["Consumo"] >= 0.05)
-        )
-    )
+    # Dados de entrada (Consumo, estoque e saldos) são estritamente padronizados com 2 casas decimais antes dos cálculos.
+    comp_agg["Consumo"] = comp_agg["Consumo"].round(2)
+    comp_agg["estoque"] = comp_agg["estoque"].round(2)
+
+    consumo_acumulado = comp_agg.groupby("Item")["Consumo"].cumsum().round(2)
+    consumo_anterior = (consumo_acumulado - comp_agg["Consumo"]).round(2)
+    comp_agg["estoque_disp_fila"] = (comp_agg["estoque"] - consumo_anterior).clip(lower=0.0).round(2)
+    comp_agg["Disponivel"] = (comp_agg["estoque_disp_fila"] + 1e-6) >= comp_agg["Consumo"]
     comp_agg["Falta"] = np.where(
         comp_agg["Disponivel"],
         0.0,
-        (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0).round(4),
+        (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0).round(2),
     )
-    comp_agg = comp_agg.drop(columns=["_consumo_efetivo"])
 
     # 4. Consolida métricas por Item Final mantendo exatamente a ordenação `_ordem_fila`
     totais_fila = (
@@ -1473,7 +1471,7 @@ def analisar_itens_finais(
                 "pedido": str(row["raiz_Pedido_Str"] or ""),
                 "fabrica": str(row["raiz_Fábrica"] or ""),
                 "cliente": str(row["raiz_Cliente"] or ""),
-                "saldo": round(saldo_val, 4) if saldo_val % 1 != 0 else int(saldo_val),
+                "saldo": round(saldo_val, 2) if saldo_val % 1 != 0 else int(saldo_val),
                 "data_abertura": str(row["_dt_abertura_br"] or ""),
                 "entrega": str(row["_dt_entrega_br"] or ""),
                 "total_componentes": int(row["total_componentes"]),
@@ -1688,17 +1686,17 @@ def _enriquecer_insumo_gerencial(
         "ordem_prod": ordem_prod,
         "op_data_abertura": op_data_abertura,
         "op_data_entrega": op_data_entrega,
-        "op_saldo": round(op_saldo, 4),
+        "op_saldo": round(op_saldo, 2),
         "op_vinculo": op_vinculo,
         "ops_abertas": ops_abertas,
         "oc_numero": oc_numero,
         "oc_previsao": oc_previsao,
         "oc_data_origem": oc_data_origem,
         "oc_emissao": oc_emissao,
-        "oc_saldo": round(oc_saldo, 4),
-        "oc_saldo_ate_abertura": round(oc_saldo_ate_abertura, 4),
+        "oc_saldo": round(oc_saldo, 2),
+        "oc_saldo_ate_abertura": round(oc_saldo_ate_abertura, 2),
         "oc_qtd_ate_abertura": oc_qtd_ate_abertura,
-        "oc_saldo_total_item": round(oc_saldo_total_item, 4),
+        "oc_saldo_total_item": round(oc_saldo_total_item, 2),
         "oc_qtd_total_item": oc_qtd_total_item,
         "oc_data_abertura_ref": oc_data_abertura_ref,
         "oc_fornecedor": oc_fornecedor,
@@ -1843,7 +1841,7 @@ def obter_detalhes_item_final(
                 raiz_item_final=item_final_alvo,
                 raiz_data_abertura=dt_abertura_alvo,
             )
-            est_total = round(float(r["estoque"]), 4)
+            est_total = round(float(r["estoque"]), 2)
             lista.append(
                 {
                     "item": str(r["Item"]),
@@ -1851,11 +1849,11 @@ def obter_detalhes_item_final(
                     "tipo": tp,
                     "tipo_descricao": tipo_desc,
                     "baixa": str(r.get("Baixa") or "").upper(),
-                    "consumo": round(float(r["Consumo"]), 4),
+                    "consumo": round(float(r["Consumo"]), 2),
                     "estoque_l": est_total,
                     "estoque_total": est_total,
-                    "saldo_fila": round(float(r["estoque_disp_fila"]), 4),
-                    "falta": round(float(r["Falta"]), 4),
+                    "saldo_fila": round(float(r["estoque_disp_fila"]), 2),
+                    "falta": round(float(r["Falta"]), 2),
                     "disponivel": bool(r["Disponivel"]),
                     "local_prod": info_ger["fabrica_componente"],
                     **info_ger,
@@ -1971,7 +1969,7 @@ def obter_resumo_pedido(
                 "pedido": str(r_it["raiz_Pedido_Str"] or ""),
                 "fabrica": str(r_it["raiz_Fábrica"] or ""),
                 "cliente": str(r_it["raiz_Cliente"] or ""),
-                "saldo": round(s_val, 4) if s_val % 1 != 0 else int(s_val),
+                "saldo": round(s_val, 2) if s_val % 1 != 0 else int(s_val),
                 "data_abertura": str(r_it["_dt_abertura_br"] or ""),
                 "entrega": str(r_it["_dt_entrega_br"] or ""),
                 "total_componentes": int(r_it["total_componentes"]),
@@ -2024,11 +2022,11 @@ def obter_resumo_pedido(
             else ("Componente Produzido (P)" if tp == "P" else f"Outro ({tp})")
         )
 
-        consumo_total_escopo = round(float(grp["Consumo"].sum()), 4)
-        falta_total_escopo = round(float(grp["Falta"].sum()), 4)
-        estoque_total = round(float(r_first["estoque"]), 4)
+        consumo_total_escopo = round(float(grp["Consumo"].sum()), 2)
+        falta_total_escopo = round(float(grp["Falta"].sum()), 2)
+        estoque_total = round(float(r_first["estoque"]), 2)
         # Saldo na fila no momento do primeiro item do pedido que consome este insumo
-        saldo_fila_ref = round(float(r_first["estoque_disp_fila"]), 4)
+        saldo_fila_ref = round(float(r_first["estoque_disp_fila"]), 2)
         disponivel_escopo = falta_total_escopo <= 1e-6
 
         itens_finais_afetados: List[Dict[str, Any]] = []
@@ -2037,7 +2035,7 @@ def obter_resumo_pedido(
         for _, r_g in grp.iterrows():
             of_idx = int(r_g["_ordem_fila"])
             meta_f = mapa_info_fila.get(of_idx, {})
-            falta_i = round(float(r_g["Falta"]), 4)
+            falta_i = round(float(r_g["Falta"]), 2)
             if falta_i > 0 and not item_final_com_falta_principal:
                 item_final_com_falta_principal = meta_f.get("item_final", "")
                 dt_abertura_ref_principal = meta_f.get("data_abertura", "")
@@ -2048,8 +2046,8 @@ def obter_resumo_pedido(
                     "fabrica": meta_f.get("fabrica", ""),
                     "posicao_fila": meta_f.get("posicao_fila", of_idx + 1),
                     "data_abertura": meta_f.get("data_abertura", ""),
-                    "consumo": round(float(r_g["Consumo"]), 4),
-                    "saldo_fila": round(float(r_g["estoque_disp_fila"]), 4),
+                    "consumo": round(float(r_g["Consumo"]), 2),
+                    "saldo_fila": round(float(r_g["estoque_disp_fila"]), 2),
                     "falta": falta_i,
                     "disponivel": bool(r_g["Disponivel"]),
                 }

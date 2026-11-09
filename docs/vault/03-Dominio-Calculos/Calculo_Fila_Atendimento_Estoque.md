@@ -16,8 +16,8 @@ tags: [regras-negocio, calculo, parametros, estoque, fifo, atendimento]
   - `consumo`: Float (quantidade requerida do insumo pela engenharia/árvore do produto).
   - `ordem_fila`: Lista ordenada cronologicamente por data de entrega e número do pedido.
 - **Condicionais Críticas:**
-  - **Tolerância a Arredondamento:** O saldo no ERP é mantido com 2 casas decimais, enquanto o consumo na estrutura pode ter 3 a 4 casas decimais. Se `estoque_disp_fila > 0` e `round(consumo, 2) <= round(estoque_disp_fila, 2)` (ou `(consumo - estoque_disp_fila) <= 0.01` para consumos `>= 0.05`), o item é considerado `Disponivel = True` e `Falta = 0.0`.
-  - **Abatimento Cumulativo:** Quando o consumo é atendido, o saldo disponível na fila é reduzido de `round(consumo, 2)` para consumos `>= 0.01`.
+  - **Padronização Pré-Cálculo (2 Casas Decimais):** Todos os dados de entrada de estoque, ordens, saldo e consumo da estrutura são estritamente padronizados e arredondados com 2 casas decimais (`round(2)`) antes de qualquer cálculo ou merge. Isso elimina resíduos de arredondamento e discrepâncias na carteira.
+  - **Atendimento e Abatimento Cumulativo:** O abatimento cumulativo vetorizado opera com precisão de 2 casas decimais (`consumo_acumulado`, `consumo_anterior`, `estoque_disp_fila`). Se `(estoque_disp_fila + 1e-6) >= consumo`, o insumo é marcado como `Disponivel = True` e `Falta = 0.0`. Caso contrário, a falta é calculada como `(consumo - estoque_disp_fila).clip(lower=0.0).round(2)`.
   - **Status do Item Final:** Um item final só tem `Atendido = True` se 100% de seus insumos e componentes estiverem disponíveis na fila.
 - **Saída Esperada:**
   - `saldo_disponivel`: Float (saldo remanescente na fila antes do abatimento deste consumo).

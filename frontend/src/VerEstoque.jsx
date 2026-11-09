@@ -11,6 +11,26 @@ const criarLinhaPedidoVazia = () => ({
   data_entrega: "",
 });
 
+const formatarQtd = (val) => {
+  if (val === null || val === undefined || val === "") return "-";
+  const num = Number(val);
+  if (isNaN(num)) return String(val);
+  return num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatarPerc = (val) => {
+  if (val === null || val === undefined || val === "") return "0%";
+  const num = Number(val);
+  if (isNaN(num)) return "0%";
+  return `${num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  })}%`;
+};
+
 export default function VerEstoque({ onVoltar, isStandalone = false }) {
   const tableId = useId();
   const simDialogTitleId = useId();
@@ -663,7 +683,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               <span
                                 key={aIdx}
                                 className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
-                                title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${af.consumo} • Falta: ${af.falta}`}
+                                title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${formatarQtd(af.consumo)} • Falta: ${formatarQtd(af.falta)}`}
                               >
                                 {af.item_final}
                               </span>
@@ -686,17 +706,17 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]"
                         title="Saldo total físico em estoque (Situação L)"
                       >
-                        {mp.estoque_total ?? mp.estoque_l}
+                        {formatarQtd(mp.estoque_total ?? mp.estoque_l)}
                       </td>
                       <td className="p-2.5 text-right font-mono text-[#424242]">
-                        {mp.saldo_fila}
+                        {formatarQtd(mp.saldo_fila)}
                       </td>
                       <td className="p-2.5 text-right font-mono font-medium">
-                        {mp.consumo}
+                        {formatarQtd(mp.consumo)}
                       </td>
                       {isAbaFaltando && (
                         <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/30">
-                          {mp.falta}
+                          {formatarQtd(mp.falta)}
                         </td>
                       )}
                       <td className="p-2.5 whitespace-nowrap">
@@ -723,7 +743,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               ) : null}
                             </div>
                             <span className="text-[10px] text-[#666666]">
-                              Qtd OC: <strong>{mp.oc_saldo}</strong>
+                              Qtd OC: <strong>{formatarQtd(mp.oc_saldo)}</strong>
                               {mp.oc_fornecedor
                                 ? ` • ${mp.oc_fornecedor}`
                                 : mp.oc_comprador
@@ -764,10 +784,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 : "bg-[#F5F5F5] text-[#757575] border border-[#E0E0E0]"
                             }`}
                           >
-                            {Number(mp.oc_saldo_ate_abertura || 0).toLocaleString("pt-BR", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 2,
-                            })}
+                            {formatarQtd(mp.oc_saldo_ate_abertura)}
                           </span>
                           <span className="text-[10px] text-[#666666]">
                             {mp.oc_data_abertura_ref ? (
@@ -783,10 +800,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               className="text-[9px] text-[#1565C0]"
                               title="Saldo total somando todas as OCs abertas deste item (incluindo previsões após a abertura da ordem)"
                             >
-                              Total OC: {Number(mp.oc_saldo_total_item || 0).toLocaleString("pt-BR", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                              })}
+                              Total OC: {formatarQtd(mp.oc_saldo_total_item)}
                             </span>
                           )}
                         </div>
@@ -953,7 +967,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                     <span
                                       key={aIdx}
                                       className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
-                                      title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${af.consumo} • Falta: ${af.falta}`}
+                                      title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${formatarQtd(af.consumo)} • Falta: ${formatarQtd(af.falta)}`}
                                     >
                                       {af.item_final}
                                     </span>
@@ -976,17 +990,17 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]"
                               title="Saldo total físico em estoque (Situação L)"
                             >
-                              {comp.estoque_total ?? comp.estoque_l}
+                              {formatarQtd(comp.estoque_total ?? comp.estoque_l)}
                             </td>
                             <td className="p-2.5 text-right font-mono text-[#424242]">
-                              {comp.saldo_fila}
+                              {formatarQtd(comp.saldo_fila)}
                             </td>
                             <td className="p-2.5 text-right font-mono font-medium">
-                              {comp.consumo}
+                              {formatarQtd(comp.consumo)}
                             </td>
                             {isAbaFaltando && (
                               <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/30">
-                                {comp.falta}
+                                {formatarQtd(comp.falta)}
                               </td>
                             )}
                             <td className="p-2.5 whitespace-nowrap">
@@ -1008,7 +1022,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                   </div>
                                   {comp.op_saldo > 0 && (
                                     <span className="text-[10px] text-[#666666]">
-                                      Saldo OP: <strong>{comp.op_saldo}</strong>
+                                      Saldo OP: <strong>{formatarQtd(comp.op_saldo)}</strong>
                                     </span>
                                   )}
                                 </div>
@@ -1377,7 +1391,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           </div>
 
           <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#2E7D32] uppercase tracking-wider block flex items-center gap-1">
+            <span className="text-[10px] font-semibold text-[#2E7D32] uppercase tracking-wider block items-center gap-1">
               <span className="material-symbols-outlined text-[13px]">check_circle</span>
               100% Disponíveis na Fila
             </span>
@@ -1387,14 +1401,14 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               </span>
               <span className="text-[11px] text-[#2E7D32] font-medium">
                 {metricas.total_itens_finais > 0
-                  ? `${((metricas.total_disponiveis / metricas.total_itens_finais) * 100).toFixed(1)}%`
+                  ? formatarPerc((metricas.total_disponiveis / metricas.total_itens_finais) * 100)
                   : "0%"}
               </span>
             </div>
           </div>
 
           <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#C62828] uppercase tracking-wider block flex items-center gap-1">
+            <span className="text-[10px] font-semibold text-[#C62828] uppercase tracking-wider block items-center gap-1">
               <span className="material-symbols-outlined text-[13px]">warning</span>
               Com Componentes Faltando
             </span>
@@ -1404,7 +1418,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               </span>
               <span className="text-[11px] text-[#C62828] font-medium">
                 {metricas.total_itens_finais > 0
-                  ? `${((metricas.total_com_falta / metricas.total_itens_finais) * 100).toFixed(1)}%`
+                  ? formatarPerc((metricas.total_com_falta / metricas.total_itens_finais) * 100)
                   : "0%"}
               </span>
             </div>
@@ -1954,7 +1968,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             )}
                           </td>
                           <td className="p-2.5 text-right font-mono font-semibold">
-                            {it.saldo}
+                            {formatarQtd(it.saldo)}
                           </td>
                           <td className="p-2.5 text-center text-[#666666] font-mono">
                             {it.entrega || "-"}
@@ -1965,7 +1979,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 <span>
                                   {it.componentes_disponiveis}/{it.total_componentes} disp.
                                 </span>
-                                <span className="font-semibold">{it.perc_disponivel}%</span>
+                                <span className="font-semibold">{formatarPerc(it.perc_disponivel)}</span>
                               </div>
                               <div className="w-full bg-[#E0E0E0] h-1.5 rounded-full overflow-hidden">
                                 <div
@@ -2411,7 +2425,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                     </strong>
                   </span>
                   <span>
-                    Saldo: <strong className="text-[#1A1A1A]">{itemSelecionado.saldo}</strong>
+                    Saldo: <strong className="text-[#1A1A1A]">{formatarQtd(itemSelecionado.saldo)}</strong>
                   </span>
                   <span>
                     Entrega:{" "}
