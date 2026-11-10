@@ -98,7 +98,7 @@ def prazo_por_representante(rep) -> int:
 NOMES_PRAZO_EXPEDICAO = {
     3: "MG e franquia",
     8: "Fora de MG",
-    10: "Revenda e Nordeste",
+    10: "R. Multimarcas e Nordeste",
     0: "Sem Rep.",
 }
 
@@ -108,7 +108,7 @@ def nome_prazo_expedicao(prazo: int) -> str:
     Traduz o código numérico de prazo de expedição para a nomenclatura comercial:
       3  -> 'MG e franquia'
       8  -> 'Fora de MG'
-      10 -> 'Revenda e Nordeste'
+      10 -> 'R. Multimarcas e Nordeste'
       0  -> 'Sem Rep.'
     """
     try:

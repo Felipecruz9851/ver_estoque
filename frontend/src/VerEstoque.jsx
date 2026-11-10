@@ -135,7 +135,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
     prazos_disponiveis: [3, 8, 10],
     prazos_colunas: [
 
-      { prazo: 10, key: "10", label: "Revenda e Nordeste" },
+      { prazo: 10, key: "10", label: "R. Multimarcas e Nordeste" },
       { prazo: 8, key: "8", label: "Fora de MG" },
       { prazo: 3, key: "3", label: "MG e franquia" },
     ],
@@ -748,7 +748,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         prazosCols && prazosCols.length > 0
           ? prazosCols
           : [
-              { prazo: 10, key: "10", label: "Revenda e Nordeste" },
+              { prazo: 10, key: "10", label: "R. Multimarcas e Nordeste" },
               { prazo: 3, key: "3", label: "MG e franquia" },
               { prazo: 8, key: "8", label: "Fora de MG" },
             ];
@@ -3775,7 +3775,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#E0E0E0] rounded-sm">
                           {[
-                            { key: "10", label: "Revenda e Nordeste" },
+                            { key: "10", label: "R. Multimarcas e Nordeste" },
                             { key: "8", label: "Fora de MG" },
                             { key: "3", label: "MG e franquia" },
                           ].map((pCol) => (
@@ -3896,7 +3896,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               <>
                 {(() => {
                   const prazosCols = [
-                    { prazo: 10, key: "10", label: "Revenda e Nordeste" },
+                    { prazo: 10, key: "10", label: "R. Multimarcas e Nordeste" },
                     { prazo: 8, key: "8", label: "Fora de MG" },
                     { prazo: 3, key: "3", label: "MG e franquia" },
                   ];
