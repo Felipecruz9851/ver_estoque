@@ -134,9 +134,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
     locais_componente: [],
     prazos_disponiveis: [3, 8, 10],
     prazos_colunas: [
-      { prazo: 3, key: "3", label: "MG e franquia" },
-      { prazo: 8, key: "8", label: "Fora de MG" },
+
       { prazo: 10, key: "10", label: "Revenda e Nordeste" },
+      { prazo: 8, key: "8", label: "Fora de MG" },
+      { prazo: 3, key: "3", label: "MG e franquia" },
     ],
   });
   const [matrizLocaisPaiSel, setMatrizLocaisPaiSel] = useState([]);
@@ -747,9 +748,9 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         prazosCols && prazosCols.length > 0
           ? prazosCols
           : [
+              { prazo: 10, key: "10", label: "Revenda e Nordeste" },
               { prazo: 3, key: "3", label: "MG e franquia" },
               { prazo: 8, key: "8", label: "Fora de MG" },
-              { prazo: 10, key: "10", label: "Revenda e Nordeste" },
             ];
 
       const colunas = [
@@ -850,15 +851,76 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       });
       let subtotalFaltaGeral = 0;
 
-      itens.forEach((row, idx) => {
-        const yRow = yHead + tableHeaderH + idx * rowH;
-        const bgBase = idx % 2 === 0 ? "#FFFFFF" : "#FAFAFA";
-
+      // Pré-cálculo dos subtotais para exibição na linha de topo
+      itens.forEach((row) => {
         subtotalFaltaGeral += Number(row.falta_total || 0);
         colsPrazoEfetivas.forEach((colP) => {
           subtotaisPrazo[colP.key] =
             (subtotaisPrazo[colP.key] || 0) + Number(row.falta_por_prazo?.[colP.key] || 0);
         });
+      });
+
+      // Linha de SUBTOTAL POR PRAZO DE ENTREGA no topo (logo após o cabeçalho)
+      const ySubtotal = yHead + tableHeaderH;
+      let xFoot = padX;
+      const idxFimAntesPrazos = 2; // Componente + Descrição
+      const larguraBlocoLabel = colunas
+        .slice(0, idxFimAntesPrazos)
+        .reduce((acc, c) => acc + c.width, 0);
+
+      // Célula mesclada do rótulo "SUBTOTAL POR PRAZO DE ENTREGA"
+      ctx.fillStyle = "#ECEFF1";
+      ctx.fillRect(xFoot, ySubtotal, larguraBlocoLabel, footerH);
+      ctx.strokeStyle = "#B0BEC5";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(xFoot, ySubtotal, larguraBlocoLabel, footerH);
+
+      ctx.fillStyle = "#1A1A1A";
+      ctx.font = "bold 11px Inter, Segoe UI, Arial, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(
+        `SUBTOTAL POR PRAZO DE ENTREGA (${itens.length} itens):`,
+        xFoot + larguraBlocoLabel - 12,
+        ySubtotal + footerH / 2
+      );
+      xFoot += larguraBlocoLabel;
+
+      // Células de subtotal para cada prazo e total geral
+      colunas.slice(idxFimAntesPrazos).forEach((col) => {
+        let cellBg = "#ECEFF1";
+        let txtColor = "#1A1A1A";
+        let textoSub = "";
+
+        if (col.isPrazo) {
+          const somaP = subtotaisPrazo[col.prazoKey] || 0;
+          cellBg = "#E3F2FD";
+          txtColor = "#0D47A1";
+          textoSub = formatarQtd(somaP);
+        } else if (col.isTotal) {
+          cellBg = "#FFCDD2";
+          txtColor = "#B71C1C";
+          textoSub = formatarQtd(subtotalFaltaGeral);
+        }
+
+        ctx.fillStyle = cellBg;
+        ctx.fillRect(xFoot, ySubtotal, col.width, footerH);
+        ctx.strokeStyle = "#B0BEC5";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(xFoot, ySubtotal, col.width, footerH);
+
+        if (textoSub) {
+          ctx.fillStyle = txtColor;
+          ctx.font = "bold 12px JetBrains Mono, Consolas, monospace";
+          ctx.textAlign = "right";
+          ctx.fillText(textoSub, xFoot + col.width - 10, ySubtotal + footerH / 2);
+        }
+        xFoot += col.width;
+      });
+
+      // Linhas de dados dos itens (após a linha de subtotal no topo)
+      itens.forEach((row, idx) => {
+        const yRow = ySubtotal + footerH + idx * rowH;
+        const bgBase = idx % 2 === 0 ? "#FFFFFF" : "#FAFAFA";
 
         let xCell = padX;
         colunas.forEach((col) => {
@@ -913,63 +975,6 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
 
           xCell += col.width;
         });
-      });
-
-      // Linha final de SUBTOTAL POR PRAZO DE ENTREGA (tfoot)
-      const yFoot = yHead + tableHeaderH + itens.length * rowH;
-      let xFoot = padX;
-      const idxFimAntesPrazos = 2; // Componente + Descrição
-      const larguraBlocoLabel = colunas
-        .slice(0, idxFimAntesPrazos)
-        .reduce((acc, c) => acc + c.width, 0);
-
-      // Célula mesclada do rótulo "SUBTOTAL POR PRAZO DE ENTREGA"
-      ctx.fillStyle = "#ECEFF1";
-      ctx.fillRect(xFoot, yFoot, larguraBlocoLabel, footerH);
-      ctx.strokeStyle = "#B0BEC5";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(xFoot, yFoot, larguraBlocoLabel, footerH);
-
-      ctx.fillStyle = "#1A1A1A";
-      ctx.font = "bold 11px Inter, Segoe UI, Arial, sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText(
-        `SUBTOTAL POR PRAZO DE ENTREGA (${itens.length} itens):`,
-        xFoot + larguraBlocoLabel - 12,
-        yFoot + footerH / 2
-      );
-      xFoot += larguraBlocoLabel;
-
-      // Células de subtotal para cada prazo e total geral
-      colunas.slice(idxFimAntesPrazos).forEach((col) => {
-        let cellBg = "#ECEFF1";
-        let txtColor = "#1A1A1A";
-        let textoSub = "";
-
-        if (col.isPrazo) {
-          const somaP = subtotaisPrazo[col.prazoKey] || 0;
-          cellBg = "#E3F2FD";
-          txtColor = "#0D47A1";
-          textoSub = formatarQtd(somaP);
-        } else if (col.isTotal) {
-          cellBg = "#FFCDD2";
-          txtColor = "#B71C1C";
-          textoSub = formatarQtd(subtotalFaltaGeral);
-        }
-
-        ctx.fillStyle = cellBg;
-        ctx.fillRect(xFoot, yFoot, col.width, footerH);
-        ctx.strokeStyle = "#B0BEC5";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(xFoot, yFoot, col.width, footerH);
-
-        if (textoSub) {
-          ctx.fillStyle = txtColor;
-          ctx.font = "bold 12px JetBrains Mono, Consolas, monospace";
-          ctx.textAlign = "right";
-          ctx.fillText(textoSub, xFoot + col.width - 10, yFoot + footerH / 2);
-        }
-        xFoot += col.width;
       });
 
       // Dispara o download do PNG
@@ -3770,9 +3775,9 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#E0E0E0] rounded-sm">
                           {[
-                            { key: "3", label: "MG e franquia" },
-                            { key: "8", label: "Fora de MG" },
                             { key: "10", label: "Revenda e Nordeste" },
+                            { key: "8", label: "Fora de MG" },
+                            { key: "3", label: "MG e franquia" },
                           ].map((pCol) => (
                             <span
                               key={pCol.key}
@@ -3891,9 +3896,9 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               <>
                 {(() => {
                   const prazosCols = [
-                    { prazo: 3, key: "3", label: "MG e franquia" },
-                    { prazo: 8, key: "8", label: "Fora de MG" },
                     { prazo: 10, key: "10", label: "Revenda e Nordeste" },
+                    { prazo: 8, key: "8", label: "Fora de MG" },
+                    { prazo: 3, key: "3", label: "MG e franquia" },
                   ];
                   const termoFiltroLocal = matrizBuscaItem.trim().toUpperCase();
 
@@ -4154,8 +4159,9 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                   className="overflow-auto max-h-[min(480px,62vh)] relative focus:outline-none"
                                 >
                                   <table className="w-full text-left text-xs border-collapse">
-                                    <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
-                                      <tr>
+                                    <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold text-[11px] shadow-2xs">
+                                      {/* LINHA 1: TÍTULOS DAS COLUNAS */}
+                                      <tr className="border-b border-[#E0E0E0]">
                                         <th
                                           scope="col"
                                           className="p-2.5 bg-[#FAFAFA] sticky left-0 z-20 min-w-[150px]"
@@ -4169,17 +4175,41 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                           <th
                                             key={colP.key}
                                             scope="col"
-                                            className="p-2.5 bg-[#E3F2FD]/65 text-[#0D47A1] text-right font-bold whitespace-nowrap border-l border-[#BBDEFB] min-w-[130px]"
+                                            className="p-2.5 bg-[#E3F2FD] text-[#0D47A1] text-right font-bold whitespace-nowrap border-l border-[#BBDEFB] min-w-[130px]"
                                           >
                                             {colP.label}
                                           </th>
                                         ))}
                                         <th
                                           scope="col"
-                                          className="p-2.5 bg-[#FFEBEE]/65 text-[#C62828] text-right font-bold whitespace-nowrap border-l border-[#FFCDD2] min-w-[130px]"
+                                          className="p-2.5 bg-[#FFEBEE] text-[#C62828] text-right font-bold whitespace-nowrap border-l border-[#FFCDD2] min-w-[130px]"
                                         >
                                           Total Faltante
                                         </th>
+                                      </tr>
+
+                                      {/* LINHA 2: SUBTOTAL DA FÁBRICA NO TOPO */}
+                                      <tr className="bg-[#ECEFF1] border-b-2 border-[#B0BEC5] font-bold text-xs tabular-nums shadow-xs">
+                                        <th
+                                          scope="row"
+                                          className="p-2.5 text-left font-bold text-[#1A1A1A] uppercase tracking-wider text-[11px] bg-[#ECEFF1] sticky left-0 z-20 whitespace-nowrap"
+                                        >
+                                          SUBTOTAL
+                                        </th>
+                                        <td className="p-2.5 text-right text-[#1A1A1A] uppercase tracking-wider text-[11px] bg-[#ECEFF1]">
+                                          Subtotal por Prazo de Entrega ({itensFab.length} itens):
+                                        </td>
+                                        {prazosCols.map((colP) => (
+                                          <td
+                                            key={colP.key}
+                                            className="p-2.5 text-right font-mono font-bold text-[#0D47A1] bg-[#E3F2FD] border-l border-[#90CAF9]"
+                                          >
+                                            {formatarQtd(grp.somas_por_prazo?.[colP.key] || 0)}
+                                          </td>
+                                        ))}
+                                        <td className="p-2.5 text-right font-mono font-bold text-[#B71C1C] bg-[#FFCDD2] border-l border-[#EF9A9A]">
+                                          {formatarQtd(grp.falta_total_grupo)}
+                                        </td>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
@@ -4221,27 +4251,6 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                         </tr>
                                       ))}
                                     </tbody>
-                                    <tfoot className="sticky bottom-0 z-10 bg-[#ECEFF1] border-t-2 border-[#B0BEC5] font-bold text-xs tabular-nums shadow-2xs">
-                                      <tr>
-                                        <td
-                                          colSpan={2}
-                                          className="p-2.5 text-right text-[#1A1A1A] uppercase tracking-wider text-[11px]"
-                                        >
-                                          Subtotal por Prazo de Entrega ({itensFab.length} itens):
-                                        </td>
-                                        {prazosCols.map((colP) => (
-                                          <td
-                                            key={colP.key}
-                                            className="p-2.5 text-right font-mono font-bold text-[#0D47A1] bg-[#E3F2FD] border-l border-[#90CAF9]"
-                                          >
-                                            {formatarQtd(grp.somas_por_prazo?.[colP.key] || 0)}
-                                          </td>
-                                        ))}
-                                        <td className="p-2.5 text-right font-mono font-bold text-[#B71C1C] bg-[#FFCDD2]/80 border-l border-[#EF9A9A]">
-                                          {formatarQtd(grp.falta_total_grupo)}
-                                        </td>
-                                      </tr>
-                                    </tfoot>
                                   </table>
                                 </div>
 
