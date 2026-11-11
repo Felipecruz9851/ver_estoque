@@ -1,5 +1,6 @@
-import React from "react";
 
+import React from "react";
+import logoLider from "./logo_lider.png";
 /**
  * Barra lateral persistente comum a todas as telas do sistema
  */
@@ -10,24 +11,29 @@ export default function Sidebar({
   onAbrirSimulador,
   onLimparSimulacao,
   onRecarregar,
+  carregarDados,
   onExportarExcel,
+  exportarParaExcel,
   loading = false,
+  carregando = false,
   exportando = false,
   sessionId = "",
+  hashSessao = "",
   dataCarregamento = "",
+  dataCarga = "",
   snapshotNome = "",
 }) {
+  const handleRecarregar = onRecarregar || carregarDados;
+  const handleExportar = onExportarExcel || exportarParaExcel;
+  const isLoading = loading || carregando;
+  const dtSnapshot = dataCarregamento || dataCarga;
+  const sid = sessionId || hashSessao;
   return (
     <aside className="w-64 min-w-[256px] max-w-[256px] h-screen bg-[#FAFAFA] border-r border-[#EAEAEA] flex flex-col justify-between shrink-0 select-none z-30">
       <div className="flex flex-col">
         {/* Topo Brand Líder */}
-        <div className="p-6 border-b border-[#EAEAEA]">
-          <h1 className="font-serif text-2xl tracking-[0.18em] font-medium text-[#1A1A1A] uppercase leading-none">
-            LÍDER
-          </h1>
-          <p className="text-[9px] tracking-[0.25em] text-[#757575] font-medium uppercase mt-1">
-            DESIGN • GESTÃO INDUSTRIAL
-          </p>
+        <div className="h-[68px] p-6 border-b border-[#EAEAEA]">
+          <img src={logoLider} alt="Líder Design" className="h-7 w-auto" />
         </div>
 
         {/* Seção Navegação do Sistema */}
@@ -146,14 +152,21 @@ export default function Sidebar({
             </span>
           </div>
           <div className="font-mono text-[11px] text-[#333] pl-3.5">
-            {sessionId ? sessionId.slice(0, 8) : "ativa"}
+            {sid ? sid.slice(0, 8) : "ativa"}
           </div>
-          {(dataCarregamento || snapshotNome) && (
-            <div className="text-[10px] text-[#888] pt-1">
-              Snapshot:{" "}
-              <span className="font-mono text-[#555]">
-                {dataCarregamento || snapshotNome}
-              </span>
+          {(dtSnapshot || snapshotNome) && (
+            <div className="text-[10px] text-[#888] pt-1 leading-snug">
+              <div>
+                Snapshot:{" "}
+                <span className="font-mono text-[#555]" title={snapshotNome}>
+                  {snapshotNome ? snapshotNome.replace(/^snapshot_/, "") : "Padrão"}
+                </span>
+              </div>
+              {dtSnapshot && (
+                <div className="font-mono text-[9px] text-[#777]">
+                  {dtSnapshot}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -161,26 +174,26 @@ export default function Sidebar({
         <div className="pt-2 space-y-1.5">
           <button
             type="button"
-            onClick={onRecarregar}
-            disabled={loading}
+            onClick={handleRecarregar}
+            disabled={isLoading}
             className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-medium text-[#333] bg-white border border-[#E0E0E0] rounded-xs hover:border-[#999] transition-colors cursor-pointer disabled:opacity-50"
           >
             <span
               className={`inline-block ${
-                loading ? "animate-spin" : ""
+                isLoading ? "animate-spin" : ""
               }`}
             >
               <span className="material-symbols-outlined text-[14px] text-[#666] -scale-x-100 block">
                 sync
               </span>
             </span>
-            <span>{loading ? "Recarregando..." : "Recarregar Dados"}</span>
+            <span>{isLoading ? "Recarregando..." : "Recarregar Dados"}</span>
           </button>
 
           <button
             type="button"
-            onClick={onExportarExcel}
-            disabled={exportando || loading}
+            onClick={handleExportar}
+            disabled={exportando || isLoading}
             className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-medium text-[#333] bg-white border border-[#E0E0E0] rounded-xs hover:border-[#999] transition-colors cursor-pointer disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-[14px] text-[#666]">

@@ -1,41 +1,61 @@
 import React from "react";
 
 /**
- * Modal nativo <dialog> do Simulador de Pedidos na Intranet
+ * Modal nativo <dialog> do Simulador de Pedidos na Intranet (Líder Design)
+ * Suporta preenchimento de número de pedidos, seleção de data de entrega via calendário nativo,
+ * adição/remoção de linhas e consulta na Intranet.
  */
 export default function SimuladorModal({
   dialogRef,
   dialogTitleId,
-  userFieldId,
-  passFieldId,
-  intranetUsuario,
+  titleId,
+  userFieldId = "sim-user-field",
+  passFieldId = "sim-pass-field",
+  intranetUsuario = "",
   setIntranetUsuario,
-  intranetSenha,
+  intranetSenha = "",
   setIntranetSenha,
-  mostrarSenha,
+  mostrarSenha = false,
   setMostrarSenha,
-  linhasSimulador,
-  simulando,
-  erroSimulador,
-  avisoSimulador,
-  pedidosSimuladosAtivos,
+  linhasSimulador = [],
+  simulando = false,
+  erroSimulador = "",
+  avisoSimulador = "",
+  pedidosSimuladosAtivos = [],
+  // Mapeamento compatível para convenção on* e handle*
   onConfirmarSimulacao,
+  handleConfirmarSimulacao,
   onFecharModal,
+  fecharModalSimulador,
   onAdicionarLinha,
+  adicionarLinhaPedido,
   onRemoverLinha,
+  removerLinhaPedido,
   onAtualizarLinha,
+  atualizarLinhaPedido,
   onLimparSimulacao,
+  handleLimparSimulacao,
   onRemoverPedidoSimulado,
+  handleRemoverPedidoSimulado,
 }) {
+  const confirmar = onConfirmarSimulacao || handleConfirmarSimulacao;
+  const fechar = onFecharModal || fecharModalSimulador;
+  const adicionar = onAdicionarLinha || adicionarLinhaPedido;
+  const remover = onRemoverLinha || removerLinhaPedido;
+  const atualizar = onAtualizarLinha || atualizarLinhaPedido;
+  const limpar = onLimparSimulacao || handleLimparSimulacao;
+  const removerSimulado = onRemoverPedidoSimulado || handleRemoverPedidoSimulado;
+  const idTitulo = dialogTitleId || titleId || "sim-dialog-title";
+
   return (
     <dialog
       ref={dialogRef}
-      aria-labelledby={dialogTitleId}
+      aria-labelledby={idTitulo}
       className="w-full max-w-[690px] rounded-xs shadow-lider-modal border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto backdrop:bg-black/30 backdrop:backdrop-blur-[2px] animate-in fade-in zoom-in-95 duration-200"
     >
-      <form onSubmit={onConfirmarSimulacao} className="flex flex-col max-h-[90vh]">
+      <form onSubmit={confirmar} className="flex flex-col max-h-[90vh]">
         {/* Cabeçalho do Modal */}
-        <header className="px-8 pt-7 pb-5 flex items-start justify-between border-b border-[#EDEDED] bg-white">
+        <header className="px-8 pt-7 pb-5 flex items-start justify-between border-b border-[#EDEDED] bg-white shrink-0">
           <div className="flex items-start gap-3.5">
             <div className="mt-0.5 w-8 h-8 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] flex items-center justify-center text-[#8B5A2B] shrink-0">
               <svg className="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +63,7 @@ export default function SimuladorModal({
               </svg>
             </div>
             <div>
-              <h2 id={dialogTitleId} className="font-display font-medium text-[17px] tracking-tight text-[#1A1A1A]">
+              <h2 id={idTitulo} className="font-display font-medium text-[17px] tracking-tight text-[#1A1A1A]">
                 Consultar e Simular Pedidos Específicos
               </h2>
               <p className="text-xs text-[#757575] font-normal leading-relaxed mt-1">
@@ -53,7 +73,7 @@ export default function SimuladorModal({
           </div>
           <button
             type="button"
-            onClick={onFecharModal}
+            onClick={fechar}
             className="text-[#9E9E9E] hover:text-[#1A1A1A] p-1.5 -mr-1 transition-colors rounded-xs focus:outline-none cursor-pointer"
             aria-label="Fechar janela"
           >
@@ -110,7 +130,7 @@ export default function SimuladorModal({
                   autoCorrect="off"
                   autoCapitalize="off"
                   value={intranetUsuario}
-                  onChange={(e) => setIntranetUsuario(e.target.value)}
+                  onChange={(e) => setIntranetUsuario && setIntranetUsuario(e.target.value)}
                   placeholder="Seu usuário (192.168.0.6)"
                   className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] placeholder-[#9E9E9E] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors shadow-none"
                 />
@@ -130,13 +150,13 @@ export default function SimuladorModal({
                     type={mostrarSenha ? "text" : "password"}
                     autoComplete="current-password"
                     value={intranetSenha}
-                    onChange={(e) => setIntranetSenha(e.target.value)}
+                    onChange={(e) => setIntranetSenha && setIntranetSenha(e.target.value)}
                     placeholder="Sua senha"
                     className="w-full h-10 pl-3.5 pr-16 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] placeholder-[#9E9E9E] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors shadow-none"
                   />
                   <button
                     type="button"
-                    onClick={() => setMostrarSenha((prev) => !prev)}
+                    onClick={() => setMostrarSenha && setMostrarSenha((prev) => !prev)}
                     className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[11px] font-medium text-[#757575] hover:text-[#1A1A1A] tracking-wide focus:outline-none transition-colors cursor-pointer"
                   >
                     {mostrarSenha ? "Ocultar" : "Mostrar"}
@@ -175,10 +195,12 @@ export default function SimuladorModal({
                       spellCheck={false}
                       autoCorrect="off"
                       required={index === 0}
-                      value={linha.pedido}
-                      onChange={(e) =>
-                        onAtualizarLinha(linha.id, "pedido", e.target.value)
-                      }
+                      value={linha.pedido || ""}
+                      onChange={(e) => {
+                        if (typeof atualizar === "function") {
+                          atualizar(linha.id, "pedido", e.target.value);
+                        }
+                      }}
                       placeholder="Ex: 188366 (ou 188366, 188367)"
                       className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs font-mono text-[#1A1A1A] placeholder-[#9E9E9E] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors"
                     />
@@ -191,22 +213,39 @@ export default function SimuladorModal({
                     >
                       Data de Entrega Desejada
                     </label>
-                    <input
-                      id={`dt_${linha.id}`}
-                      name={`data_entrega_${index}`}
-                      type="date"
-                      value={linha.data_entrega}
-                      onChange={(e) =>
-                        onAtualizarLinha(linha.id, "data_entrega", e.target.value)
-                      }
-                      className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors uppercase font-mono"
-                    />
+                    <div className="relative">
+                      <input
+                        id={`dt_${linha.id}`}
+                        name={`data_entrega_${index}`}
+                        type="date"
+                        value={linha.data_entrega || ""}
+                        onChange={(e) => {
+                          if (typeof atualizar === "function") {
+                            atualizar(linha.id, "data_entrega", e.target.value);
+                          }
+                        }}
+                        onClick={(e) => {
+                          try {
+                            if (typeof e.target.showPicker === "function") {
+                              e.target.showPicker();
+                            }
+                          } catch {
+                            // Suporte gracioso para navegadores que restringem showPicker
+                          }
+                        }}
+                        className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors uppercase font-mono cursor-pointer"
+                      />
+                    </div>
                   </div>
 
                   <div className="sm:self-end">
                     <button
                       type="button"
-                      onClick={() => onRemoverLinha(linha.id)}
+                      onClick={() => {
+                        if (typeof remover === "function") {
+                          remover(linha.id);
+                        }
+                      }}
                       className="w-10 h-10 flex items-center justify-center border border-[#E0E0E0] text-[#9E9E9E] hover:text-red-700 hover:border-red-200 transition-colors rounded-xs bg-white focus:outline-none cursor-pointer"
                       title="Remover linha"
                       aria-label={`Remover linha ${index + 1}`}
@@ -223,7 +262,11 @@ export default function SimuladorModal({
             <div className="mt-4 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={onAdicionarLinha}
+                onClick={() => {
+                  if (typeof adicionar === "function") {
+                    adicionar();
+                  }
+                }}
                 className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-[#E0E0E0] hover:border-[#1A1A1A] text-[#1A1A1A] bg-white text-xs font-medium rounded-xs transition-colors focus:outline-none w-fit cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5 stroke-[1.7]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,7 +290,11 @@ export default function SimuladorModal({
                 </span>
                 <button
                   type="button"
-                  onClick={onLimparSimulacao}
+                  onClick={() => {
+                    if (typeof limpar === "function") {
+                      limpar();
+                    }
+                  }}
                   className="text-[11px] font-medium text-red-700 hover:underline cursor-pointer"
                 >
                   Limpar todos
@@ -266,8 +313,13 @@ export default function SimuladorModal({
                     </span>
                     <button
                       type="button"
-                      onClick={() => onRemoverPedidoSimulado(ps.pedido)}
+                      onClick={() => {
+                        if (typeof removerSimulado === "function") {
+                          removerSimulado(ps.pedido);
+                        }
+                      }}
                       className="hover:text-red-700 font-bold ml-1 text-sm leading-none cursor-pointer"
+                      title={`Remover pedido ${ps.pedido} da simulação`}
                     >
                       ×
                     </button>
@@ -279,10 +331,10 @@ export default function SimuladorModal({
         </div>
 
         {/* Rodapé do Modal */}
-        <footer className="px-8 py-5 bg-[#FAF7F2]/40 border-t border-[#EDEDED] flex items-center justify-end gap-3">
+        <footer className="px-8 py-5 bg-[#FAF7F2]/40 border-t border-[#EDEDED] flex items-center justify-end gap-3 shrink-0">
           <button
             type="button"
-            onClick={onFecharModal}
+            onClick={fechar}
             disabled={simulando}
             className="px-5 py-2.5 bg-transparent border border-[#E0E0E0] text-[#1A1A1A] text-xs font-medium rounded-xs hover:bg-white hover:border-[#1A1A1A] transition-all focus:outline-none cursor-pointer"
           >

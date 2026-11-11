@@ -719,12 +719,17 @@ def tratar_estrutura_fantasmas(
 
             curr_p = parent_idx[j]
             fantasmas_acima = 0
+            fator_mult = 1.0
             visited = set()
             while curr_p is not None and is_phantom[curr_p]:
                 if curr_p in visited:
                     break
                 visited.add(curr_p)
                 fantasmas_acima += 1
+                _, r_f = indexed_rows[curr_p]
+                q_f = scraper.parse_numero_flexivel(r_f.get("qtd_necessaria"), default=1.0)
+                if q_f > 0:
+                    fator_mult *= q_f
                 curr_p = parent_idx[curr_p]
 
             if curr_p is None:
@@ -732,6 +737,10 @@ def tratar_estrutura_fantasmas(
             else:
                 _, r_anc = indexed_rows[curr_p]
                 r_novo["cod_item_pai"] = r_anc.get("cod_item_compon")
+
+            if fator_mult != 1.0:
+                q_orig = scraper.parse_numero_flexivel(r_orig.get("qtd_necessaria"), default=0.0)
+                r_novo["qtd_necessaria"] = str(round(q_orig * fator_mult, 4))
 
             try:
                 orig_nivel = int(float(r_orig.get("nivel") or 1))
@@ -858,6 +867,7 @@ def _montar_df_pedido_simulado(
                     "Consumo": consumo_total,
                     "Ordem Cons": op_virtual,
                     "item_pai": scraper.normalizar_cod_item(r.get("cod_item_pai")) or cod_item_final,
+                    "nivel": int(float(r.get("nivel") or 1)),
                     "Saldo": saldo_val,
                     "Pedido": ped_int,
                     "Representante": rep_final,
@@ -1198,24 +1208,11 @@ def _obter_fila_calculada(
         [str(x) for x in df["raiz_Fábrica"].dropna().unique() if str(x).strip()]
     )
 
-    mask_escopo = df["raiz_Item Final"].notna()
-    if b_norm in ("S", "N"):
-        mask_escopo &= df["Baixa"].astype(str).str.upper() == b_norm
-    if t_norm in ("C", "P"):
-        mask_escopo &= df["Tipo"].astype(str).str.upper() == t_norm
-
-    df_escopo = df[mask_escopo]
-    if df_escopo.empty:
-        vazio = pd.DataFrame()
-        with sess.lock:
-            sess.cache_filas[cache_key] = (vazio, vazio, locais_producao)
-        return vazio, vazio, locais_producao
-
     group_cols = ["raiz_Item Final", "raiz_Pedido_Str", "raiz_Fábrica"]
 
     # 1. Define a ordem global estrita da fila de produção
     filas = (
-        df_escopo.groupby(group_cols, as_index=False)
+        df.groupby(group_cols, as_index=False)
         .agg(
             raiz_Descricao=("raiz_Descricao", "first"),
             raiz_Saldo=("raiz_Saldo", "first"),
@@ -1237,52 +1234,151 @@ def _obter_fila_calculada(
     ).reset_index(drop=True)
     filas["_ordem_fila"] = filas.index
 
-    # 2. Agrega consumo por (Item Final na fila, Componente único)
-    comp_agg = (
-        df_escopo.groupby(group_cols + ["Item"], as_index=False)
-        .agg(
-            Consumo=("Consumo", "sum"),
-            estoque=("estoque", "first"),
-            Tipo=("Tipo", "first"),
-            Den_Item=("Den. Item", "first"),
-            Baixa=("Baixa", "first"),
-            Local_Prod=("Local Prod.", "first"),
-            Ordem_Prod=("Ordem Prod", "first"),
-            Saldo=("Saldo", "first"),
-        )
-        .merge(
-            filas[group_cols + ["_ordem_fila", "raiz_Representante", "prazo_expedicao"]],
-            on=group_cols,
-            how="left",
-        )
-        .sort_values(by=["Item", "_ordem_fila"], ascending=[True, True])
-        .reset_index(drop=True)
-    )
+    # 2. Executa o algoritmo multinível (MRP Top-Down com Atendimento Condicional ao Saldo)
+    # Garante que semiacabados em estoque não explodam componentes filhos desnecessariamente
+    df_ord = df.merge(filas[group_cols + ["_ordem_fila"]], on=group_cols, how="left")
 
-    # 3. Abatimento cumulativo vetorizado do estoque Situação L na ordem da fila
-    # Dados de entrada (Consumo, estoque e saldos) são estritamente padronizados com 2 casas decimais antes dos cálculos.
-    comp_agg["Consumo"] = comp_agg["Consumo"].round(2)
-    comp_agg["estoque"] = comp_agg["estoque"].round(2)
+    estoque_inicial = df_ord.drop_duplicates("Item").set_index("Item")["estoque"].to_dict()
+    estoque_atual = {k: float(v or 0.0) for k, v in estoque_inicial.items()}
 
-    consumo_acumulado = comp_agg.groupby("Item")["Consumo"].cumsum().round(2)
-    consumo_anterior = (consumo_acumulado - comp_agg["Consumo"]).round(2)
-    comp_agg["estoque_disp_fila"] = (comp_agg["estoque"] - consumo_anterior).clip(lower=0.0).round(2)
-    comp_agg["Disponivel"] = (comp_agg["estoque_disp_fila"] + 1e-6) >= comp_agg["Consumo"]
-    comp_agg["Falta"] = np.where(
-        comp_agg["Disponivel"],
-        0.0,
-        (comp_agg["Consumo"] - comp_agg["estoque_disp_fila"]).clip(lower=0.0).round(2),
-    )
+    cols_iter = [
+        "_ordem_fila", "Item", "item_pai", "raiz_Item Final", "Consumo",
+        "Tipo", "Den. Item", "Baixa", "Local Prod.", "Ordem Prod", "Saldo"
+    ]
+    por_ordem: Dict[int, List[Dict[str, Any]]] = {}
+    for r in df_ord[cols_iter].to_dict("records"):
+        ord_idx = int(r["_ordem_fila"])
+        por_ordem.setdefault(ord_idx, []).append(r)
 
-    # 4. Consolida métricas por Item Final mantendo exatamente a ordenação `_ordem_fila`
-    totais_fila = (
-        comp_agg.groupby("_ordem_fila", as_index=False)
-        .agg(
-            total_componentes=("Item", "count"),
-            componentes_disponiveis=("Disponivel", lambda s: int(s.sum())),
-            componentes_faltando=("Disponivel", lambda s: int((~s).sum())),
+    componentes_ativos: List[Dict[str, Any]] = []
+
+    for ord_idx in range(len(filas)):
+        rows_ord = por_ordem.get(ord_idx, [])
+        if not rows_ord:
+            continue
+
+        raiz = rows_ord[0]["raiz_Item Final"]
+
+        filhos_por_pai: Dict[str, List[Dict[str, Any]]] = {}
+        for r in rows_ord:
+            pai = r.get("item_pai")
+            if not pai or pd.isna(pai) or pai == r.get("Item"):
+                pai = raiz
+            filhos_por_pai.setdefault(str(pai), []).append(r)
+
+        # Fila de avaliação top-down: (codigo_pai, fator_necessidade)
+        # Nível 1: filhos diretos da raiz, fator 1.0
+        pais_a_avaliar = [(raiz, 1.0)]
+
+        while pais_a_avaliar:
+            proximos_pais = []
+            for pai_cod, fator_pai in pais_a_avaliar:
+                if fator_pai <= 0:
+                    continue
+
+                itens_filhos = filhos_por_pai.get(pai_cod, [])
+                for comp in itens_filhos:
+                    item_cod = str(comp.get("Item") or "")
+                    if not item_cod:
+                        continue
+
+                    c_orig = round(float(comp.get("Consumo") or 0.0), 2)
+                    consumo_efetivo = round(c_orig * fator_pai, 2)
+                    if consumo_efetivo <= 0:
+                        continue
+
+                    saldo_est = estoque_atual.get(item_cod, 0.0)
+
+                    if (saldo_est + 1e-6) >= consumo_efetivo:
+                        disp = True
+                        falta = 0.0
+                        saldo_fila = saldo_est
+                        estoque_atual[item_cod] = round(saldo_est - consumo_efetivo, 2)
+                        fator_filho = 0.0
+                    else:
+                        disp = False
+                        saldo_fila = saldo_est
+                        falta = round(max(0.0, consumo_efetivo - saldo_est), 2)
+                        estoque_atual[item_cod] = 0.0
+                        fator_filho = round(falta / consumo_efetivo, 4) if consumo_efetivo > 0 else 0.0
+
+                    componentes_ativos.append({
+                        "_ordem_fila": ord_idx,
+                        "Item": item_cod,
+                        "item_pai": pai_cod,
+                        "raiz_Item Final": raiz,
+                        "Consumo": consumo_efetivo,
+                        "estoque": round(float(estoque_inicial.get(item_cod, 0.0)), 2),
+                        "estoque_disp_fila": round(saldo_fila, 2),
+                        "Disponivel": disp,
+                        "Falta": falta,
+                        "Tipo": comp.get("Tipo"),
+                        "Den_Item": comp.get("Den. Item"),
+                        "Baixa": comp.get("Baixa"),
+                        "Local_Prod": comp.get("Local Prod."),
+                        "Ordem_Prod": comp.get("Ordem Prod"),
+                        "Saldo": comp.get("Saldo"),
+                    })
+
+                    # Se for item produzido e teve falta, explode os filhos no próximo nível
+                    if comp.get("Tipo") == "P" and fator_filho > 0:
+                        proximos_pais.append((item_cod, fator_filho))
+
+            pais_a_avaliar = proximos_pais
+
+    if not componentes_ativos:
+        comp_df = pd.DataFrame()
+    else:
+        comp_df = pd.DataFrame(componentes_ativos)
+
+    # 3. Agrega componentes idênticos por (Ordem na fila, Item)
+    if comp_df.empty:
+        comp_agg = pd.DataFrame()
+    else:
+        comp_agg = (
+            comp_df.groupby(["_ordem_fila", "Item"], as_index=False)
+            .agg(
+                Consumo=("Consumo", "sum"),
+                estoque=("estoque", "first"),
+                estoque_disp_fila=("estoque_disp_fila", "first"),
+                Falta=("Falta", "sum"),
+                Tipo=("Tipo", "first"),
+                Den_Item=("Den_Item", "first"),
+                Baixa=("Baixa", "first"),
+                Local_Prod=("Local_Prod", "first"),
+                Ordem_Prod=("Ordem_Prod", "first"),
+                Saldo=("Saldo", "first"),
+            )
+            .merge(
+                filas[group_cols + ["_ordem_fila", "raiz_Representante", "prazo_expedicao"]],
+                on="_ordem_fila",
+                how="left",
+            )
         )
-    )
+        comp_agg["Consumo"] = comp_agg["Consumo"].round(2)
+        comp_agg["Falta"] = comp_agg["Falta"].round(2)
+        comp_agg["Disponivel"] = comp_agg["Falta"] <= 1e-6
+
+    # 4. Aplica escopo de filtros (Baixa / Tipo)
+    comp_agg_escopo = comp_agg.copy() if not comp_agg.empty else pd.DataFrame()
+    if not comp_agg_escopo.empty:
+        if b_norm in ("S", "N"):
+            comp_agg_escopo = comp_agg_escopo[comp_agg_escopo["Baixa"].astype(str).str.upper() == b_norm]
+        if t_norm in ("C", "P"):
+            comp_agg_escopo = comp_agg_escopo[comp_agg_escopo["Tipo"].astype(str).str.upper() == t_norm]
+
+    # 5. Consolida métricas por Item Final mantendo exatamente a ordenação `_ordem_fila`
+    if comp_agg_escopo.empty:
+        totais_fila = pd.DataFrame(columns=["_ordem_fila", "total_componentes", "componentes_disponiveis", "componentes_faltando"])
+    else:
+        totais_fila = (
+            comp_agg_escopo.groupby("_ordem_fila", as_index=False)
+            .agg(
+                total_componentes=("Item", "count"),
+                componentes_disponiveis=("Disponivel", lambda s: int(s.sum())),
+                componentes_faltando=("Disponivel", lambda s: int((~s).sum())),
+            )
+        )
 
     itens_resumo = filas.merge(totais_fila, on="_ordem_fila", how="left")
     itens_resumo["total_componentes"] = itens_resumo["total_componentes"].fillna(0).astype(int)
@@ -1315,8 +1411,8 @@ def _obter_fila_calculada(
     with sess.lock:
         if len(sess.cache_filas) >= 10:
             sess.cache_filas.clear()
-        sess.cache_filas[cache_key] = (itens_resumo, comp_agg, locais_producao)
-    return itens_resumo, comp_agg, locais_producao
+        sess.cache_filas[cache_key] = (itens_resumo, comp_agg_escopo, locais_producao)
+    return itens_resumo, comp_agg_escopo, locais_producao
 
 
 def analisar_itens_finais(

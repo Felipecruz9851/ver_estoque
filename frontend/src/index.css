@@ -83,3 +83,15 @@ dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(3px);
 }
+
+/* Indicador nativo de calendário com cursor de clique e destaque */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 4px;
+  transition: opacity 0.2s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}

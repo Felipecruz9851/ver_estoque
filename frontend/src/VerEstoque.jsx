@@ -45,6 +45,7 @@ export default function VerEstoque() {
   const [locaisProducao, setLocaisProducao] = useState([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
+  const [snapshotNome, setSnapshotNome] = useState("");
   const [sessionId, setSessionId] = useState("");
 
   // Paginação contínua (Infinite Scroll)
@@ -212,6 +213,7 @@ export default function VerEstoque() {
         }
         if (res.locais_producao) setLocaisProducao(res.locais_producao);
         if (res.data_carga) setDataCarga(res.data_carga);
+        if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
       } catch (e) {
         alert("Erro ao carregar análise de estoque: " + e.message);
@@ -750,13 +752,16 @@ export default function VerEstoque() {
       <Sidebar
         telaAtiva={telaAtiva}
         onNavegar={handleNavegar}
+        pedidosSimuladosAtivos={pedidosSimuladosAtivos}
         onAbrirSimulador={abrirModalSimulador}
-        hashSessao={sessionId ? sessionId.slice(0, 8) : "—"}
-        dataCarga={dataCarga}
-        totalRegistros={totalRegistros}
-        carregando={loading}
-        carregarDados={() => carregarDados(true, 0, true)}
-        exportarParaExcel={handleExportarExcel}
+        onLimparSimulacao={handleLimparSimulacao}
+        onRecarregar={() => carregarDados(true, 0, true)}
+        onExportarExcel={handleExportarExcel}
+        loading={loading}
+        exportando={exportando}
+        sessionId={sessionId}
+        dataCarregamento={dataCarga}
+        snapshotNome={snapshotNome}
       />
 
       {/* ÁREA PRINCIPAL DA APLICAÇÃO */}
@@ -887,6 +892,7 @@ export default function VerEstoque() {
       {/* MODAL NATIVO <dialog> DO SIMULADOR DE PEDIDOS (INTRANET) */}
       <SimuladorModal
         dialogRef={simDialogRef}
+        dialogTitleId={simDialogTitleId}
         titleId={simDialogTitleId}
         userFieldId={userFieldId}
         passFieldId={passFieldId}
@@ -897,17 +903,24 @@ export default function VerEstoque() {
         mostrarSenha={mostrarSenha}
         setMostrarSenha={setMostrarSenha}
         linhasSimulador={linhasSimulador}
+        onAdicionarLinha={adicionarLinhaPedido}
         adicionarLinhaPedido={adicionarLinhaPedido}
+        onRemoverLinha={removerLinhaPedido}
         removerLinhaPedido={removerLinhaPedido}
+        onAtualizarLinha={atualizarLinhaPedido}
         atualizarLinhaPedido={atualizarLinhaPedido}
+        onConfirmarSimulacao={handleConfirmarSimulacao}
         handleConfirmarSimulacao={handleConfirmarSimulacao}
+        onFecharModal={fecharModalSimulador}
+        fecharModalSimulador={fecharModalSimulador}
         simulando={simulando}
         erroSimulador={erroSimulador}
         avisoSimulador={avisoSimulador}
         pedidosSimuladosAtivos={pedidosSimuladosAtivos}
+        onRemoverPedidoSimulado={handleRemoverPedidoSimulado}
         handleRemoverPedidoSimulado={handleRemoverPedidoSimulado}
+        onLimparSimulacao={handleLimparSimulacao}
         handleLimparSimulacao={handleLimparSimulacao}
-        fecharModalSimulador={fecharModalSimulador}
       />
     </div>
   );
