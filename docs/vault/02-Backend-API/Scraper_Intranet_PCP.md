@@ -18,6 +18,8 @@ tags: [codigo, backend, python, scraper, intranet, httpx, parser]
 * `parse_oc_texto_vinculo(texto)`: Parser via regex que extrai `(pedido_vinculado, item_final_vinculado)` a partir das anotações livres no campo de texto da OC.
 * `consultar_oc_abertas_intranet(...)`: Raspagem de `/sup/oc_atrasadas.php` combinando situações de compra aberta (`sit_oc=S` e padrão horizonte 2050).
 * `carregar_ou_atualizar_oc_abertas(forcar_intranet)`: Gerencia o cache serializado em `backend/data/oc_abertas_cache.pkl`, atualizando sob demanda.
+* `consultar_tecidos_customizados_intranet(usuario, senha, timeout_sec)`: Consulta `/pcp/tecidos_customizados3.php` com cod_empresa=11 e período 2000 a 2050 para checar situação dos tecidos importados/customizados (CST).
+* `carregar_ou_atualizar_tecidos_customizados(forcar_intranet)`: Gerencia o cache serializado em `backend/data/tecidos_customizados_cache.pkl` para suportar regras exclusivas de disponibilidade da família CST.
 
 ## Dependências (Grafo)
 **⬅️ Quem chama este módulo (Entrada):**

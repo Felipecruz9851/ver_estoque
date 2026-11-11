@@ -36,7 +36,8 @@ else:
     import settings
 
 TABELAS_NECESSARIAS: Tuple[str, ...] = ("ordens", "cons", "estoque")
-ARQUIVOS_SINCRONIZAR: Tuple[str, ...] = tuple(f"{t}.parquet" for t in TABELAS_NECESSARIAS) + ("_sync_meta.json",)
+TABELAS_SINCRONIZAR: Tuple[str, ...] = ("ordens", "cons", "estoque", "apoio_compras")
+ARQUIVOS_SINCRONIZAR: Tuple[str, ...] = tuple(f"{t}.parquet" for t in TABELAS_SINCRONIZAR) + ("_sync_meta.json",)
 
 
 def _mtime(p: Path) -> float:
@@ -340,5 +341,14 @@ def carregar_snapshot(path: Optional[Path] = None) -> Tuple[Dict[str, pd.DataFra
         if not pqt_file.exists():
             raise FileNotFoundError(f"Snapshot '{path.name}' incompleto: tabela '{t}.parquet' não encontrada.")
         dfs[t] = pl.read_parquet(pqt_file).to_pandas()
+
+    # Tabelas adicionais sincronizadas disponíveis no snapshot (ex: apoio_compras)
+    for pqt_file in path.glob("*.parquet"):
+        stem = pqt_file.stem
+        if stem not in dfs and not stem.startswith("_"):
+            try:
+                dfs[stem] = pl.read_parquet(pqt_file).to_pandas()
+            except Exception as exc_extra:
+                print(f"[SNAPSHOT] Aviso ao carregar tabela adicional '{pqt_file.name}': {exc_extra}")
 
     return dfs, path

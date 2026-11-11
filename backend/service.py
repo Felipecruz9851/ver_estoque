@@ -57,6 +57,12 @@ _enriquecimento: Dict[str, Any] = {
     "oc_por_item_it_sem_ped": {},
     "oc_por_item_geral": {},
     "oc_por_item_todas": {},
+    "itens_cst": set(),
+    "tc_map_4": {},
+    "tc_map_3_ped": {},
+    "tc_map_3_ord": {},
+    "tc_map_3_item": {},
+    "tecidos_cust_raw": [],
 }
 
 # ==============================================================================
@@ -241,10 +247,12 @@ def _construir_mapas_enriquecimento(
     oc_por_item_geral: Dict[str, List[Dict[str, Any]]] = {}
     oc_por_item_todas: Dict[str, List[Dict[str, Any]]] = {}
 
-    # 1. Apoio compras (Baixa e Descrição de comprados)
+    # 1. Apoio compras (Baixa, Descrição de comprados e Identificação da Família CST)
+    itens_cst: Set[str] = set()
     raw_apoio = dfs.get("apoio_compras")
     if raw_apoio is not None:
         df_ap = raw_apoio.to_pandas() if isinstance(raw_apoio, pl.DataFrame) else raw_apoio
+        col_fam = "Família" if "Família" in df_ap.columns else ("Familia" if "Familia" in df_ap.columns else None)
         if "Item" in df_ap.columns:
             for rec in df_ap.to_dict("records"):
                 it = scraper.normalizar_cod_item(rec.get("Item"))
@@ -256,6 +264,35 @@ def _construir_mapas_enriquecimento(
                 desc = str(rec.get("Descrição") or "").strip()
                 if desc and it not in desc_item_map:
                     desc_item_map[it] = desc
+                if col_fam and str(rec.get(col_fam) or "").strip().upper() == "CST":
+                    itens_cst.add(it)
+
+    # Identificação complementar de tecidos CST a partir de cons
+    if "Familia" in df_consumo.columns and "Item" in df_consumo.columns:
+        mask_cst_cons = df_consumo["Familia"].astype(str).str.strip().str.upper() == "CST"
+        for it_raw in df_consumo.loc[mask_cst_cons, "Item"].dropna():
+            it_cst = scraper.normalizar_cod_item(it_raw)
+            if it_cst:
+                itens_cst.add(it_cst)
+
+    # Sinaliza sigla CST na descrição de todos os tecidos da família CST
+    def _sinalizar_cst(desc_val: str) -> str:
+        s = str(desc_val or "").strip()
+        if not s or s == ".":
+            return "[CST]"
+        if re.search(r"\bCST\b", s, re.IGNORECASE):
+            return s
+        return f"[CST] {s}"
+
+    for it in itens_cst:
+        if it in desc_item_map:
+            desc_item_map[it] = _sinalizar_cst(desc_item_map[it])
+
+    if "Den. Item" in df_consumo.columns and "Item" in df_consumo.columns:
+        mask_cst_df = df_consumo["Item"].isin(itens_cst)
+        if "Familia" in df_consumo.columns:
+            mask_cst_df |= df_consumo["Familia"].astype(str).str.strip().str.upper() == "CST"
+        df_consumo.loc[mask_cst_df, "Den. Item"] = df_consumo.loc[mask_cst_df, "Den. Item"].apply(_sinalizar_cst)
 
     # 2. Estoque Situação L
     raw_estoque = dfs.get("estoque")
@@ -423,6 +460,36 @@ def _construir_mapas_enriquecimento(
                     oc_por_item_it_sem_ped.setdefault((it, it_vinc), []).append(oc_info)
                 oc_por_item_geral.setdefault(it, []).append(oc_info)
 
+    # 5. Tecidos Customizados da Família CST (/pcp/tecidos_customizados3.php)
+    tecidos_cust_raw = scraper.carregar_ou_atualizar_tecidos_customizados(forcar_intranet=forcar_oc)
+    tc_map_4: Dict[Tuple[str, str, str, str], Dict[str, Any]] = {}
+    tc_map_3_ped: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    tc_map_3_ord: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    tc_map_3_item: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+
+    for r in tecidos_cust_raw:
+        p = scraper.normalizar_numero_pedido(r.get("pedido") or r.get("Pedido"))
+        o = re.sub(r"[^\d]", "", str(r.get("ordem") or r.get("Ordem") or ""))
+        it_p = scraper.normalizar_cod_item(r.get("item") or r.get("Item"))
+        tec = scraper.normalizar_cod_item(r.get("tecido") or r.get("Tecido"))
+
+        reg_dict = dict(r)
+        tc_map_4[(p, o, it_p, tec)] = reg_dict
+        if (p, o, tec) not in tc_map_3_ped:
+            tc_map_3_ped[(p, o, tec)] = reg_dict
+        if (o, tec) not in tc_map_3_ord:
+            tc_map_3_ord[(o, tec)] = reg_dict
+        if (p, it_p, tec) not in tc_map_3_item:
+            tc_map_3_item[(p, it_p, tec)] = reg_dict
+
+    # Garante que todos os itens CST em desc_item_map estejam sinalizados com a sigla CST
+    for it in itens_cst:
+        desc_cur = desc_item_map.get(it, "")
+        if desc_cur:
+            desc_item_map[it] = _sinalizar_cst(desc_cur)
+        else:
+            desc_item_map[it] = "[CST]"
+
     return {
         "estoque": estoque_map,
         "tipo": tipo_map,
@@ -439,7 +506,47 @@ def _construir_mapas_enriquecimento(
         "oc_por_item_it_sem_ped": oc_por_item_it_sem_ped,
         "oc_por_item_geral": oc_por_item_geral,
         "oc_por_item_todas": oc_por_item_todas,
+        "itens_cst": itens_cst,
+        "tc_map_4": tc_map_4,
+        "tc_map_3_ped": tc_map_3_ped,
+        "tc_map_3_ord": tc_map_3_ord,
+        "tc_map_3_item": tc_map_3_item,
+        "tecidos_cust_raw": tecidos_cust_raw,
     }
+
+
+def buscar_info_tecido_cst(
+    pedido: Any,
+    ordem: Any,
+    item_produto: Any,
+    tecido: Any,
+) -> Optional[Dict[str, Any]]:
+    """
+    Busca na tabela /pcp/tecidos_customizados3.php a linha correspondente a (pedido, ordem, item_produto, tecido).
+    Utiliza resolução em cascata (4 campos -> 3 campos -> 2 campos) para máxima tolerância operacional.
+    """
+    p = scraper.normalizar_numero_pedido(pedido)
+    o = re.sub(r"[^\d]", "", str(ordem or ""))
+    it_p = scraper.normalizar_cod_item(item_produto)
+    tec = scraper.normalizar_cod_item(tecido)
+
+    m4 = _enriquecimento.get("tc_map_4", {})
+    if (p, o, it_p, tec) in m4:
+        return m4[(p, o, it_p, tec)]
+
+    m3_ped = _enriquecimento.get("tc_map_3_ped", {})
+    if (p, o, tec) in m3_ped:
+        return m3_ped[(p, o, tec)]
+
+    m3_item = _enriquecimento.get("tc_map_3_item", {})
+    if (p, it_p, tec) in m3_item:
+        return m3_item[(p, it_p, tec)]
+
+    m3_ord = _enriquecimento.get("tc_map_3_ord", {})
+    if (o, tec) in m3_ord:
+        return m3_ord[(o, tec)]
+
+    return None
 
 
 def sincronizar_base_snapshots(forcar: bool = False) -> Dict[str, Any]:
@@ -858,6 +965,11 @@ def _montar_df_pedido_simulado(
                 str(r.get("den_item") or "").strip()
                 or _enriquecimento["desc_item"].get(comp_code, "")
             )
+            eh_cst_comp = comp_code in _enriquecimento.get("itens_cst", set())
+            if eh_cst_comp:
+                if not re.search(r"\bCST\b", den_comp, re.IGNORECASE):
+                    den_comp = f"[CST] {den_comp}" if den_comp else "[CST]"
+                estoque_l = 0.0
 
             registros_df.append(
                 {
@@ -873,7 +985,7 @@ def _montar_df_pedido_simulado(
                     "Representante": rep_final,
                     "Entrega Pedido": dt_entrega,
                     "Local Prod.": local_prod_comp,
-                    "Familia": "",
+                    "Familia": "CST" if eh_cst_comp else "",
                     "Cliente": cliente_final,
                     "Fábrica": fabrica_final,
                     "Ordem": op_virtual,
@@ -1241,16 +1353,19 @@ def _obter_fila_calculada(
     estoque_inicial = df_ord.drop_duplicates("Item").set_index("Item")["estoque"].to_dict()
     estoque_atual = {k: float(v or 0.0) for k, v in estoque_inicial.items()}
 
-    cols_iter = [
+    candidatos_cols = [
         "_ordem_fila", "Item", "item_pai", "raiz_Item Final", "Consumo",
-        "Tipo", "Den. Item", "Baixa", "Local Prod.", "Ordem Prod", "Saldo"
+        "Tipo", "Den. Item", "Baixa", "Local Prod.", "Ordem Prod", "Saldo",
+        "Ordem Cons", "Ordem", "Familia", "raiz_Pedido_Str"
     ]
+    cols_iter = [c for c in candidatos_cols if c in df_ord.columns]
     por_ordem: Dict[int, List[Dict[str, Any]]] = {}
     for r in df_ord[cols_iter].to_dict("records"):
         ord_idx = int(r["_ordem_fila"])
         por_ordem.setdefault(ord_idx, []).append(r)
 
     componentes_ativos: List[Dict[str, Any]] = []
+    itens_cst = _enriquecimento.get("itens_cst", set())
 
     for ord_idx in range(len(filas)):
         rows_ord = por_ordem.get(ord_idx, [])
@@ -1287,20 +1402,50 @@ def _obter_fila_calculada(
                     if consumo_efetivo <= 0:
                         continue
 
-                    saldo_est = estoque_atual.get(item_cod, 0.0)
+                    eh_cst = item_cod in itens_cst or str(comp.get("Familia") or "").strip().upper() == "CST"
 
-                    if (saldo_est + 1e-6) >= consumo_efetivo:
-                        disp = True
-                        falta = 0.0
-                        saldo_fila = saldo_est
-                        estoque_atual[item_cod] = round(saldo_est - consumo_efetivo, 2)
+                    if eh_cst:
+                        # Exclusivo CST: disponibilidade NÃO é verificada no estoque.
+                        # O tecido na linha referente a (pedido, ordem, item) deve retornar 'TECIDO CHEGOU'
+                        # na consulta tecidos_customizados3.php. Apenas tecidos com 'TECIDO CHEGOU'
+                        # são considerados disponíveis para atender o item.
+                        ped_cst = str(comp.get("raiz_Pedido_Str") or filas.iloc[ord_idx].get("raiz_Pedido_Str") or "").strip()
+                        op_cst = comp.get("Ordem Cons") or comp.get("Ordem") or comp.get("Ordem Prod") or ""
+                        it_prod_cst = str(comp.get("raiz_Item Final") or comp.get("item_pai") or "").strip()
+
+                        info_cst = buscar_info_tecido_cst(
+                            pedido=ped_cst,
+                            ordem=op_cst,
+                            item_produto=it_prod_cst,
+                            tecido=item_cod,
+                        )
+                        sit_cst = str(info_cst.get("situacao") or "").strip().upper() if info_cst else ""
+                        chegou = sit_cst == "TECIDO CHEGOU"
+
+                        if chegou:
+                            disp = True
+                            falta = 0.0
+                        else:
+                            disp = False
+                            falta = consumo_efetivo
+
+                        saldo_fila = 0.0
                         fator_filho = 0.0
                     else:
-                        disp = False
-                        saldo_fila = saldo_est
-                        falta = round(max(0.0, consumo_efetivo - saldo_est), 2)
-                        estoque_atual[item_cod] = 0.0
-                        fator_filho = round(falta / consumo_efetivo, 4) if consumo_efetivo > 0 else 0.0
+                        saldo_est = estoque_atual.get(item_cod, 0.0)
+
+                        if (saldo_est + 1e-6) >= consumo_efetivo:
+                            disp = True
+                            falta = 0.0
+                            saldo_fila = saldo_est
+                            estoque_atual[item_cod] = round(saldo_est - consumo_efetivo, 2)
+                            fator_filho = 0.0
+                        else:
+                            disp = False
+                            saldo_fila = saldo_est
+                            falta = round(max(0.0, consumo_efetivo - saldo_est), 2)
+                            estoque_atual[item_cod] = 0.0
+                            fator_filho = round(falta / consumo_efetivo, 4) if consumo_efetivo > 0 else 0.0
 
                     componentes_ativos.append({
                         "_ordem_fila": ord_idx,
@@ -1308,7 +1453,7 @@ def _obter_fila_calculada(
                         "item_pai": pai_cod,
                         "raiz_Item Final": raiz,
                         "Consumo": consumo_efetivo,
-                        "estoque": round(float(estoque_inicial.get(item_cod, 0.0)), 2),
+                        "estoque": 0.0 if eh_cst else round(float(estoque_inicial.get(item_cod, 0.0)), 2),
                         "estoque_disp_fila": round(saldo_fila, 2),
                         "Disponivel": disp,
                         "Falta": falta,
@@ -1317,7 +1462,10 @@ def _obter_fila_calculada(
                         "Baixa": comp.get("Baixa"),
                         "Local_Prod": comp.get("Local Prod."),
                         "Ordem_Prod": comp.get("Ordem Prod"),
+                        "Ordem_Cons": str(comp.get("Ordem Cons") or comp.get("Ordem") or ""),
                         "Saldo": comp.get("Saldo"),
+                        "Familia": str(comp.get("Familia") or ("CST" if eh_cst else "")),
+                        "eh_cst": eh_cst,
                     })
 
                     # Se for item produzido e teve falta, explode os filhos no próximo nível
@@ -1347,7 +1495,10 @@ def _obter_fila_calculada(
                 Baixa=("Baixa", "first"),
                 Local_Prod=("Local_Prod", "first"),
                 Ordem_Prod=("Ordem_Prod", "first"),
+                Ordem_Cons=("Ordem_Cons", "first"),
                 Saldo=("Saldo", "first"),
+                Familia=("Familia", "first"),
+                eh_cst=("eh_cst", "any"),
             )
             .merge(
                 filas[group_cols + ["_ordem_fila", "raiz_Representante", "prazo_expedicao"]],
@@ -1634,12 +1785,14 @@ def _enriquecer_insumo_gerencial(
     raiz_pedido_str: str,
     raiz_item_final: str,
     raiz_data_abertura: Any = None,
+    ordem_cons_raw: Any = None,
 ) -> Dict[str, Any]:
     """
     Resolve os metadados gerenciais de um insumo:
     - Se Tipo == 'P' (Componente Produzido): Fábrica, OP do componente, Data Abertura OP, Data Entrega OP, Saldo OP e vínculo.
     - Se Tipo == 'C' (Matéria-Prima): Previsão de Ordem de Compra (OC), priorizando OC cujo texto vincula ao Pedido (+ Item Final),
       usando a previsão mais antiga para matérias-primas em geral e calculando o saldo total em OC até a data de abertura da ordem.
+    - Se Família CST: Resolve a situação na intranet /pcp/tecidos_customizados3.php (TECIDO CHEGOU / AGUARDANDO TECIDO).
     """
     it = scraper.normalizar_cod_item(comp_item)
     ped = scraper.normalizar_numero_pedido(raiz_pedido_str)
@@ -1802,6 +1955,45 @@ def _enriquecer_insumo_gerencial(
         else:
             ocs_abertas = todas_it[:5]
 
+    itens_cst = _enriquecimento.get("itens_cst", set())
+    eh_cst = it in itens_cst
+    cst_situacao = ""
+    cst_chegou = False
+    cst_fornecedor = ""
+    cst_prev_entrega = ""
+    cst_pedido_interno = ""
+    cst_data_chegada = ""
+    cst_observacao = ""
+
+    if eh_cst:
+        op_ref = op_prod_str or re.sub(r"[^\d]", "", str(ordem_cons_raw or ""))
+        info_cst = buscar_info_tecido_cst(
+            pedido=ped,
+            ordem=op_ref,
+            item_produto=it_final,
+            tecido=it,
+        )
+        if info_cst:
+            cst_situacao = str(info_cst.get("situacao") or "").strip().upper()
+            cst_chegou = cst_situacao == "TECIDO CHEGOU"
+            cst_fornecedor = str(info_cst.get("fornecedor") or "").strip()
+            cst_prev_entrega = str(info_cst.get("prev_entrega") or "").strip()
+            cst_pedido_interno = str(info_cst.get("pedido_interno") or "").strip()
+            cst_data_chegada = str(info_cst.get("data_chegada") or "").strip()
+            cst_observacao = str(info_cst.get("observacao") or "").strip()
+        else:
+            cst_situacao = "SEM REGISTRO"
+            cst_chegou = False
+
+        if not oc_fornecedor and cst_fornecedor:
+            oc_fornecedor = cst_fornecedor
+        if not oc_previsao and cst_prev_entrega:
+            oc_previsao = cst_prev_entrega
+        if not oc_pedido_compra and cst_pedido_interno:
+            oc_pedido_compra = cst_pedido_interno
+        if not oc_sit and cst_situacao:
+            oc_sit = cst_situacao
+
     return {
         "fabrica_componente": lp,
         "ordem_prod": ordem_prod,
@@ -1828,6 +2020,14 @@ def _enriquecer_insumo_gerencial(
         "oc_vinculo": oc_vinculo,
         "oc_vinculada_pedido": oc_vinculada_pedido,
         "ocs_abertas": ocs_abertas,
+        "eh_cst": eh_cst,
+        "cst_situacao": cst_situacao,
+        "cst_chegou": cst_chegou,
+        "cst_fornecedor": cst_fornecedor,
+        "cst_prev_entrega": cst_prev_entrega,
+        "cst_pedido_interno": cst_pedido_interno,
+        "cst_data_chegada": cst_data_chegada,
+        "cst_observacao": cst_observacao,
     }
 
 
@@ -1961,6 +2161,7 @@ def obter_detalhes_item_final(
                 raiz_pedido_str=ped_str_alvo,
                 raiz_item_final=item_final_alvo,
                 raiz_data_abertura=dt_abertura_alvo,
+                ordem_cons_raw=r.get("Ordem_Cons") or r.get("Ordem"),
             )
             est_total = round(float(r["estoque"]), 2)
             lista.append(
@@ -2193,6 +2394,7 @@ def obter_resumo_pedido(
             raiz_pedido_str=ped_norm,
             raiz_item_final=ref_item_final,
             raiz_data_abertura=ref_dt_abertura,
+            ordem_cons_raw=r_first.get("Ordem_Cons") or r_first.get("Ordem"),
         )
 
         insumos_consolidados.append(

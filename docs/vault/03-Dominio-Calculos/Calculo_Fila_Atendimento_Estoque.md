@@ -27,6 +27,11 @@ tags: [regras-negocio, calculo, parametros, estoque, fifo, atendimento, multiniv
       - Marcado como `Disponivel = False` e `Falta = round(consumo - estoque_disp_fila, 2)`.
       - O estoque do item zera na fila.
       - Se o item for produzido (`Tipo == 'P'`), calcula-se o fator de necessidade proporcional `fator_filho = Falta / Consumo`, ativando os componentes filhos no nível subsequente apenas para suprir a carência líquida.
+  - **Regra Exclusiva para Tecidos da Família CST:**
+    - Identificados a partir da tabela `apoio_compras.parquet` (`Família == 'CST'`) sincronizada nos snapshots e complementados via `cons.parquet`.
+    - **Sinalização na Descrição:** Todos os tecidos desta família recebem a sigla `[CST]` em sua denominação/descrição.
+    - **Desacoplamento do Estoque Físico:** Sua disponibilidade **não é verificada no estoque físico** (`estoque.parquet`), não consumindo nem abatendo saldo da fila.
+    - **Disponibilidade via Intranet PCP (`tecidos_customizados3.php`):** O tecido na linha referente a `(pedido, ordem, item, tecido)` deve retornar obrigatoriamente `TECIDO CHEGOU` na coluna `Situação`. Apenas tecidos com `TECIDO CHEGOU` são considerados disponíveis (`Disponivel = True, Falta = 0.0`). Caso contrário (ou se ausente), são considerados indisponíveis (`Disponivel = False, Falta = consumo_efetivo`).
   - **Tratamento Prévio de Fantasmas em Simulações:** Na simulação de pedidos, executa-se primeiramente `tratar_estrutura_fantasmas` (expurgando tipo 'T', promovendo os filhos e multiplicando as quantidades) antes de submeter a estrutura ao motor de atendimento.
   - **Status do Item Final:** Um item final só tem `status = "Disponível"` se 100% dos seus componentes ativos na estrutura estiverem disponíveis na fila.
 - **Saída Esperada:**

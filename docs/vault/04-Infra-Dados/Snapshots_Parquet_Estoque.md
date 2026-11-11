@@ -8,7 +8,7 @@ tags: [codigo, infra, dados, parquet, snapshots, polars]
 
 # Módulo: Snapshots_Parquet_Estoque
 
-**Responsabilidade:** Infraestrutura de armazenamento e leitura colunar dos snapshots diários do ERP em `./backend/data/snapshots/`. Armazena exclusivamente pastas estruturadas contendo as tabelas essenciais (`ordens.parquet`, `cons.parquet`, `estoque.parquet`) e arquivo de controle de versão `_sync_meta.json`. O formato monolítico Pickle (`.pkl`) foi descontinuado.
+**Responsabilidade:** Infraestrutura de armazenamento e leitura colunar dos snapshots diários do ERP em `./backend/data/snapshots/`. Armazena exclusivamente pastas estruturadas contendo as tabelas sincronizadas (`ordens.parquet`, `cons.parquet`, `estoque.parquet`, `apoio_compras.parquet`) e arquivo de controle de versão `_sync_meta.json`. O formato monolítico Pickle (`.pkl`) foi descontinuado.
 
 ## Principais Funções / Métodos
 * `carregar_snapshot(path)`: Efetua leitura direta ultra-rápida e vetorizada via Polars (`pl.read_parquet`) convertendo para Pandas apenas na borda do cálculo.

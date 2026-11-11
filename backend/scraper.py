@@ -19,6 +19,7 @@ INTRANET_BASE = "http://192.168.0.6"
 HOME_URL = f"{INTRANET_BASE}/"
 LOGIN_URL = f"{INTRANET_BASE}/home/login/"
 SITUACAO_PEDIDOS_URL = f"{INTRANET_BASE}/pcp/situacao_pedidos2.php"
+TECIDOS_CUSTOMIZADOS_URL = f"{INTRANET_BASE}/pcp/tecidos_customizados3.php"
 ESTRUTURA_PEDIDO_URL = f"{INTRANET_BASE}/JSN001/json-pedido-estrutura.php"
 OC_ATRASADAS_URL = f"{INTRANET_BASE}/sup/oc_atrasadas.php"
 OC_ATRASADAS_URLS = [
@@ -801,6 +802,216 @@ def carregar_ou_atualizar_oc_abertas(
             return dados_intranet
     except Exception as exc:
         print(f"[OC Intranet] Aviso ao consultar OCs na Intranet (usando cache se disponível): {exc}")
+
+    if cache_path.exists():
+        try:
+            with open(cache_path, "rb") as f:
+                dados = pickle.load(f)
+            if isinstance(dados, list):
+                return dados
+        except Exception:
+            pass
+
+    return []
+
+
+def parse_tecidos_customizados_html(html: str) -> List[Dict[str, Any]]:
+    """
+    Extrai as linhas da tabela de tecidos customizados de /pcp/tecidos_customizados3.php:
+    ['Pedido', 'Ordem', 'Representante', 'Item', 'Descrição', 'Qtde', 'Tecido', 'Consumo',
+     'Fornecedor', 'Prev.Entrega', 'Pedido Interno', 'Data Chegada', 'Data Dig Pedido',
+     'Data Lib Pedido', 'Data Ent Pedido', 'Data Abert OP', 'Data Ent OP', 'Bloco',
+     'Observação', 'Situação', 'EV', 'EOP']
+    """
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, "lxml")
+    tables = soup.find_all("table")
+    resultado: List[Dict[str, Any]] = []
+
+    for table in tables:
+        rows = table.find_all("tr")
+        if len(rows) < 2:
+            continue
+
+        header_tr = rows[0]
+        headers_raw = [c.get_text(strip=True) for c in header_tr.find_all(["th", "td"])]
+        headers_norm = [_norm_header(h) for h in headers_raw]
+
+        if not any("pedido" in h for h in headers_norm) or not any("tecido" in h for h in headers_norm):
+            continue
+
+        col_map: Dict[str, int] = {}
+        for idx, h in enumerate(headers_norm):
+            if h in ("pedido", "num pedido", "n pedido"):
+                col_map.setdefault("pedido", idx)
+            elif h in ("ordem", "op", "num ordem", "n ordem"):
+                col_map.setdefault("ordem", idx)
+            elif h in ("item", "cod item", "produto"):
+                col_map.setdefault("item", idx)
+            elif h in ("tecido", "cod tecido"):
+                col_map.setdefault("tecido", idx)
+            elif h in ("situacao", "situacao tecido", "status"):
+                col_map.setdefault("situacao", idx)
+            elif h in ("consumo", "qtde consumo"):
+                col_map.setdefault("consumo", idx)
+            elif "fornecedor" in h:
+                col_map.setdefault("fornecedor", idx)
+            elif "prev" in h and "entrega" in h:
+                col_map.setdefault("prev_entrega", idx)
+            elif "pedido" in h and "interno" in h:
+                col_map.setdefault("pedido_interno", idx)
+            elif "chegada" in h:
+                col_map.setdefault("data_chegada", idx)
+            elif "observ" in h:
+                col_map.setdefault("observacao", idx)
+            elif "descri" in h:
+                col_map.setdefault("descricao", idx)
+
+        if "pedido" not in col_map or "tecido" not in col_map or "situacao" not in col_map:
+            continue
+
+        for r in rows[1:]:
+            cells = [c.get_text(" ", strip=True) for c in r.find_all(["td", "th"])]
+            if len(cells) < len(col_map):
+                continue
+
+            def _get(k: str) -> str:
+                i = col_map.get(k)
+                return cells[i].strip() if i is not None and i < len(cells) else ""
+
+            ped_raw = _get("pedido")
+            op_raw = _get("ordem")
+            it_raw = _get("item")
+            tec_raw = _get("tecido")
+            sit_raw = _get("situacao")
+
+            if not ped_raw and not op_raw and not tec_raw:
+                continue
+
+            ped_norm = normalizar_numero_pedido(ped_raw)
+            op_digits = re.sub(r"[^\d]", "", op_raw)
+            op_norm = str(int(op_digits)) if op_digits else op_raw.rstrip(".").strip()
+            it_norm = normalizar_cod_item(it_raw)
+            tec_norm = normalizar_cod_item(tec_raw)
+            sit_upper = sit_raw.rstrip(".").strip().upper()
+            chegou_flag = sit_upper == "TECIDO CHEGOU"
+
+            resultado.append({
+                "pedido": ped_norm,
+                "ordem": op_norm,
+                "item": it_norm,
+                "tecido": tec_norm,
+                "descricao": _get("descricao"),
+                "situacao": sit_upper,
+                "chegou": chegou_flag,
+                "consumo": parse_numero_flexivel(_get("consumo")),
+                "fornecedor": _get("fornecedor").rstrip(".").strip(),
+                "prev_entrega": _get("prev_entrega").rstrip(".").strip(),
+                "pedido_interno": _get("pedido_interno").rstrip(".").strip(),
+                "data_chegada": _get("data_chegada").rstrip(".").strip(),
+                "observacao": _get("observacao").rstrip(".").strip(),
+            })
+
+    return resultado
+
+
+def consultar_tecidos_customizados_intranet(
+    usuario: Optional[str] = None,
+    senha: Optional[str] = None,
+    timeout_sec: float = 60.0,
+) -> List[Dict[str, Any]]:
+    """
+    Consulta o endpoint de tecidos customizados /pcp/tecidos_customizados3.php na Intranet
+    com cod_empresa=11&inicio=2000-01-01&fim=2050-12-31&situacao=.
+    """
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    user = str(usuario or _settings.INTRANET_DEFAULT_USER).strip()
+    pwd = str(senha or _settings.INTRANET_DEFAULT_PASS)
+
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "max-age=0",
+        "Connection": "keep-alive",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": INTRANET_BASE,
+        "Referer": TECIDOS_CUSTOMIZADOS_URL,
+        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": DEFAULT_HEADERS["User-Agent"],
+    }
+    payload = {
+        "cod_empresa": "11",
+        "inicio": "2000-01-01",
+        "fim": "2050-12-31",
+        "situacao": "",
+    }
+
+    with httpx.Client(
+        headers=DEFAULT_HEADERS,
+        timeout=httpx.Timeout(timeout_sec, connect=10.0, read=timeout_sec),
+        verify=False,
+    ) as client:
+        try:
+            _autenticar_intranet(client, user, pwd)
+        except Exception as exc_auth:
+            print(f"[Tecidos CST] Aviso de autenticação: {exc_auth}")
+
+        resp = client.post(
+            TECIDOS_CUSTOMIZADOS_URL,
+            data=payload,
+            headers=headers,
+            follow_redirects=True,
+        )
+        resp.raise_for_status()
+        html = _decodificar_html(resp)
+        return parse_tecidos_customizados_html(html)
+
+
+def carregar_ou_atualizar_tecidos_customizados(
+    forcar_intranet: bool = False,
+    usuario: Optional[str] = None,
+    senha: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Carrega a lista de tecidos customizados do cache local (`tecidos_customizados_cache.pkl`)
+    ou atualiza da Intranet quando `forcar_intranet=True` ou quando o cache ainda não existe.
+    """
+    import pickle
+
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    cache_path = _settings.TECIDOS_CUSTOMIZADOS_CACHE_FILE
+
+    if not forcar_intranet and cache_path.exists():
+        try:
+            with open(cache_path, "rb") as f:
+                dados = pickle.load(f)
+            if isinstance(dados, list) and len(dados) > 0:
+                return dados
+        except Exception as exc:
+            print(f"[Tecidos CST Cache] Aviso ao ler cache de tecidos: {exc}")
+
+    try:
+        dados_intranet = consultar_tecidos_customizados_intranet(usuario=usuario, senha=senha)
+        if dados_intranet:
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(cache_path, "wb") as f:
+                    pickle.dump(dados_intranet, f)
+            except Exception as exc:
+                print(f"[Tecidos CST Cache] Aviso ao salvar cache: {exc}")
+            return dados_intranet
+    except Exception as exc:
+        print(f"[Tecidos CST Intranet] Aviso ao consultar na Intranet (usando cache se disponível): {exc}")
 
     if cache_path.exists():
         try:

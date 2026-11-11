@@ -110,7 +110,17 @@ export default function SecaoGerencialInsumos({
                     className="hover:bg-[#FBFBFB] transition-colors"
                   >
                     <th scope="row" className="py-3.5 px-5 font-mono font-medium text-[#1A1A1A] whitespace-nowrap text-left font-normal">
-                      {mp.item}
+                      <div className="flex items-center gap-1.5">
+                        {mp.eh_cst && (
+                          <span
+                            className="px-1.5 py-0.2 text-[9px] font-bold bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD] rounded-xs"
+                            title="Tecido da Família CST (disponibilidade controlada pela Intranet PCP)"
+                          >
+                            CST
+                          </span>
+                        )}
+                        <span>{mp.item}</span>
+                      </div>
                     </th>
                     <td
                       className="py-3.5 px-4 font-normal text-[#1A1A1A] max-w-xs truncate"
@@ -146,12 +156,22 @@ export default function SecaoGerencialInsumos({
                     </td>
                     <td
                       className="py-3.5 px-4 text-right font-medium text-[#1A1A1A]"
-                      title="Saldo total físico em estoque (Situação L)"
+                      title={
+                        mp.eh_cst
+                          ? "Tecido da família CST: disponibilidade verificada exclusivamente na Intranet PCP (tecidos_customizados3.php), não no estoque físico."
+                          : "Saldo total físico em estoque (Situação L)"
+                      }
                     >
-                      {formatarQtd(mp.estoque_total ?? mp.estoque_l)}
+                      {mp.eh_cst ? (
+                        <span className="text-[10px] text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded-xs border border-sky-200">
+                          CST (Intranet)
+                        </span>
+                      ) : (
+                        formatarQtd(mp.estoque_total ?? mp.estoque_l)
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-right font-normal text-neutral-600 font-mono">
-                      {formatarQtd(mp.saldo_fila)}
+                      {mp.eh_cst ? "-" : formatarQtd(mp.saldo_fila)}
                     </td>
                     <td className="py-3.5 px-4 text-right font-normal text-neutral-600 font-mono">
                       {formatarQtd(mp.consumo)}
@@ -162,7 +182,36 @@ export default function SecaoGerencialInsumos({
                       </td>
                     )}
                     <td className="py-3.5 px-5">
-                      {mp.oc_numero ? (
+                      {mp.eh_cst ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-sky-800 text-[11px] bg-sky-50 px-1.5 py-0.5 rounded-xs border border-sky-200">
+                              CST
+                            </span>
+                            <span
+                              className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-xs border ${
+                                mp.cst_chegou || mp.cst_situacao === "TECIDO CHEGOU"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-[#FFF3E0] text-[#E65100] border-[#FFE0B2]"
+                              }`}
+                            >
+                              {mp.cst_situacao || "SEM REGISTRO"}
+                            </span>
+                            {mp.cst_pedido_interno && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 bg-neutral-100 text-neutral-700 border border-neutral-200 rounded-xs">
+                                Ped.Int #{mp.cst_pedido_interno}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-neutral-500 mt-0.5">
+                            {mp.cst_fornecedor
+                              ? mp.cst_fornecedor
+                              : mp.oc_fornecedor
+                              ? mp.oc_fornecedor
+                              : ""}
+                          </div>
+                        </div>
+                      ) : mp.oc_numero ? (
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-[#1A1A1A]">
@@ -200,7 +249,11 @@ export default function SecaoGerencialInsumos({
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      {mp.oc_previsao ? (
+                      {mp.eh_cst && mp.cst_prev_entrega ? (
+                        <span className="inline-block px-2 py-0.5 text-[11px] font-mono text-sky-900 bg-sky-50/80 border border-sky-200/60 rounded-xs">
+                          {mp.cst_prev_entrega}
+                        </span>
+                      ) : mp.oc_previsao ? (
                         <span className="inline-block px-2 py-0.5 text-[11px] font-mono text-amber-900 bg-amber-50/80 border border-amber-200/60 rounded-xs">
                           {mp.oc_previsao}
                         </span>

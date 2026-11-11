@@ -18,6 +18,10 @@ SNAPSHOTS_AUTO_SYNC = os.environ.get(
 ).lower() in ("1", "true", "yes")
 EXPORTS_DIR = DATA_DIR / "exports"
 OC_CACHE_FILE = DATA_DIR / "oc_abertas_cache.pkl"
+TECIDOS_CUSTOMIZADOS_CACHE_FILE = DATA_DIR / "tecidos_customizados_cache.pkl"
+TECIDOS_CUSTOMIZADOS_URL = os.environ.get(
+    "VER_ESTOQUE_TECIDOS_CUSTOMIZADOS_URL", "http://192.168.0.6/pcp/tecidos_customizados3.php"
+)
 
 INTRANET_DEFAULT_USER = os.environ.get("VER_ESTOQUE_INTRANET_USER", "felipe.cruz")
 INTRANET_DEFAULT_PASS = os.environ.get("VER_ESTOQUE_INTRANET_PASS", "#Gladoscruz.9851")
