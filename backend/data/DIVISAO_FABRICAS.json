@@ -1,0 +1,208 @@
+{
+  "dados": [
+    {
+      "Local": "COLCHOES",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "BOX",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "ESTOF UL",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "CC ACABA01",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "ARMARIO UL",
+      "Fabrica": "UNILIDER"
+    },
+    {
+      "Local": "UL ACABA01",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "COZINHA",
+      "Fabrica": "UNILIDER"
+    },
+    {
+      "Local": "PES ACABA",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "VIDRACARIA",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "PORTAS",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "LAMINAD UL",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "TAMPOS UL",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "UL FABRI01",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "CORTE",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "CADEIRAS",
+      "Fabrica": "SALA DE JANTAR"
+    },
+    {
+      "Local": "CC FABRI01",
+      "Fabrica": "SALA DE JANTAR"
+    },
+    {
+      "Local": "CORTE LE",
+      "Fabrica": "SALA DE JANTAR"
+    },
+    {
+      "Local": "PEZINHO",
+      "Fabrica": "SALA DE JANTAR"
+    },
+    {
+      "Local": "CC FABRI03",
+      "Fabrica": "SALA DE JANTAR"
+    },
+    {
+      "Local": "PLANEJADOS",
+      "Fabrica": "PLANEJADOS"
+    },
+    {
+      "Local": "LE FABRI02",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "LE FABRI03",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "LE FABRI06",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "FIBRA",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "ALMOFADAS",
+      "Fabrica": "ATELIE"
+    },
+    {
+      "Local": "CAPAS LE",
+      "Fabrica": "LIDER ESTOFADOS"
+    },
+    {
+      "Local": "METALURGIA",
+      "Fabrica": "LIDER ESTOFADOS"
+    },
+    {
+      "Local": "ALUMINIO",
+      "Fabrica": "LIDER ESTOFADOS"
+    },
+    {
+      "Local": "INOX",
+      "Fabrica": "LIDER ESTOFADOS"
+    },
+    {
+      "Local": "PLASMA",
+      "Fabrica": "LIDER ESTOFADOS"
+    },
+    {
+      "Local": "ATELIE",
+      "Fabrica": "ATELIE"
+    },
+    {
+      "Local": "ATELIE2",
+      "Fabrica": "ATELIE"
+    },
+    {
+      "Local": "UL-ALMOX05",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "REVENDA",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "AT INSUMO",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "AT SOFA",
+      "Fabrica": "LIDER ESTOFADOS"
+    },
+    {
+      "Local": "AT MOVEIS",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "AT KIT",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "AT VIDRO",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "KIT",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "TAPA FURO",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "ACESSORIOS",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "COLMEIAS",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "C PILOTO",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "MOSTRUARIO",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "LAMINACAO1",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "EMBALAGEM",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "OSSOPAINEL",
+      "Fabrica": "COMPONENTES UNILIDER"
+    },
+    {
+      "Local": "TAPETES",
+      "Fabrica": "OUTROS"
+    },
+    {
+      "Local": "LE FABRI01",
+      "Fabrica": "ITENS ACABADOS"
+    },
+    {
+      "Local": "PLAN_ESP",
+      "Fabrica": "PLANEJADOS"
+    }
+  ]
+}
