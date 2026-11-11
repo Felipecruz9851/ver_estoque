@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Líder Design - Consultar e Simular Pedidos</title>
+<!-- Google Fonts para tipografia editorial de alto padrão -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=Montserrat:wght@300;400;500;600&amp;family=Playfair+Display:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 com plugins necessários -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Playfair Display', 'serif'],
+            display: ['Montserrat', 'sans-serif'],
+            brand: ['Cinzel', 'serif'],
+          },
+          colors: {
+            lider: {
+              charcoal: '#1A1A1A',
+              graphite: '#222222',
+              timber: '#2D2825',
+              terracotta: '#8B5A2B',
+              bronze: '#A0522D',
+              canvas: '#F8F8F8',
+              surface: '#FFFFFF',
+              border: '#E0E0E0',
+              borderLight: '#EDEDED',
+              muted: '#757575',
+              subtle: '#9E9E9E'
+            }
+          },
+          borderRadius: {
+            'xs': '2px',
+            'sm': '3px',
+          },
+          boxShadow: {
+            'lider-modal': '0 20px 50px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03)',
+            'lider-card': '0 2px 10px rgba(0, 0, 0, 0.02)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="custom-typography">
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .font-brand {
+      letter-spacing: 0.18em;
+    }
+  </style>
+<style data-purpose="field-borders">
+    /* Efeito de fieldset com título em linha refinado */
+    .lider-fieldset {
+      position: relative;
+      border: 1px solid #E0E0E0;
+      border-radius: 2px;
+      padding: 1.5rem 1.5rem 1.25rem 1.5rem;
+    }
+    .lider-legend {
+      position: absolute;
+      top: -0.65rem;
+      left: 1.25rem;
+      background-color: #FFFFFF;
+      padding: 0 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #757575;
+      text-transform: uppercase;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      opacity: 0.6;
+      cursor: pointer;
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="bg-lider-canvas text-lider-charcoal antialiased min-h-screen overflow-hidden relative select-none">
+<!-- BEGIN: BackgroundDashboard (Contexto Widescreen 16:9 da Líder) -->
+<div class="w-full h-screen flex filter blur-[1.5px] opacity-70 pointer-events-none scale-[0.99] transition-all duration-300" data-purpose="background-context">
+<!-- Sidebar Líder -->
+<aside class="w-64 bg-white border-r border-lider-border flex flex-col justify-between py-6 px-5 shrink-0">
+<div class="space-y-8">
+<div>
+<h1 class="font-brand text-2xl font-bold tracking-widest text-lider-charcoal">LÍDER</h1>
+<p class="text-[9px] tracking-[0.25em] text-lider-muted font-medium uppercase mt-0.5">Design • Gestão Industrial</p>
+</div>
+<nav class="space-y-1">
+<p class="text-[10px] uppercase tracking-wider text-lider-subtle font-semibold mb-2">Navegação do Sistema</p>
+<div class="bg-lider-graphite text-white px-3 py-2.5 rounded-xs flex items-center gap-3 text-xs font-medium">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+            Disponibilidade de Estoque
+          </div>
+<div class="text-lider-muted px-3 py-2 flex items-center gap-3 text-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+            Faltas Produzidos (Matriz)
+          </div>
+<div class="text-lider-muted px-3 py-2 flex items-center gap-3 text-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+            Resumo do Pedido
+          </div>
+<div class="text-lider-muted px-3 py-2 flex items-center gap-3 text-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+            Simulador de Pedidos
+          </div>
+</nav>
+</div>
+<div class="text-[11px] text-lider-muted border-t border-lider-border pt-4">
+<p class="text-emerald-700 font-medium flex items-center gap-1.5 mb-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span> Sessão Isolada
+        </p>
+<p class="font-mono text-xs text-lider-charcoal">3583a605</p>
+</div>
+</aside>
+<!-- Conteúdo Central Fictício Desfocado de Fundo -->
+<div class="flex-1 flex flex-col overflow-hidden bg-lider-canvas">
+<header class="bg-white border-b border-lider-border px-8 py-4 flex justify-between items-center">
+<div>
+<h2 class="text-lg font-serif tracking-tight text-lider-charcoal">Disponibilidade de Estoque por Item Final</h2>
+<p class="text-xs text-lider-muted font-light">Abatimento cumulativo na fila por data de abertura da OP</p>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<span class="px-2.5 py-1 bg-lider-canvas border border-lider-border rounded-xs text-lider-charcoal font-medium">● Matriz Industrial</span>
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-lider-graphite text-white flex items-center justify-center text-xs font-semibold">C</div>
+<div>
+<p class="font-medium text-lider-charcoal">Controladoria Fabril</p>
+<p class="text-[10px] text-lider-muted">PCP &amp; Engenharia</p>
+</div>
+</div>
+</div>
+</header>
+<div class="p-8 space-y-6">
+<!-- 4 Cards de Métricas Topo -->
+<div class="grid grid-cols-5 gap-4">
+<div class="bg-white p-4 border border-lider-border rounded-xs"><span class="text-xs text-lider-muted">Total de Ordens</span><p class="text-2xl font-light text-lider-charcoal mt-1">6.061</p></div>
+<div class="bg-white p-4 border border-lider-border rounded-xs"><span class="text-xs text-lider-muted">Saldo das Ordens</span><p class="text-2xl font-light text-lider-charcoal mt-1">11.158,61</p></div>
+<div class="bg-white p-4 border border-lider-border rounded-xs"><span class="text-xs text-lider-muted">100% Disponíveis</span><p class="text-2xl font-light text-emerald-700 mt-1">870</p></div>
+<div class="bg-white p-4 border border-lider-border rounded-xs"><span class="text-xs text-lider-muted">Com Faltas</span><p class="text-2xl font-light text-amber-700 mt-1">5.191</p></div>
+<div class="bg-white p-4 border border-lider-border rounded-xs"><span class="text-xs text-lider-muted">Total Pedidos</span><p class="text-2xl font-light text-lider-charcoal mt-1">1.905</p></div>
+</div>
+<!-- Card Tabela Fundo -->
+<div class="bg-white border border-lider-border rounded-xs p-5 h-72"></div>
+</div>
+</div>
+</div>
+<!-- END: BackgroundDashboard -->
+<!-- BEGIN: ModalOverlay -->
+<div class="fixed inset-0 bg-[#000000]/30 backdrop-blur-[2px] z-40 flex items-center justify-center p-4 transition-opacity duration-200" data-purpose="modal-backdrop">
+<!-- BEGIN: ModalContainer -->
+<div aria-labelledby="modal-title" aria-modal="true" class="bg-white w-full max-w-[690px] border border-lider-border shadow-lider-modal rounded-xs overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200" data-purpose="dialog-window" role="dialog">
+<!-- BEGIN: ModalHeader -->
+<header class="px-8 pt-7 pb-5 flex items-start justify-between border-b border-lider-borderLight bg-white">
+<div class="flex items-start gap-3.5">
+<!-- Ícone fino de laboratório / simulação de precisão Líder -->
+<div class="mt-0.5 w-8 h-8 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] flex items-center justify-center text-lider-terracotta shrink-0">
+<svg class="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<h2 class="font-display font-medium text-[17px] tracking-tight text-lider-charcoal" id="modal-title">
+              Consultar e Simular Pedidos Específicos
+            </h2>
+<p class="text-xs text-lider-muted font-normal leading-relaxed mt-1">
+              Consulta estrutura e saldo na Intranet (<span class="font-mono text-[11px] text-lider-charcoal">192.168.0.6</span>), posiciona pela data de abertura e recalcula o estoque cumulativo.
+            </p>
+</div>
+</div>
+<!-- Botão Fechar Minimalista -->
+<button aria-label="Fechar janela" class="text-lider-subtle hover:text-lider-charcoal p-1.5 -mr-1 transition-colors rounded-xs focus:outline-none" type="button">
+<svg class="w-4 h-4 stroke-[1.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</header>
+<!-- END: ModalHeader -->
+<!-- BEGIN: ModalBodyForm -->
+<form class="p-8 space-y-7 bg-white">
+<!-- BEGIN: SectionCredenciais -->
+<section data-purpose="intranet-credentials-section">
+<div class="lider-fieldset">
+<span class="lider-legend">Credenciais da Intranet</span>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<!-- Campo Usuário -->
+<div>
+<label class="block text-[11px] font-medium text-lider-charcoal mb-1.5" for="intranet-user">
+                  Usuário da Intranet
+                </label>
+<input class="w-full h-10 px-3.5 bg-white border border-lider-border text-xs text-lider-charcoal placeholder-lider-subtle rounded-xs focus:border-lider-charcoal focus:ring-0 transition-colors shadow-none" id="intranet-user" placeholder="Seu usuário (192.168.0.6)" type="text"/>
+</div>
+<!-- Campo Senha com Toggle 'Mostrar' -->
+<div>
+<label class="block text-[11px] font-medium text-lider-charcoal mb-1.5" for="intranet-password">
+                  Senha da Intranet
+                </label>
+<div class="relative">
+<input class="w-full h-10 pl-3.5 pr-16 bg-white border border-lider-border text-xs text-lider-charcoal placeholder-lider-subtle rounded-xs focus:border-lider-charcoal focus:ring-0 transition-colors shadow-none" id="intranet-password" placeholder="Sua senha" type="password"/>
+<button class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[11px] font-medium text-lider-muted hover:text-lider-charcoal tracking-wide focus:outline-none transition-colors" id="btn-toggle-password" type="button">
+                    Mostrar
+                  </button>
+</div>
+</div>
+</div>
+<!-- Nota Explicativa -->
+<p class="text-[11px] text-lider-muted font-normal mt-3.5 leading-relaxed">
+              Pedidos já em carteira mantêm seus números/saldos originais e têm a Data de Abertura atualizada pela Entrega Desejada. Pedidos novos têm saldo e estrutura importados da Intranet.
+            </p>
+</div>
+</section>
+<!-- END: SectionCredenciais -->
+<!-- BEGIN: SectionPedidosSimulacao -->
+<section data-purpose="orders-to-simulate-section">
+<div class="lider-fieldset">
+<span class="lider-legend">Pedidos para Consultar / Simular</span>
+<!-- Contêiner dinâmico de linhas de pedidos -->
+<div class="space-y-3.5" id="orders-rows-container">
+<!-- Linha de Entrada 1 -->
+<div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 group">
+<!-- Número do Pedido -->
+<div class="flex-1">
+<label class="block text-[11px] font-medium text-lider-charcoal mb-1.5">
+                    Número do Pedido <span class="text-lider-terracotta">*</span>
+</label>
+<input class="w-full h-10 px-3.5 bg-white border border-lider-border text-xs font-mono text-lider-charcoal placeholder-lider-subtle rounded-xs focus:border-lider-charcoal focus:ring-0 transition-colors" placeholder="Ex: 188366 (ou 188366, 188367)" type="text" value="188366"/>
+</div>
+<!-- Data de Entrega Desejada -->
+<div class="w-full sm:w-56">
+<label class="block text-[11px] font-medium text-lider-charcoal mb-1.5">
+                    Data de Entrega Desejada
+                  </label>
+<div class="relative">
+<input class="w-full h-10 px-3.5 bg-white border border-lider-border text-xs text-lider-charcoal rounded-xs focus:border-lider-charcoal focus:ring-0 transition-colors uppercase font-mono" type="date"/>
+</div>
+</div>
+<!-- Botão Remover Linha -->
+<div class="sm:self-end">
+<button aria-label="Remover linha de pedido" class="w-10 h-10 flex items-center justify-center border border-lider-border text-lider-subtle hover:text-red-700 hover:border-red-200 transition-colors rounded-xs bg-white focus:outline-none" title="Remover linha" type="button">
+<svg class="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<!-- Rodapé do Bloco de Pedidos: Botão Adicionar + Legenda -->
+<div class="mt-4 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+<button class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-lider-border hover:border-lider-charcoal text-lider-charcoal bg-white text-xs font-medium rounded-xs transition-colors focus:outline-none w-fit" id="btn-add-order" type="button">
+<svg class="w-3.5 h-3.5 stroke-[1.7]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+                Adicionar outro pedido
+              </button>
+<span class="text-[11px] text-lider-muted font-normal text-right">
+                Em branco = posiciona o pedido no <strong class="text-lider-charcoal font-medium">final da lista</strong>.
+              </span>
+</div>
+</div>
+</section>
+<!-- END: SectionPedidosSimulacao -->
+</form>
+<!-- END: ModalBodyForm -->
+<!-- BEGIN: ModalFooter -->
+<footer class="px-8 py-5 bg-[#FAF7F2]/40 border-t border-lider-borderLight flex items-center justify-end gap-3">
+<!-- Ação Secundária (Ghost) -->
+<button class="px-5 py-2.5 bg-transparent border border-lider-border text-lider-charcoal text-xs font-medium rounded-xs hover:bg-white hover:border-lider-charcoal transition-all focus:outline-none" type="button">
+          Cancelar
+        </button>
+<!-- Ação Primária Sólida Líder Design (Grafite / Escuro Editorial) -->
+<button class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-lider-graphite hover:bg-black text-white text-xs font-medium tracking-wide rounded-xs transition-all shadow-none hover:shadow-sm focus:outline-none" type="button">
+<svg class="w-3 h-3 fill-current" viewbox="0 0 24 24">
+<path d="M5 3l14 9-14 9V3z"></path>
+</svg>
+          Confirmar e Recalcular Fila
+        </button>
+</footer>
+<!-- END: ModalFooter -->
+</div>
+<!-- END: ModalContainer -->
+</div>
+<!-- END: ModalOverlay -->
+<!-- BEGIN: InteractiveScripts -->
+<script data-purpose="toggle-password">
+    // Funcionalidade do botão mostrar/ocultar senha
+    const btnToggle = document.getElementById('btn-toggle-password');
+    const inputPassword = document.getElementById('intranet-password');
+
+    if (btnToggle && inputPassword) {
+      btnToggle.addEventListener('click', () => {
+        const isPassword = inputPassword.getAttribute('type') === 'password';
+        inputPassword.setAttribute('type', isPassword ? 'text' : 'password');
+        btnToggle.textContent = isPassword ? 'Ocultar' : 'Mostrar';
+      });
+    }
+  </script>
+<script data-purpose="add-order-row">
+    // Adicionar nova linha de simulação de pedido mantendo a estética minimalista
+    const btnAdd = document.getElementById('btn-add-order');
+    const container = document.getElementById('orders-rows-container');
+
+    if (btnAdd && container) {
+      btnAdd.addEventListener('click', () => {
+        const newRow = document.createElement('div');
+        newRow.className = 'flex flex-col sm:flex-row items-stretch sm:items-end gap-3 group animate-in fade-in duration-150';
+        newRow.innerHTML = `
+          <div class="flex-1">
+            <label class="block text-[11px] font-medium text-lider-charcoal mb-1.5">
+              Número do Pedido <span class="text-lider-terracotta">*</span>
+            </label>
+            <input 
+              type="text" 
+              placeholder="Ex: 188367"
+              class="w-full h-10 px-3.5 bg-white border border-lider-border text-xs font-mono text-lider-charcoal placeholder-lider-subtle rounded-xs focus:border-lider-charcoal focus:ring-0 transition-colors"
+            />
+          </div>
+          <div class="w-full sm:w-56">
+            <label class="block text-[11px] font-medium text-lider-charcoal mb-1.5">
+              Data de Entrega Desejada
+            </label>
+            <div class="relative">
+              <input 
+                type="date" 
+                class="w-full h-10 px-3.5 bg-white border border-lider-border text-xs text-lider-charcoal rounded-xs focus:border-lider-charcoal focus:ring-0 transition-colors uppercase font-mono"
+              />
+            </div>
+          </div>
+          <div class="sm:self-end">
+            <button 
+              type="button" 
+              onclick="this.closest('.group').remove()"
+              title="Remover linha"
+              aria-label="Remover linha de pedido"
+              class="w-10 h-10 flex items-center justify-center border border-lider-border text-lider-subtle hover:text-red-700 hover:border-red-200 transition-colors rounded-xs bg-white focus:outline-none"
+            >
+              <svg class="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `;
+        container.appendChild(newRow);
+      });
+    }
+  </script>
+<!-- END: InteractiveScripts -->
+</body></html>

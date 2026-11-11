@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Líder Design - Detalhamento de Insumos por Item Final</title>
+<!-- Tailwind CSS CDN v3 com plugins de formulários e container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Fontes Editoriais e de Alta Legibilidade (Playfair Display & Inter) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:ital,wght@0,500;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Playfair Display', 'serif'],
+          },
+          colors: {
+            lider: {
+              charcoal: '#1A1A1A',
+              softdark: '#222222',
+              muted: '#666666',
+              border: '#E8E8E8',
+              canvas: '#F8F8F8',
+              terracotta: '#8B5A2B',
+              terracottalight: '#A0522D',
+              surface: '#FFFFFF',
+              rowhover: '#FAFAFA'
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-scrollbars-and-reset">
+    /* Barra de rolagem ultra-fina minimalista */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F8F8F8;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D8D8D8;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #B0B0B0;
+    }
+    body {
+      color: #1A1A1A;
+      background-color: #F8F8F8;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-row overflow-x-hidden antialiased text-[13px]">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-[260px] min-w-[260px] max-w-[260px] bg-white border-r border-[#EAEAEA] flex flex-col justify-between shrink-0 select-none z-20" data-purpose="sidebar">
+<!-- Bloco Superior: Marca e Menu Principal -->
+<div>
+<!-- Marca Líder Design -->
+<div class="p-6 border-b border-[#F0F0F0]">
+<div class="font-serif tracking-widest text-lg font-bold uppercase text-[#1A1A1A] leading-tight">L Í D E R</div>
+<div class="text-[9px] tracking-[0.25em] text-[#757575] font-medium uppercase mt-0.5">DESIGN • GESTÃO INDUSTRIAL</div>
+</div>
+<!-- Navegação de Módulos -->
+<nav aria-label="Navegação do Sistema" class="py-5 px-3">
+<div class="text-[10px] tracking-wider uppercase text-[#8C8C8C] font-semibold px-3 mb-2">Navegação do Sistema</div>
+<ul class="space-y-1">
+<li>
+<!-- Item Ativo: Disponibilidade de Estoque -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm bg-[#1A1A1A] text-white font-medium text-[12px] transition-all" href="#">
+<svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Disponibilidade de Estoque</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-sm text-[#555] hover:bg-[#F3F3F3] hover:text-[#1A1A1A] text-[12px] transition-colors" href="#">
+<svg class="w-4 h-4 text-[#757575] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Faltas Produzidos (Matriz)</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-sm text-[#555] hover:bg-[#F3F3F3] hover:text-[#1A1A1A] text-[12px] transition-colors" href="#">
+<svg class="w-4 h-4 text-[#757575] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Resumo do Pedido</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-3 py-2 rounded-sm text-[#555] hover:bg-[#F3F3F3] hover:text-[#1A1A1A] text-[12px] transition-colors" href="#">
+<svg class="w-4 h-4 text-[#757575] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Simulador de Pedidos</span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+<!-- Bloco Inferior: Metadados da Sessão e Ações de Sistema -->
+<div class="p-4 border-t border-[#F0F0F0] space-y-3 bg-[#FAFAFA]">
+<div class="text-[11px] space-y-1">
+<div class="flex items-center gap-1.5 text-[#555]">
+<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+<span class="font-medium tracking-wide uppercase text-[10px] text-[#777]">Sessão Isolada</span>
+</div>
+<div class="font-mono text-[11px] text-[#333] pl-3.5">3583a605</div>
+<div class="text-[10px] text-[#888] pt-1">
+          Snapshot: <span class="font-mono text-[#555]">11/11/2026 06:53:23</span>
+</div>
+</div>
+<div class="pt-2 space-y-1.5">
+<button class="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-medium text-[#333] bg-white border border-[#E0E0E0] rounded-sm hover:border-[#999] transition-colors" type="button">
+<svg class="w-3.5 h-3.5 text-[#666]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+          Recarregar Dados
+        </button>
+<button class="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-medium text-[#333] bg-white border border-[#E0E0E0] rounded-sm hover:border-[#999] transition-colors" type="button">
+<svg class="w-3.5 h-3.5 text-[#666]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+          Exportar Excel
+        </button>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentShell -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#F8F8F8] min-h-screen">
+<!-- BEGIN: TopBar -->
+<header class="h-[68px] px-8 bg-white border-b border-[#EAEAEA] flex items-center justify-between shrink-0 sticky top-0 z-10">
+<div class="flex items-center gap-3">
+<div>
+<div class="flex items-center gap-2.5">
+<h1 class="text-[17px] font-semibold text-[#1A1A1A] tracking-tight font-serif">Detalhamento de Insumos por Item Final</h1>
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-medium bg-[#EBF4EC] text-[#245D31] border border-[#D5E8D7]">
+              ● 100% Disponível na Fila
+            </span>
+</div>
+<p class="text-[11px] text-[#757575] mt-0.5">
+            Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L
+          </p>
+</div>
+</div>
+<div class="flex items-center gap-5">
+<!-- Badge Unidade Matriz -->
+<div class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-[#F5F5F5] border border-[#E0E0E0] text-[11px] text-[#444] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"></span>
+          MATRIZ INDUSTRIAL
+        </div>
+<!-- Usuário / Controladoria Fabril -->
+<div class="flex items-center gap-2.5 pl-2 border-l border-[#EDEDED]">
+<div class="text-right">
+<div class="text-[12px] font-semibold text-[#1A1A1A] leading-tight">Controladoria Fabril</div>
+<div class="text-[10px] text-[#888]">PCP &amp; Engenharia</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-[#222] text-white flex items-center justify-center font-medium text-[11px]">
+            CF
+          </div>
+</div>
+<!-- Botão Voltar/Fechar -->
+<button class="p-1.5 text-[#666] hover:text-[#1A1A1A] hover:bg-[#F2F2F2] rounded-sm transition-colors ml-1" onclick="history.back()" title="Fechar detalhamento" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Espaço de Conteúdo Rolável -->
+<div class="p-8 space-y-6 max-w-[1680px] w-full mx-auto">
+<!-- BEGIN: ItemCardHeader -->
+<section class="bg-white border border-[#E5E5E5] rounded-[3px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]" data-purpose="item-meta-card">
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-5 border-b border-[#F0F0F0] pb-5">
+<div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="font-mono text-xs uppercase tracking-wider text-[#8B5A2B] bg-[#F7F2ED] px-2 py-0.5 rounded-sm font-semibold border border-[#E8DFD5]">
+                Código: 1C0SL1000001PP
+              </span>
+<span class="text-xs text-[#888]">• Item Final Faturável</span>
+</div>
+<h2 class="text-lg font-medium text-[#1A1A1A] tracking-tight font-sans">
+              COMODA SLIM 100 X 50 X 90,5 ALT CM EST. MAD - ACABAMENTO CORPO AMADEIRADO
+            </h2>
+</div>
+<!-- Ação em Destaque: Botão Resumo do Pedido -->
+<div class="shrink-0 flex items-center gap-3">
+<a class="inline-flex items-center gap-2 px-4 py-2 bg-[#8B5A2B] hover:bg-[#784c22] text-white text-xs font-medium rounded-sm shadow-sm transition-all duration-150" href="#">
+<svg class="w-4 h-4 text-white/90" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Resumo do Pedido #176091</span>
+</a>
+</div>
+</div>
+<!-- Metadados da Fila em Grid Minimalista -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 text-xs">
+<div>
+<span class="text-[11px] text-[#757575] block mb-0.5 uppercase tracking-wide">Posição na Fila</span>
+<span class="font-semibold text-[#1A1A1A] text-sm">#5</span>
+</div>
+<div>
+<span class="text-[11px] text-[#757575] block mb-0.5 uppercase tracking-wide">Número do Pedido</span>
+<span class="font-semibold text-[#1A1A1A] text-sm">176091</span>
+</div>
+<div>
+<span class="text-[11px] text-[#757575] block mb-0.5 uppercase tracking-wide">Fábrica Responsável</span>
+<span class="font-medium text-[#1A1A1A]">UL ACABA01</span>
+</div>
+<div>
+<span class="text-[11px] text-[#757575] block mb-0.5 uppercase tracking-wide">Abertura da OP</span>
+<span class="font-medium text-[#1A1A1A]">19/02/2026</span>
+</div>
+<div>
+<span class="text-[11px] text-[#757575] block mb-0.5 uppercase tracking-wide">Saldo OP</span>
+<span class="font-semibold text-[#1A1A1A] text-sm">0,67 un</span>
+</div>
+<div>
+<span class="text-[11px] text-[#757575] block mb-0.5 uppercase tracking-wide">Data de Entrega</span>
+<span class="font-medium text-[#1A1A1A]">31/12/2026</span>
+</div>
+</div>
+</section>
+<!-- END: ItemCardHeader -->
+<!-- BEGIN: FiltersAndTabControl -->
+<section class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-[#E5E5E5] pb-3" data-purpose="filtering-bar">
+<!-- Abas de Status -->
+<div class="flex items-center space-x-1" role="tablist">
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs text-[#757575] hover:text-[#1A1A1A] rounded-sm transition-colors" type="button">
+<svg class="w-3.5 h-3.5 text-[#999]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>O que falta para o item</span>
+<span class="text-[10px] bg-[#EAEAEA] text-[#666] px-1.5 py-0.2 rounded-full font-mono">0</span>
+</button>
+<button class="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#1A1A1A] bg-white border border-[#DDD] shadow-sm rounded-sm" type="button">
+<svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Disponíveis</span>
+<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-mono font-bold">10</span>
+</button>
+</div>
+<!-- Pílulas de Filtros Rápido (Baixa e Origem) -->
+<div class="flex flex-wrap items-center gap-4 text-xs text-[#666]">
+<!-- Filtro de Baixa -->
+<div class="flex items-center gap-1.5">
+<span class="text-[11px] uppercase tracking-wide text-[#888]">Baixa:</span>
+<div class="inline-flex border border-[#E0E0E0] rounded-sm bg-white p-0.5">
+<button class="px-2 py-0.5 text-[11px] bg-[#222] text-white rounded-sm font-medium">Todas</button>
+<button class="px-2 py-0.5 text-[11px] text-[#555] hover:text-black">S</button>
+<button class="px-2 py-0.5 text-[11px] text-[#555] hover:text-black">N</button>
+</div>
+</div>
+<!-- Filtro de Origem -->
+<div class="flex items-center gap-1.5">
+<span class="text-[11px] uppercase tracking-wide text-[#888]">Origem:</span>
+<div class="inline-flex border border-[#E0E0E0] rounded-sm bg-white p-0.5">
+<button class="px-2 py-0.5 text-[11px] bg-[#222] text-white rounded-sm font-medium">Todas</button>
+<button class="px-2 py-0.5 text-[11px] text-[#555] hover:text-black">Matéria-Prima (C)</button>
+<button class="px-2 py-0.5 text-[11px] text-[#555] hover:text-black">Componente (P)</button>
+</div>
+</div>
+</div>
+</section>
+<!-- END: FiltersAndTabControl -->
+<!-- BEGIN: SectionRawMaterials -->
+<section class="space-y-2.5" data-purpose="tabela-materias-primas">
+<!-- Sub-header da Seção -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2.5">
+<span class="w-1.5 h-4 bg-[#8B5A2B] rounded-none inline-block"></span>
+<h3 class="text-xs font-semibold tracking-wider uppercase text-[#1A1A1A]">
+              Matérias-Primas e Insumos Comprados (Tipo C)
+            </h3>
+<span class="text-[11px] px-2 py-0.2 bg-[#EFEFEF] text-[#555] rounded-full font-mono font-medium">5 itens</span>
+</div>
+<span class="text-[11px] font-medium text-[#8B5A2B] bg-[#F7F2ED] border border-[#E8DFD5] px-2.5 py-0.5 rounded-sm">
+            Com OC Aberta: 4 / 5
+          </span>
+</div>
+<!-- Tabela Estilo Líder Design (Bordas ultra finas, tipografia técnica limpa) -->
+<div class="bg-white border border-[#E5E5E5] rounded-[3px] overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs border-collapse">
+<thead>
+<tr class="bg-[#F8F8F8] text-[#555] uppercase text-[10.5px] tracking-wider border-b border-[#E8E8E8]">
+<th class="py-2.5 px-4 font-semibold" scope="col">Matéria-Prima</th>
+<th class="py-2.5 px-4 font-semibold" scope="col">Descrição</th>
+<th class="py-2.5 px-3 text-center font-semibold" scope="col">Baixa</th>
+<th class="py-2.5 px-4 text-right font-semibold" scope="col">Saldo Total Estoque</th>
+<th class="py-2.5 px-4 text-right font-semibold" scope="col">Saldo na Fila</th>
+<th class="py-2.5 px-3 text-right font-semibold" scope="col">Consumo</th>
+<th class="py-2.5 px-4 font-semibold" scope="col">Ordem de Compra (OC)</th>
+<th class="py-2.5 px-3 text-center font-semibold" scope="col">Previsão OC</th>
+<th class="py-2.5 px-4 text-center font-semibold" scope="col">Saldo OC até Abertura</th>
+<th class="py-2.5 px-4 text-center font-semibold" scope="col">Vínculo / Obs</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#EBEBEB]">
+<!-- Linha 1: 3DLU0004068 -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">3DLU0004068</td>
+<td class="py-3 px-4 text-[#333]">!DILUENTE DF 4068 (SAYERLACK)</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-[#E9F5EC] text-[#227236] border border-[#CDE5D2]">S</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">1.640,87</td>
+<td class="py-3 px-4 text-right text-[#555]">1.640,87</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,02</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-1.5 font-medium text-[#222]">
+<span>OC #53021124</span>
+<span class="text-[10px] bg-[#F0F0F0] text-[#555] px-1.5 py-0.2 rounded-sm border border-[#E0E0E0]">Ped.Compra #219087</span>
+</div>
+<div class="text-[10.5px] text-[#777] mt-0.5">Qtd OC: 504.000 • RENNER SAYERLACK S/A</div>
+</td>
+<td class="py-3 px-3 text-center font-mono text-[#444]">
+<span class="bg-[#FFF8E7] text-[#8C6B1F] px-1.5 py-0.5 rounded-sm border border-[#F0E2BC]">18/11/2026</span>
+</td>
+<td class="py-3 px-4 text-center">
+<div class="text-[11px] font-mono font-medium text-[#333]">0 un</div>
+<div class="text-[9.5px] text-[#888]">até 19/02/2026 • Tot: 630.000</div>
+</td>
+<td class="py-3 px-4 text-center">
+<span class="inline-block text-[11px] text-[#666] bg-[#F5F5F5] border border-[#DDD] px-2 py-0.5 rounded-sm">Previsão mais antiga</span>
+</td>
+</tr>
+<!-- Linha 2: 3LACLKR90KH -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">3LACLKR90KH</td>
+<td class="py-3 px-4 text-[#333]">ACAB PU FOSCO PRETO FOA10.6567.01BH (SAYERLACK)</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded-sm bg-[#F5F5F5] text-[#777] border border-[#E0E0E0]">N</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">20,00</td>
+<td class="py-3 px-4 text-right text-[#555]">20,00</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,01</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-1.5 font-medium text-[#222]">
+<span>OC #52878340</span>
+<span class="text-[10px] bg-[#F0F0F0] text-[#555] px-1.5 py-0.2 rounded-sm border border-[#E0E0E0]">Ped.Compra #218874</span>
+</div>
+<div class="text-[10.5px] text-[#777] mt-0.5">Qtd OC: 60.000 • RENNER SAYERLACK S/A</div>
+</td>
+<td class="py-3 px-3 text-center font-mono text-[#444]">
+<span class="bg-[#FFF8E7] text-[#8C6B1F] px-1.5 py-0.5 rounded-sm border border-[#F0E2BC]">16/11/2026</span>
+</td>
+<td class="py-3 px-4 text-center">
+<div class="text-[11px] font-mono font-medium text-[#333]">0 un</div>
+<div class="text-[9.5px] text-[#888]">até 19/02/2026 • Tot: 60.000</div>
+</td>
+<td class="py-3 px-4 text-center">
+<span class="inline-block text-[11px] text-[#666] bg-[#F5F5F5] border border-[#DDD] px-2 py-0.5 rounded-sm">Previsão mais antiga</span>
+</td>
+</tr>
+<!-- Linha 3: 3MAS0076402 (Sem OC aberta) -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">3MAS0076402</td>
+<td class="py-3 px-4 text-[#333]">!MASSA BRANCA NL764-02 (SAYERLACK)</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded-sm bg-[#F5F5F5] text-[#777] border border-[#E0E0E0]">N</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">201,60</td>
+<td class="py-3 px-4 text-right text-[#555]">201,60</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,01</td>
+<td class="py-3 px-4">
+<span class="inline-block text-[10.5px] px-2 py-0.5 rounded-sm text-[#A04545] bg-[#FDF2F2] border border-[#F5D8D8]">
+                      Sem OC aberta
+                    </span>
+</td>
+<td class="py-3 px-3 text-center text-[#999] font-mono">-</td>
+<td class="py-3 px-4 text-center">
+<div class="text-[11px] font-mono font-medium text-[#555]">0 un</div>
+<div class="text-[9.5px] text-[#888]">até 19/02/2026</div>
+</td>
+<td class="py-3 px-4 text-center text-[#BBB]">-</td>
+</tr>
+<!-- Linha 4: 3PRIBC06254 -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">3PRIBC06254</td>
+<td class="py-3 px-4 text-[#333]">!FUNDO PU BRANCO FL6264-02BH (SAYERLACK)</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-[#E9F5EC] text-[#227236] border border-[#CDE5D2]">S</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">705,58</td>
+<td class="py-3 px-4 text-right text-[#555]">705,58</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,05</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-1.5 font-medium text-[#222]">
+<span>OC #53021136</span>
+<span class="text-[10px] bg-[#F0F0F0] text-[#555] px-1.5 py-0.2 rounded-sm border border-[#E0E0E0]">Ped.Compra #219087</span>
+</div>
+<div class="text-[10.5px] text-[#777] mt-0.5">Qtd OC: 200.000 • RENNER SAYERLACK S/A</div>
+</td>
+<td class="py-3 px-3 text-center font-mono text-[#444]">
+<span class="bg-[#FFF8E7] text-[#8C6B1F] px-1.5 py-0.5 rounded-sm border border-[#F0E2BC]">18/11/2026</span>
+</td>
+<td class="py-3 px-4 text-center">
+<div class="text-[11px] font-mono font-medium text-[#333]">0 un</div>
+<div class="text-[9.5px] text-[#888]">até 19/02/2026 • Tot: 280.000</div>
+</td>
+<td class="py-3 px-4 text-center">
+<span class="inline-block text-[11px] text-[#666] bg-[#F5F5F5] border border-[#DDD] px-2 py-0.5 rounded-sm">Previsão mais antiga</span>
+</td>
+</tr>
+<!-- Linha 5: 3RETARDA0PU -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">3RETARDA0PU</td>
+<td class="py-3 px-4 text-[#333]">!RETARDADOR PARA PU DE 4014 (SAYERLACK)</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded-sm bg-[#F5F5F5] text-[#777] border border-[#E0E0E0]">N</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">90,00</td>
+<td class="py-3 px-4 text-right text-[#555]">90,00</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,01</td>
+<td class="py-3 px-4">
+<div class="flex items-center gap-1.5 font-medium text-[#222]">
+<span>OC #53021138</span>
+<span class="text-[10px] bg-[#F0F0F0] text-[#555] px-1.5 py-0.2 rounded-sm border border-[#E0E0E0]">Ped.Compra #219087</span>
+</div>
+<div class="text-[10.5px] text-[#777] mt-0.5">Qtd OC: 72.000 • RENNER SAYERLACK S/A</div>
+</td>
+<td class="py-3 px-3 text-center font-mono text-[#444]">
+<span class="bg-[#FFF8E7] text-[#8C6B1F] px-1.5 py-0.5 rounded-sm border border-[#F0E2BC]">18/11/2026</span>
+</td>
+<td class="py-3 px-4 text-center">
+<div class="text-[11px] font-mono font-medium text-[#333]">0 un</div>
+<div class="text-[9.5px] text-[#888]">até 19/02/2026 • Tot: 144.000</div>
+</td>
+<td class="py-3 px-4 text-center">
+<span class="inline-block text-[11px] text-[#666] bg-[#F5F5F5] border border-[#DDD] px-2 py-0.5 rounded-sm">Previsão mais antiga</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- END: SectionRawMaterials -->
+<!-- BEGIN: SectionManufacturedComponents -->
+<section class="space-y-4 pt-2" data-purpose="tabela-componentes-produzidos">
+<!-- Sub-header da Seção de Componentes -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2.5">
+<span class="w-1.5 h-4 bg-[#4A6B82] rounded-none inline-block"></span>
+<h3 class="text-xs font-semibold tracking-wider uppercase text-[#1A1A1A]">
+              Componentes Produzidos Internamente (Tipo P) • Agrupados por Fábrica
+            </h3>
+<span class="text-[11px] px-2 py-0.2 bg-[#EFEFEF] text-[#555] rounded-full font-mono font-medium">5 itens</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[11px] text-[#555] bg-[#EFEFEF] px-2.5 py-0.5 rounded-sm">
+              Fábricas Envolvidas: <strong class="text-[#1A1A1A]">3</strong>
+</span>
+<span class="text-[11px] text-[#A04545] bg-[#FDF2F2] border border-[#F5D8D8] px-2.5 py-0.5 rounded-sm">
+              Com OP Aberta: 0 / 5
+            </span>
+</div>
+</div>
+<!-- Bloco 1: Fábrica KIT -->
+<div class="bg-white border border-[#E5E5E5] rounded-[3px] overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+<!-- Cabeçalho do Agrupamento de Fábrica -->
+<div class="bg-[#FAFAFA] px-4 py-2 border-b border-[#EAEAEA] flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5 text-[#555]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wide">Fábrica: KIT</span>
+<span class="text-[10px] font-mono bg-[#EAEAEA] text-[#555] px-1.5 py-0.2 rounded-sm font-medium">2 itens</span>
+</div>
+<span class="text-[11px] text-[#888] font-mono">OPs abertas: 0/2</span>
+</div>
+<!-- Tabela de Sub-itens Fábrica KIT -->
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs border-collapse">
+<thead>
+<tr class="text-[#666] uppercase text-[10px] tracking-wider border-b border-[#F0F0F0] bg-[#FFFFFF]">
+<th class="py-2.5 px-4 font-semibold" scope="col">Componente</th>
+<th class="py-2.5 px-4 font-semibold" scope="col">Descrição do Componente</th>
+<th class="py-2.5 px-3 text-center font-semibold" scope="col">Baixa</th>
+<th class="py-2.5 px-4 text-right font-semibold" scope="col">Saldo Total Estoque</th>
+<th class="py-2.5 px-4 text-right font-semibold" scope="col">Saldo na Fila</th>
+<th class="py-2.5 px-3 text-right font-semibold" scope="col">Consumo</th>
+<th class="py-2.5 px-4 font-semibold" scope="col">OP Componente</th>
+<th class="py-2.5 px-3 text-center font-semibold" scope="col">Abertura OP</th>
+<th class="py-2.5 px-3 text-center font-semibold" scope="col">Entrega OP</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#EBEBEB]">
+<!-- Linha 1 KIT -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">2KITCOSL101PP</td>
+<td class="py-3 px-4 text-[#333]">COMODA SLIM 100 CM EST. MAD - COM MANTA GAVETAS</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-[#E9F5EC] text-[#227236] border border-[#CDE5D2]">S</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">0,67</td>
+<td class="py-3 px-4 text-right text-[#555]">0,67</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,67</td>
+<td class="py-3 px-4">
+<span class="inline-block text-[10.5px] px-2 py-0.5 rounded-sm text-[#A04545] bg-[#FDF2F2] border border-[#F5D8D8]">
+                      Sem OP aberta
+                    </span>
+</td>
+<td class="py-3 px-3 text-center text-[#999] font-mono">-</td>
+<td class="py-3 px-3 text-center text-[#999] font-mono">-</td>
+</tr>
+<!-- Linha 2 KIT -->
+<tr class="hover:bg-[#FBFBFB] transition-colors">
+<td class="py-3 px-4 font-mono font-medium text-[#1A1A1A]">5KITCOSL10</td>
+<td class="py-3 px-4 text-[#333]">COMODA SLIM 80/100 CM EST. MAD (CLIENTE)</td>
+<td class="py-3 px-3 text-center">
+<span class="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-[#E9F5EC] text-[#227236] border border-[#CDE5D2]">S</span>
+</td>
+<td class="py-3 px-4 text-right font-medium text-[#1A1A1A]">0,67</td>
+<td class="py-3 px-4 text-right text-[#555]">0,67</td>
+<td class="py-3 px-3 text-right font-mono text-[#444]">0,67</td>
+<td class="py-3 px-4">
+<span class="inline-block text-[10.5px] px-2 py-0.5 rounded-sm text-[#A04545] bg-[#FDF2F2] border border-[#F5D8D8]">
+                      Sem OP aberta
+                    </span>
+</td>
+<td class="py-3 px-3 text-center text-[#999] font-mono">-</td>
+<td class="py-3 px-3 text-center text-[#999] font-mono">-</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Bloco 2: Fábrica UL FABRI01 (Header de demonstração sincronizada) -->
+<div class="bg-white border border-[#E5E5E5] rounded-[3px] overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+<div class="bg-[#FAFAFA] px-4 py-2 border-b border-[#EAEAEA] flex items-center justify-between">
+<div class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5 text-[#555]" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-xs font-semibold text-[#1A1A1A] uppercase tracking-wide">Fábrica: UL FABRI01</span>
+<span class="text-[10px] font-mono bg-[#EAEAEA] text-[#555] px-1.5 py-0.2 rounded-sm font-medium">2 itens</span>
+</div>
+<span class="text-[11px] text-[#888] font-mono">OPs abertas: 0/2</span>
+</div>
+<div class="py-4 px-6 text-xs text-[#757575] flex items-center justify-between">
+<span>Subconjuntos montados e peças estruturais com saldo reservado em processo interno.</span>
+<button class="text-[11px] font-medium text-[#1A1A1A] hover:underline flex items-center gap-1" type="button">
+              Ver sub-itens da fábrica
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+</div>
+</div>
+</section>
+<!-- END: SectionManufacturedComponents -->
+<!-- BEGIN: BottomStatusBar -->
+<footer class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 pb-8 border-t border-[#EAEAEA]" data-purpose="bottom-bar">
+<div class="flex items-center gap-2 text-xs text-[#666]">
+<svg class="w-4 h-4 text-[#888]" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Total de <strong class="text-[#1A1A1A] font-semibold">10 insumos cadastrados</strong> na estrutura do produto</span>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-5 py-2 text-xs font-medium text-[#444] bg-white border border-[#DDD] hover:border-[#999] rounded-[2px] transition-colors" onclick="history.back()" type="button">
+            Voltar para a Lista
+          </button>
+<button class="px-6 py-2 text-xs font-semibold text-white bg-[#1A1A1A] hover:bg-[#333] rounded-[2px] shadow-sm transition-colors" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" type="button">
+            Fechar Detalhamento
+          </button>
+</div>
+</footer>
+<!-- END: BottomStatusBar -->
+</div>
+</main>
+<!-- END: MainContentShell -->
+</body></html>

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Líder Design — Matriz Pivot de Componentes Faltantes</title>
+<!-- Google Fonts: Inter & Playfair Display / Montserrat -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Montserrat:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Forms & Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration according to Líder Design Guidelines -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Montserrat', 'sans-serif'],
+          },
+          colors: {
+            lider: {
+              charcoal: '#1A1A1A',
+              graphite: '#222222',
+              sand: '#F8F8F8',
+              surface: '#FFFFFF',
+              border: '#E8E8E8',
+              borderDark: '#D4D4D4',
+              muted: '#757575',
+              subtle: '#8C8C8C',
+              terracotta: '#8B5A2B',
+              terracottaLight: '#FBF7F4',
+              softAccent: '#F3F4F6'
+            }
+          },
+          borderRadius: {
+            sm: '2px',
+            DEFAULT: '3px',
+            md: '4px'
+          },
+          boxShadow: {
+            'lider': '0 4px 20px rgba(0, 0, 0, 0.03)',
+            'lider-dropdown': '0 10px 30px rgba(0, 0, 0, 0.06)'
+          }
+        }
+      }
+    }
+  </script>
+<!-- Typography & Global Architectural Styles -->
+<style data-purpose="typography">
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1A1A1A;
+      background-color: #F8F8F8;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, .font-heading {
+      font-family: 'Montserrat', sans-serif;
+      letter-spacing: -0.01em;
+    }
+    .font-mono-numbers {
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+<!-- Custom Scrollbars & Interactive Minimal Accents -->
+<style data-purpose="custom-elements">
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F8F8F8;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D9D9D9;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #B0B0B0;
+    }
+    .custom-checkbox:checked {
+      background-color: #1A1A1A;
+      border-color: #1A1A1A;
+    }
+    .custom-checkbox:focus {
+      ring-color: #1A1A1A;
+      ring-offset-color: #ffffff;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F8F8F8] text-[#1A1A1A] antialiased selection:bg-[#1A1A1A] selection:text-white">
+<!-- BEGIN: ApplicationLayout -->
+<div class="flex flex-1 w-full min-h-screen overflow-hidden">
+<!-- BEGIN: Sidebar -->
+<aside class="w-64 bg-white border-r border-[#E8E8E8] flex flex-col flex-shrink-0 z-30 transition-all duration-300" data-purpose="sidebar-navigation">
+<!-- Brand Logo Section -->
+<div class="h-20 px-6 flex items-center border-b border-[#E8E8E8]">
+<div class="flex flex-col">
+<span class="font-heading text-lg font-semibold tracking-widest text-[#1A1A1A]">LÍDER</span>
+<span class="text-[9px] uppercase tracking-[0.25em] text-[#8B5A2B] font-medium -mt-1">Design Industrial</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 py-6 px-4 space-y-6 overflow-y-auto">
+<div>
+<span class="text-[10px] uppercase font-semibold text-[#8C8C8C] tracking-widest px-3 mb-2 block">PCP &amp; Produção</span>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-xs text-[#757575] hover:text-[#1A1A1A] hover:bg-[#F8F8F8] rounded-sm transition" href="#">
+<svg class="w-4 h-4 text-[#8C8C8C]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Visão Fábricas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium text-[#1A1A1A] bg-[#F8F8F8] border-l-2 border-[#1A1A1A] rounded-r-sm" href="#">
+<svg class="w-4 h-4 text-[#1A1A1A]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Faltas Produzidos (Matriz)</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-xs text-[#757575] hover:text-[#1A1A1A] hover:bg-[#F8F8F8] rounded-sm transition" href="#">
+<svg class="w-4 h-4 text-[#8C8C8C]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Ordens de Serviço</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-xs text-[#757575] hover:text-[#1A1A1A] hover:bg-[#F8F8F8] rounded-sm transition" href="#">
+<svg class="w-4 h-4 text-[#8C8C8C]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Estoque de Matéria-Prima</span>
+</a>
+</nav>
+</div>
+<div>
+<span class="text-[10px] uppercase font-semibold text-[#8C8C8C] tracking-widest px-3 mb-2 block">Expedição &amp; Logística</span>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-xs text-[#757575] hover:text-[#1A1A1A] hover:bg-[#F8F8F8] rounded-sm transition" href="#">
+<svg class="w-4 h-4 text-[#8C8C8C]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Cronograma Regional</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-xs text-[#757575] hover:text-[#1A1A1A] hover:bg-[#F8F8F8] rounded-sm transition" href="#">
+<svg class="w-4 h-4 text-[#8C8C8C]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Polos Multimarcas</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Quick Session Indicator -->
+<div class="p-4 border-t border-[#E8E8E8] bg-[#FBFBFB]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-sm bg-[#1A1A1A] text-white flex items-center justify-center text-xs font-semibold">LD</div>
+<div class="flex flex-col">
+<span class="text-xs font-medium text-[#1A1A1A]">PCP Central</span>
+<span class="text-[10px] text-[#8C8C8C]">Base Atualizada</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 flex flex-col min-w-0 bg-[#F8F8F8] overflow-y-auto">
+<!-- BEGIN: HeaderSection -->
+<header class="bg-white border-b border-[#E8E8E8] px-8 py-5 flex-shrink-0 z-20" data-purpose="module-header">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+<!-- Title & Subtitle -->
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="inline-block w-2 h-2 rounded-full bg-[#8B5A2B]"></span>
+<h1 class="text-lg lg:text-xl font-medium tracking-tight text-[#1A1A1A]">
+                Matriz Pivot — Componentes Produzidos Faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição
+              </h1>
+</div>
+<p class="text-xs text-[#757575] max-w-4xl leading-relaxed">
+              Agrupamento por fábrica do item final e fábrica do componente produzido (Tipo P), exibindo os saldos faltantes em colunas por prazo de expedição (calculado com base no Representante).
+            </p>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-3 flex-shrink-0">
+<button class="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-[#1A1A1A] bg-transparent border border-[#D4D4D4] rounded-sm hover:bg-[#F8F8F8] transition" id="toggleFiltersBtn">
+<svg class="w-3.5 h-3.5 text-[#666666]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Ocultar Menu de Filtros</span>
+</button>
+<button class="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-[#1A1A1A] hover:bg-[#2E2E2E] rounded-sm transition shadow-sm">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Exportar Matriz Excel</span>
+</button>
+</div>
+</div>
+</header>
+<!-- END: HeaderSection -->
+<!-- Content Container with Generous Paddings -->
+<div class="p-8 space-y-6">
+<!-- BEGIN: FilterSection -->
+<section class="bg-white border border-[#E8E8E8] rounded-sm p-6 shadow-lider transition-all duration-300" data-purpose="calculation-filter-menu" id="filterPanel">
+<!-- Filter Header -->
+<div class="flex items-center justify-between pb-4 mb-5 border-b border-[#E8E8E8]">
+<div class="flex items-center gap-2 text-xs font-medium text-[#1A1A1A] tracking-wider uppercase">
+<svg class="w-4 h-4 text-[#8B5A2B]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Menu de Opções de Filtros para Cálculo</span>
+</div>
+<span class="text-[11px] text-[#757575]">
+              Marque os locais desejados para compor o cálculo • Prazos de expedição trazem todos os disponíveis automaticamente
+            </span>
+</div>
+<!-- 3-Column Configuration Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Column 1: Local Produção do Item Pai -->
+<div class="border border-[#E8E8E8] p-4 rounded-sm flex flex-col bg-white">
+<div class="flex items-center justify-between mb-3">
+<span class="text-xs font-medium text-[#1A1A1A]">1. Local Produção do Item Pai (Pai)</span>
+<span class="text-[10px] font-semibold bg-[#F8F8F8] border border-[#E8E8E8] px-2 py-0.5 rounded-sm text-[#1A1A1A]">17/17</span>
+</div>
+<div class="flex items-center gap-2 mb-3">
+<div class="relative flex-1">
+<input class="w-full text-xs py-1.5 pl-3 pr-7 bg-[#F8F8F8] border border-[#E8E8E8] rounded-sm focus:border-[#1A1A1A] focus:ring-0" placeholder="Filtrar local do item final..." type="text"/>
+</div>
+<button class="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] text-[#1A1A1A]">Todos</button>
+<button class="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] text-[#757575]">Limpar</button>
+</div>
+<!-- Checkboxes Grid with Clean Scroll -->
+<div class="max-h-48 overflow-y-auto pr-1 grid grid-cols-2 gap-2 text-xs">
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">AT MOVEIS</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">ATELIE</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">ATELIE2</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CADEIRAS</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CAPAS LE</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CC ACABA01</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CC FABRI01</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">ESTOF UL</span>
+</label>
+</div>
+</div>
+<!-- Column 2: Local do Componente Produzido -->
+<div class="border border-[#E8E8E8] p-4 rounded-sm flex flex-col bg-white">
+<div class="flex items-center justify-between mb-3">
+<span class="text-xs font-medium text-[#1A1A1A]">2. Local do Componente Produzido (P)</span>
+<span class="text-[10px] font-semibold bg-[#F8F8F8] border border-[#E8E8E8] px-2 py-0.5 rounded-sm text-[#1A1A1A]">24/24</span>
+</div>
+<div class="flex items-center gap-2 mb-3">
+<div class="relative flex-1">
+<input class="w-full text-xs py-1.5 pl-3 pr-7 bg-[#F8F8F8] border border-[#E8E8E8] rounded-sm focus:border-[#1A1A1A] focus:ring-0" placeholder="Filtrar local do componente..." type="text"/>
+</div>
+<button class="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] text-[#1A1A1A]">Todos</button>
+<button class="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] text-[#757575]">Limpar</button>
+</div>
+<!-- Checkboxes Grid with Clean Scroll -->
+<div class="max-h-48 overflow-y-auto pr-1 grid grid-cols-2 gap-2 text-xs">
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">ACESSORIOS</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">ALMOFADAS</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">ALUMINIO</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CADEIRAS</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CAPAS LE</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">CC FABRI01</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm bg-[#FBF7F4] border-[#8B5A2B]/40 cursor-pointer">
+<input checked="" class="rounded-sm border-[#8B5A2B] text-[#8B5A2B] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-semibold text-[#8B5A2B]">CC FABRI03</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 border border-[#E8E8E8] rounded-sm hover:bg-[#F8F8F8] cursor-pointer">
+<input checked="" class="rounded-sm border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="truncate text-[11px] font-medium">COLMEIAS</span>
+</label>
+</div>
+</div>
+<!-- Column 3: Prazos e Parâmetros de Execução -->
+<div class="border border-[#E8E8E8] p-4 rounded-sm flex flex-col justify-between bg-white">
+<div>
+<span class="text-xs font-medium text-[#1A1A1A] block mb-2">3. Prazos de Expedição (Base Representante)</span>
+<!-- Pills active selection -->
+<div class="flex flex-wrap gap-1.5 mb-4">
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-sm bg-[#F8F8F8] text-[#1A1A1A] border border-[#E8E8E8]">
+<span class="text-[#8B5A2B]">✓</span> R. Multimarcas e Nordeste
+                  </span>
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-sm bg-[#F8F8F8] text-[#1A1A1A] border border-[#E8E8E8]">
+<span class="text-[#8B5A2B]">✓</span> Fora de MG
+                  </span>
+<span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-sm bg-[#F8F8F8] text-[#1A1A1A] border border-[#E8E8E8]">
+<span class="text-[#8B5A2B]">✓</span> MG e franquia
+                  </span>
+</div>
+<!-- Parameters Controls -->
+<div class="grid grid-cols-2 gap-3 mb-3">
+<div>
+<label class="text-[10px] text-[#757575] uppercase block mb-1">Escopo de Abatimento</label>
+<select class="w-full text-xs py-1 px-2 border border-[#E8E8E8] bg-white rounded-sm focus:border-[#1A1A1A] focus:ring-0">
+<option>Fila Global Completa</option>
+<option>Apenas Saldo Líquido</option>
+</select>
+</div>
+<div>
+<label class="text-[10px] text-[#757575] uppercase block mb-1">Baixa Componente</label>
+<select class="w-full text-xs py-1 px-2 border border-[#E8E8E8] bg-white rounded-sm focus:border-[#1A1A1A] focus:ring-0">
+<option>Todas (S e N)</option>
+<option>Apenas Baixadas (S)</option>
+<option>Apenas Pendentes (N)</option>
+</select>
+</div>
+</div>
+<div>
+<label class="text-[10px] text-[#757575] uppercase block mb-1">Entrega do Pedido (Opcional)</label>
+<div class="flex items-center gap-2">
+<input class="w-1/2 text-xs py-1 px-2 border border-[#E8E8E8] rounded-sm bg-white focus:border-[#1A1A1A] focus:ring-0" placeholder="dd/mm/aaaa" type="text"/>
+<span class="text-[10px] text-[#757575]">até</span>
+<input class="w-1/2 text-xs py-1 px-2 border border-[#E8E8E8] rounded-sm bg-white focus:border-[#1A1A1A] focus:ring-0" placeholder="dd/mm/aaaa" type="text"/>
+</div>
+</div>
+</div>
+<!-- Action Button -->
+<button class="w-full mt-4 py-2 px-4 bg-[#1A1A1A] hover:bg-[#2D2D2D] text-white text-xs font-medium rounded-sm flex items-center justify-center gap-2 transition">
+<svg class="w-3.5 h-3.5 text-[#8B5A2B]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Calcular / Atualizar Matriz Pivot</span>
+</button>
+</div>
+</div>
+</section>
+<!-- END: FilterSection -->
+<!-- BEGIN: MetricsCardsSection -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" data-purpose="consolidated-metrics">
+<!-- Metric 1 -->
+<div class="bg-white border border-[#E8E8E8] p-5 rounded-sm shadow-lider flex flex-col justify-between">
+<span class="text-[10px] uppercase font-semibold text-[#757575] tracking-wider mb-2">Fábricas de Componente</span>
+<div class="flex items-baseline justify-between mt-1">
+<span class="text-2xl font-light tracking-tight text-[#1A1A1A] font-mono-numbers">24</span>
+<span class="text-[11px] text-[#8C8C8C]">6.156 comp. únicos</span>
+</div>
+</div>
+<!-- Metric 2 -->
+<div class="bg-white border border-[#E8E8E8] p-5 rounded-sm shadow-lider flex flex-col justify-between">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"></span>
+<span class="text-[10px] uppercase font-semibold text-[#757575] tracking-wider">R. Multimarcas e Nordeste</span>
+</div>
+<div class="flex items-baseline justify-between mt-2">
+<span class="text-2xl font-light tracking-tight text-[#1A1A1A] font-mono-numbers">6.484,26</span>
+<span class="text-[11px] text-[#757575]">peças</span>
+</div>
+</div>
+<!-- Metric 3 -->
+<div class="bg-white border border-[#E8E8E8] p-5 rounded-sm shadow-lider flex flex-col justify-between">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"></span>
+<span class="text-[10px] uppercase font-semibold text-[#757575] tracking-wider">Fora de MG</span>
+</div>
+<div class="flex items-baseline justify-between mt-2">
+<span class="text-2xl font-light tracking-tight text-[#1A1A1A] font-mono-numbers">16.916,03</span>
+<span class="text-[11px] text-[#757575]">peças</span>
+</div>
+</div>
+<!-- Metric 4 -->
+<div class="bg-white border border-[#E8E8E8] p-5 rounded-sm shadow-lider flex flex-col justify-between">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"></span>
+<span class="text-[10px] uppercase font-semibold text-[#757575] tracking-wider">MG e Franquia</span>
+</div>
+<div class="flex items-baseline justify-between mt-2">
+<span class="text-2xl font-light tracking-tight text-[#1A1A1A] font-mono-numbers">27.419,4</span>
+<span class="text-[11px] text-[#757575]">peças</span>
+</div>
+</div>
+<!-- Metric 5: Alerta Sóbrio -->
+<div class="bg-white border-l-4 border-l-[#8B5A2B] border-y border-r border-[#E8E8E8] p-5 rounded-sm shadow-lider flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[10px] uppercase font-semibold text-[#8B5A2B] tracking-wider">Total Faltante Geral</span>
+<span class="text-[9px] px-1.5 py-0.5 rounded-sm bg-[#FBF7F4] text-[#8B5A2B] font-medium border border-[#8B5A2B]/20">Crítico</span>
+</div>
+<div class="flex items-baseline justify-between mt-2">
+<span class="text-2xl font-normal tracking-tight text-[#1A1A1A] font-mono-numbers">51.302,76</span>
+<span class="text-[11px] text-[#757575]">1.324 pedidos</span>
+</div>
+</div>
+</section>
+<!-- END: MetricsCardsSection -->
+<!-- BEGIN: TableFilterBar -->
+<div class="bg-white border border-[#E8E8E8] rounded-sm p-4 space-y-3 shadow-lider" data-purpose="table-navigation-controls">
+<!-- Live search input -->
+<div class="relative">
+<svg class="w-4 h-4 text-[#8C8C8C] absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<input class="w-full text-xs pl-10 pr-4 py-2 bg-[#F8F8F8] border border-[#E8E8E8] rounded-sm focus:border-[#1A1A1A] focus:bg-white focus:ring-0 transition" placeholder="Buscar código ou descrição do componente..." type="text"/>
+</div>
+<!-- Group Header and Export Ribbon -->
+<div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#F0F0F0]">
+<div class="flex items-center gap-2">
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#D4D4D4] rounded-sm text-[#1A1A1A] hover:bg-[#F8F8F8] transition">
+<svg class="w-3.5 h-3.5 text-[#757575]" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+<span>Gerar Imagem (.png)</span>
+</button>
+<div class="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FBF7F4] border border-[#8B5A2B]/30 rounded-sm">
+<span class="text-xs text-[#8B5A2B] font-medium flex items-center gap-1">
+<span>🏭</span> Local de Produção do Componente: <strong>CC FABRI03</strong>
+</span>
+<span class="text-[10px] bg-white text-[#8B5A2B] px-1.5 py-0.5 rounded-sm border border-[#8B5A2B]/20 font-mono-numbers">666 componente(s)</span>
+</div>
+</div>
+<!-- Regional quick summary for the active group -->
+<div class="flex flex-wrap items-center gap-2 text-xs font-mono-numbers">
+<span class="px-2 py-1 bg-[#F8F8F8] text-[#555] rounded-sm border border-[#E8E8E8]">R. Multimarcas e Nordeste: <strong class="text-[#1A1A1A]">3.969</strong></span>
+<span class="px-2 py-1 bg-[#F8F8F8] text-[#555] rounded-sm border border-[#E8E8E8]">Fora de MG: <strong class="text-[#1A1A1A]">4.237</strong></span>
+<span class="px-2 py-1 bg-[#F8F8F8] text-[#555] rounded-sm border border-[#E8E8E8]">MG e Franquia: <strong class="text-[#1A1A1A]">7.129,83</strong></span>
+<span class="px-2 py-1 bg-[#FBF7F4] text-[#8B5A2B] rounded-sm border border-[#8B5A2B]/30 font-medium">Total: <strong>15.550,83</strong></span>
+</div>
+</div>
+</div>
+<!-- END: TableFilterBar -->
+<!-- BEGIN: PivotDataTable -->
+<div class="bg-white border border-[#E8E8E8] rounded-sm overflow-hidden shadow-lider" data-purpose="pivot-matrix-table">
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs border-collapse">
+<thead>
+<!-- Column Headers -->
+<tr class="bg-[#F8F8F8] border-b border-[#E8E8E8] text-[#757575] font-medium tracking-wide">
+<th class="py-3 px-4 w-44 font-normal" scope="col">Componente</th>
+<th class="py-3 px-4 font-normal" scope="col">Descrição</th>
+<th class="py-3 px-4 text-right font-normal w-48" scope="col">R. Multimarcas e Nordeste</th>
+<th class="py-3 px-4 text-right font-normal w-36" scope="col">Fora de MG</th>
+<th class="py-3 px-4 text-right font-normal w-36" scope="col">MG e franquia</th>
+<th class="py-3 px-4 text-right font-normal w-40 text-[#8B5A2B] bg-[#FBF7F4]/60" scope="col">Total Faltante</th>
+</tr>
+<!-- Subtotal Row -->
+<tr class="bg-[#F4F4F4] border-b-2 border-[#E0E0E0] font-medium text-[#1A1A1A] font-mono-numbers">
+<td class="py-2.5 px-4 font-semibold text-[11px] tracking-wider uppercase">SUBTOTAL</td>
+<td class="py-2.5 px-4 text-[11px] text-[#666]">SUBTOTAL POR PRAZO DE ENTREGA (666 ITENS)</td>
+<td class="py-2.5 px-4 text-right text-xs">3.969</td>
+<td class="py-2.5 px-4 text-right text-xs">4.237</td>
+<td class="py-2.5 px-4 text-right text-xs">7.129,83</td>
+<td class="py-2.5 px-4 text-right text-xs font-semibold text-[#8B5A2B] bg-[#FBF7F4]">15.550,83</td>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#EFEFEF] font-mono-numbers text-[11px]">
+<!-- Row 1 -->
+<tr class="hover:bg-[#FAFAFA] transition">
+<td class="py-3 px-4 font-medium text-[#1A1A1A]">8CATIPEF0002CC</td>
+<td class="py-3 px-4 font-sans text-xs text-[#555]">
+                    PE FRONTAL CADEIRA TIRAS / PES CADEIRA DIQUE - MED 61 X 4 X 3,2 CM (UNID) -MADEIRA JEQUITIBA
+                  </td>
+<td class="py-3 px-4 text-right text-[#1A1A1A] font-medium">598</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40">598</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-[#FAFAFA] transition">
+<td class="py-3 px-4 font-medium text-[#1A1A1A]">8CADELA0D002CC</td>
+<td class="py-3 px-4 font-sans text-xs text-[#555]">
+                    LATERAL CADEIRA DERA C/S BRACO - MED 46 X 9 X 3 CM (DIREITA)- MADEIRA JEQUITIBA
+                  </td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#1A1A1A] font-medium">399</td>
+<td class="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40">399</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-[#FAFAFA] transition">
+<td class="py-3 px-4 font-medium text-[#1A1A1A]">8CADELA0E002CC</td>
+<td class="py-3 px-4 font-sans text-xs text-[#555]">
+                    LATERAL CADEIRA DERA C/S BRACO - MED 46 X 9 X 3 CM (ESQUERDA)- MADEIRA JEQUITIBA
+                  </td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#1A1A1A] font-medium">399</td>
+<td class="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40">399</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-[#FAFAFA] transition">
+<td class="py-3 px-4 font-medium text-[#1A1A1A]">8CADEFL00002CC</td>
+<td class="py-3 px-4 font-sans text-xs text-[#555]">
+                    FLORAO CADEIRA DERA C/S BRACO - MED 46 X 17 CM (PECA CURVA)- MADEIRA JEQUITIBA
+                  </td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#1A1A1A] font-medium">367</td>
+<td class="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40">367</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-[#FAFAFA] transition">
+<td class="py-3 px-4 font-medium text-[#1A1A1A]">8BAR08CS0002CC</td>
+<td class="py-3 px-4 font-sans text-xs text-[#555]">
+                    KIT CURVAS BASE DE CENTRO ARO - P/ TAMPO DIAM 80 X 25 -MED 50X 14 X 5( UNID ) SEGUIR MODELO - MADEIRA J...
+                  </td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#1A1A1A] font-medium">311</td>
+<td class="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40">311</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-[#FAFAFA] transition">
+<td class="py-3 px-4 font-medium text-[#1A1A1A]">8CATIFO00008CC</td>
+<td class="py-3 px-4 font-sans text-xs text-[#555]">
+                    FORRO DO ASSENTO CADEIRA TIRAS - MED 28 X 20 X 0,4 CM- CHAPA CARVALHO
+                  </td>
+<td class="py-3 px-4 text-right text-[#1A1A1A] font-medium">274</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right text-[#A0A0A0]">-</td>
+<td class="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40">274</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- END: PivotDataTable -->
+<!-- BEGIN: TechnicalFooter -->
+<footer class="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 border-t border-[#E8E8E8] text-xs text-[#757575]" data-purpose="technical-metadata">
+<div class="flex items-center gap-2">
+<span class="inline-block w-2 h-2 rounded-full bg-[#1A1A1A]/30"></span>
+<span>6156 componente(s) único(s) • Agrupado por Local de Produção do Componente</span>
+</div>
+<div>
+<button class="px-5 py-2 text-xs font-medium text-[#1A1A1A] bg-transparent border border-[#1A1A1A] rounded-sm hover:bg-[#1A1A1A] hover:text-white transition">
+              Fechar Matriz
+            </button>
+</div>
+</footer>
+<!-- END: TechnicalFooter -->
+</div>
+</main>
+<!-- END: MainContent -->
+</div>
+<!-- END: ApplicationLayout -->
+<!-- Interactivity Script for Toggle Filter Panel -->
+<script data-purpose="event-handlers">
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtn = document.getElementById('toggleFiltersBtn');
+      const filterPanel = document.getElementById('filterPanel');
+
+      if (toggleBtn && filterPanel) {
+        toggleBtn.addEventListener('click', () => {
+          const isHidden = filterPanel.classList.toggle('hidden');
+          const btnSpan = toggleBtn.querySelector('span');
+          if (btnSpan) {
+            btnSpan.textContent = isHidden ? 'Exibir Menu de Filtros' : 'Ocultar Menu de Filtros';
+          }
+        });
+      }
+    });
+  </script>
+</body></html>

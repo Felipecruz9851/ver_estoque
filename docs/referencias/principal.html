@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_dashboard" name="shell-type"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        overscroll-behavior: none;
+      }
+      main > :first-child {
+        margin-top: 0 !important;
+      }
+      main > :last-child {
+        margin-bottom: 0 !important;
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary-container": "#858383",
+            "tertiary-fixed": "#e6e2df",
+            "primary": "#000000",
+            "border-hairline": "#EAEAEA",
+            "surface-container-low": "#f3f3f3",
+            "border-subtle": "#E0E0E0",
+            "surface-dim": "#dadada",
+            "surface-variant": "#e2e2e2",
+            "terracotta-soft": "#B84A39",
+            "on-error-container": "#93000a",
+            "error-container": "#ffdad6",
+            "on-primary-fixed": "#1c1b1b",
+            "on-surface-variant": "#444748",
+            "surface-container": "#eeeeee",
+            "tertiary-container": "#1c1b1a",
+            "wood-sienna": "#A0522D",
+            "primary-container": "#1c1b1b",
+            "inverse-primary": "#c8c6c5",
+            "on-tertiary-fixed": "#1c1b1a",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary-container": "#7a4b1e",
+            "error": "#ba1a1a",
+            "on-background": "#1a1c1c",
+            "inverse-on-surface": "#f1f1f1",
+            "background": "#f9f9f9",
+            "secondary": "#835425",
+            "on-secondary-fixed-variant": "#683d0f",
+            "on-secondary-fixed": "#2e1500",
+            "olive-sobrio": "#3B6E4C",
+            "inverse-surface": "#2f3131",
+            "secondary-fixed": "#ffdcc1",
+            "surface-bright": "#f9f9f9",
+            "text-muted": "#666666",
+            "surface-container-high": "#e8e8e8",
+            "tertiary-fixed-dim": "#cac6c4",
+            "on-tertiary-fixed-variant": "#484645",
+            "on-error": "#ffffff",
+            "tertiary": "#000000",
+            "outline": "#747878",
+            "secondary-container": "#ffbf87",
+            "surface-sidebar": "#FAFAFA",
+            "on-surface": "#1a1c1c",
+            "on-tertiary": "#ffffff",
+            "on-primary-fixed-variant": "#474746",
+            "outline-variant": "#c4c7c7",
+            "on-tertiary-container": "#868382",
+            "on-primary": "#ffffff",
+            "surface": "#f9f9f9",
+            "primary-fixed-dim": "#c8c6c5",
+            "surface-tint": "#5f5e5e",
+            "primary-fixed": "#e5e2e1",
+            "surface-container-highest": "#e2e2e2",
+            "secondary-fixed-dim": "#f9ba82",
+            "on-secondary": "#ffffff"
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            gutter: "1.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2.5rem",
+            "margin-sm": "1.25rem",
+            margin: "3rem",
+            "space-sm": "0.5rem",
+            "gutter-sm": "1rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem"
+          },
+          fontFamily: {
+            "body-md": ["Inter", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "label-md": ["Inter", "sans-serif"],
+            "label-sm": ["Inter", "sans-serif"],
+            "display-lg": ["Playfair Display", "serif"],
+            "headline-lg-mobile": ["Playfair Display", "serif"],
+            "headline-md": ["Playfair Display", "serif"],
+            "title-md": ["Inter", "sans-serif"],
+            "headline-lg": ["Playfair Display", "serif"],
+            "display-lg-mobile": ["Playfair Display", "serif"]
+          },
+          fontSize: {
+            "body-md": ["14px", { lineHeight: "22px", letterSpacing: "0", fontWeight: "400" }],
+            "body-lg": ["16px", { lineHeight: "26px", letterSpacing: "0", fontWeight: "400" }],
+            "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.08em", fontWeight: "500" }],
+            "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.05em", fontWeight: "400" }],
+            "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "0.02em", fontWeight: "400" }],
+            "headline-lg-mobile": ["24px", { lineHeight: "32px", letterSpacing: "0.03em", fontWeight: "500" }],
+            "headline-md": ["22px", { lineHeight: "28px", letterSpacing: "0.03em", fontWeight: "500" }],
+            "title-md": ["16px", { lineHeight: "24px", letterSpacing: "0.02em", fontWeight: "600" }],
+            "headline-lg": ["32px", { lineHeight: "40px", letterSpacing: "0.04em", fontWeight: "500" }],
+            "display-lg-mobile": ["32px", { lineHeight: "40px", letterSpacing: "0.02em", fontWeight: "400" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased min-h-screen">
+<!-- SIDEBAR FIXA À ESQUERDA -->
+<aside class="fixed left-0 top-0 h-full w-72 bg-surface-sidebar border-r border-border-hairline z-50 flex flex-col justify-between">
+<div class="flex flex-col">
+<!-- Topo Brand Líder -->
+<div class="px-space-lg pt-space-xl pb-space-lg border-b border-border-hairline">
+<h1 class="font-display-lg text-headline-lg tracking-widest text-primary font-normal leading-none">LÍDER</h1>
+<p class="font-label-sm text-label-sm uppercase tracking-widest text-text-muted mt-space-xs font-medium">DESIGN • GESTÃO INDUSTRIAL</p>
+</div>
+<!-- Seção Navegação -->
+<div class="px-space-lg py-space-md">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-text-muted font-medium">Navegação do Sistema</span>
+</div>
+<nav class="px-space-md flex flex-col gap-1.5" data-active-classes="bg-[#1A1A1A] text-on-primary font-medium shadow-[0_1px_8px_rgba(0,0,0,0.06)]">
+<a aria-current="page" class="group flex items-center px-space-md py-2.5 rounded transition-all bg-[#1A1A1A] text-on-primary font-medium shadow-[0_1px_8px_rgba(0,0,0,0.06)]" data-path="disponibilidade-de-estoque" href="#">
+<span class="material-symbols-outlined text-[18px] mr-space-md text-neutral-300">inventory_2</span>
+<span class="text-body-md tracking-tight">Disponibilidade de Estoque</span>
+</a>
+<a class="group flex items-center px-space-md py-2.5 rounded text-on-surface-variant font-body-md text-body-md hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="faltas-produzidos" href="#">
+<span class="material-symbols-outlined text-[18px] mr-space-md text-text-muted group-hover:text-on-surface">precision_manufacturing</span>
+<span class="text-body-md tracking-tight">Faltas Produzidos (Matriz)</span>
+</a>
+<a class="group flex items-center px-space-md py-2.5 rounded text-on-surface-variant font-body-md text-body-md hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="resumo-do-pedido" href="#">
+<span class="material-symbols-outlined text-[18px] mr-space-md text-text-muted group-hover:text-on-surface">receipt_long</span>
+<span class="text-body-md tracking-tight">Resumo do Pedido</span>
+</a>
+<a class="group flex items-center px-space-md py-2.5 rounded text-on-surface-variant font-body-md text-body-md hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="simulador-de-pedidos" href="#">
+<span class="material-symbols-outlined text-[18px] mr-space-md text-text-muted group-hover:text-on-surface">tune</span>
+<span class="text-body-md tracking-tight">Simulador de Pedidos</span>
+</a>
+</nav>
+</div>
+<!-- Rodapé Sidebar Metadados & Ações -->
+<div class="flex flex-col border-t border-border-hairline">
+<div class="p-space-lg bg-surface-container-lowest border-b border-border-hairline">
+<div class="flex items-center gap-2 mb-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-text-muted font-medium">Sessão Isolada</span>
+</div>
+<p class="font-body-md text-label-md font-medium text-primary font-mono tracking-wide">3583a605</p>
+<div class="mt-space-sm pt-space-xs border-t border-border-hairline flex flex-col">
+<span class="font-label-sm text-[10px] text-text-muted uppercase tracking-wider">Snapshot da Base</span>
+<span class="font-label-sm text-label-sm text-on-surface font-mono mt-0.5">11/11/2026 06:53:23</span>
+</div>
+</div>
+<div class="p-space-md flex flex-col gap-2 bg-surface-sidebar">
+<button class="w-full flex items-center justify-center gap-space-sm px-space-md py-2 bg-transparent border border-border-subtle rounded text-on-surface hover:bg-surface-container hover:text-on-surface font-label-md text-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+<span>Recarregar Dados</span>
+</button>
+<button class="w-full flex items-center justify-center gap-space-sm px-space-md py-2 bg-transparent border border-border-subtle rounded text-on-surface hover:bg-surface-container hover:text-on-surface font-label-md text-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">download</span>
+<span>Exportar Excel</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- CONTEÚDO PRINCIPAL (LAYOUT WIDESCREEN 16:9) -->
+<div class="pl-72 flex flex-col min-h-screen">
+<!-- Header Topbar Fixo -->
+<header class="fixed top-0 left-72 right-0 h-20 bg-surface-container-lowest/95 backdrop-blur-md border-b border-border-hairline z-40 px-8 2xl:px-12 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
+<div class="flex flex-col justify-center">
+<h2 class="font-headline-md text-headline-md font-medium text-primary leading-tight">Disponibilidade de Estoque por Item Final</h2>
+<p class="font-body-md text-label-md text-text-muted mt-0.5 tracking-wide">Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L</p>
+</div>
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-2 bg-surface-container-low px-3.5 py-1.5 rounded border border-border-hairline">
+<span class="w-2 h-2 rounded-full bg-olive-sobrio"></span>
+<span class="font-label-sm text-[11px] font-semibold uppercase tracking-wider text-text-muted">Matriz Industrial</span>
+</div>
+<div class="h-6 w-px bg-border-hairline"></div>
+<div class="flex items-center gap-3">
+<div class="flex flex-col text-right hidden sm:flex">
+<span class="font-title-md text-body-md font-medium text-primary leading-snug">Controladoria Fabril</span>
+<span class="font-label-sm text-label-sm text-text-muted">PCP &amp; Engenharia</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Body Container Widescreen -->
+<main class="w-full pt-20 bg-surface flex-1">
+<div class="w-full max-w-[1920px] mx-auto px-8 2xl:px-12 py-6 flex flex-col gap-6">
+<!-- 1. METRICS / KPIS (5 Cards em Grid Widescreen) -->
+<section class="grid grid-cols-1 md:grid-cols-5 gap-4">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-border-subtle">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-text-muted font-medium">Total de Ordens</span>
+<span class="material-symbols-outlined text-[18px] text-text-muted">analytics</span>
+</div>
+<div class="mt-4">
+<span class="font-headline-md text-[28px] font-medium text-primary tracking-tight">6.061</span>
+<p class="font-label-sm text-label-sm text-text-muted mt-1">ordens avaliadas</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-border-subtle">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-text-muted font-medium">Saldo das Ordens</span>
+<span class="material-symbols-outlined text-[18px] text-wood-sienna">account_balance_wallet</span>
+</div>
+<div class="mt-4">
+<span class="font-headline-md text-[28px] font-medium text-primary tracking-tight">11.158,61</span>
+<p class="font-label-sm text-label-sm text-text-muted mt-1">saldo pedido em carteira</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-border-subtle">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-olive-sobrio font-medium">100% Disponíveis na Fila</span>
+<span class="w-2 h-2 rounded-full bg-olive-sobrio"></span>
+</div>
+<div class="mt-4 flex items-baseline justify-between">
+<span class="font-headline-md text-[28px] font-medium text-primary tracking-tight">870</span>
+<span class="px-2 py-0.5 rounded bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[12px] font-semibold">14,4%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-olive-sobrio h-full" style="width: 14.4%;"></div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-border-subtle">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-terracotta-soft font-medium">Com Componentes Faltando</span>
+<span class="w-2 h-2 rounded-full bg-terracotta-soft"></span>
+</div>
+<div class="mt-4 flex items-baseline justify-between">
+<span class="font-headline-md text-[28px] font-medium text-primary tracking-tight">5.191</span>
+<span class="px-2 py-0.5 rounded bg-terracotta-soft/10 text-terracotta-soft font-label-sm text-[12px] font-semibold">85,6%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-terracotta-soft h-full" style="width: 85.6%;"></div>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="bg-surface-container-lowest p-5 rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-border-subtle">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-text-muted font-medium">Total de Pedidos</span>
+<span class="material-symbols-outlined text-[18px] text-text-muted">inventory</span>
+</div>
+<div class="mt-4">
+<span class="font-headline-md text-[28px] font-medium text-primary tracking-tight">1.905</span>
+<p class="font-label-sm text-label-sm text-text-muted mt-1">pedidos avaliados</p>
+</div>
+</div>
+</section>
+<!-- 2. PAINEL DE FILTROS AVANÇADOS -->
+<section class="bg-surface-container-lowest p-5 rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col gap-4">
+<!-- Linha 1: Controles de Busca e Período -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+<!-- Local de Produção -->
+<div class="md:col-span-3 flex flex-col">
+<label class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium mb-1.5">Local de Produção</label>
+<div class="relative">
+<select class="w-full h-10 bg-surface-container-lowest border border-border-subtle rounded px-3 pr-8 font-body-md text-body-md text-primary appearance-none focus:outline-none focus:border-primary transition-colors cursor-pointer">
+<option value="">Todos os Locais</option>
+<option value="LE FABRI02">LE FABRI02</option>
+<option value="ESTOF UL">ESTOF UL</option>
+<option value="UL ACABA01">UL ACABA01</option>
+<option value="CC ACABA01">CC ACABA01</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-[18px] text-text-muted pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Número do Pedido -->
+<div class="md:col-span-2 flex flex-col">
+<label class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium mb-1.5">Número do Pedido</label>
+<div class="relative">
+<input class="w-full h-10 bg-surface-container-lowest border border-border-subtle rounded px-3 font-body-md text-body-md text-primary placeholder:text-outline-variant focus:outline-none focus:border-primary transition-colors" placeholder="Ex: 206473" type="text"/>
+</div>
+</div>
+<!-- Código ou Descrição -->
+<div class="md:col-span-4 flex flex-col">
+<label class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium mb-1.5">Código ou Descrição do Produto</label>
+<div class="relative">
+<input class="w-full h-10 bg-surface-container-lowest border border-border-subtle rounded px-3 pl-9 font-body-md text-body-md text-primary placeholder:text-outline-variant focus:outline-none focus:border-primary transition-colors" placeholder="Ex: 1APAE180 ou APARADOR" type="text"/>
+<span class="material-symbols-outlined absolute left-2.5 top-2.5 text-[18px] text-text-muted">search</span>
+</div>
+</div>
+<!-- Período De / Até -->
+<div class="md:col-span-3 flex flex-col">
+<div class="flex items-center justify-between mb-1.5">
+<label class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium">Período De / Até</label>
+<div class="flex items-center gap-1 bg-surface-container p-0.5 rounded">
+<button class="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container-lowest text-primary shadow-sm" type="button">Abertura OP</button>
+<button class="px-2 py-0.5 rounded text-[10px] font-medium text-text-muted hover:text-primary transition-colors" type="button">Entrega Pedido</button>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative flex-1">
+<input class="w-full h-10 bg-surface-container-lowest border border-border-subtle rounded px-2.5 text-center font-body-md text-label-md text-primary focus:outline-none focus:border-primary" placeholder="dd/mm/aaaa" type="text"/>
+</div>
+<span class="text-text-muted font-body-md text-label-sm">até</span>
+<div class="relative flex-1">
+<input class="w-full h-10 bg-surface-container-lowest border border-border-subtle rounded px-2.5 text-center font-body-md text-label-md text-primary focus:outline-none focus:border-primary" placeholder="dd/mm/aaaa" type="text"/>
+</div>
+</div>
+</div>
+</div>
+<div class="h-px bg-border-hairline w-full"></div>
+<!-- Linha 2: Segmented Pills & Ações de Filtro -->
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex flex-wrap items-center gap-6">
+<!-- Baixa Comp. -->
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium">Baixa Comp.:</span>
+<div class="inline-flex p-0.5 rounded border border-border-subtle bg-surface-container-low">
+<button class="px-3 py-1 rounded bg-surface-container-lowest text-primary font-label-md text-label-md font-medium shadow-sm" type="button">Todas</button>
+<button class="px-3 py-1 rounded text-text-muted hover:text-primary font-label-md text-label-md transition-colors" type="button">Baixa Sim (S)</button>
+<button class="px-3 py-1 rounded text-text-muted hover:text-primary font-label-md text-label-md transition-colors" type="button">Baixa Não (N)</button>
+</div>
+</div>
+<!-- Origem -->
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium">Origem:</span>
+<div class="inline-flex p-0.5 rounded border border-border-subtle bg-surface-container-low">
+<button class="px-3 py-1 rounded bg-surface-container-lowest text-primary font-label-md text-label-md font-medium shadow-sm" type="button">Todas</button>
+<button class="px-3 py-1 rounded text-text-muted hover:text-primary font-label-md text-label-md transition-colors" type="button">Comprado (C)</button>
+<button class="px-3 py-1 rounded text-text-muted hover:text-primary font-label-md text-label-md transition-colors" type="button">Produzido (P)</button>
+</div>
+</div>
+<!-- Status -->
+<div class="flex items-center gap-2">
+<span class="font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium">Status:</span>
+<div class="inline-flex p-0.5 rounded border border-border-subtle bg-surface-container-low">
+<button class="px-3 py-1 rounded bg-primary text-on-primary font-label-md text-label-md font-medium shadow-sm" type="button">Todos</button>
+<button class="px-3 py-1 rounded text-text-muted hover:text-primary font-label-md text-label-md transition-colors" type="button">Disponíveis</button>
+<button class="px-3 py-1 rounded text-text-muted hover:text-primary font-label-md text-label-md transition-colors" type="button">Com Falta</button>
+</div>
+</div>
+</div>
+<!-- Botões de Ação -->
+<div class="flex items-center gap-2.5 ml-auto">
+<button class="h-9 px-3.5 rounded border border-border-subtle bg-surface-container-lowest hover:bg-surface-container text-primary font-label-md text-label-md flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px] text-wood-sienna">tune</span>
+<span>Apenas Simulados</span>
+<span class="ml-1 px-1.5 py-0.2 rounded-full bg-surface-container text-text-muted text-[10px] font-semibold">0</span>
+</button>
+<button class="h-9 px-4 rounded border border-border-subtle bg-transparent text-text-muted hover:text-primary hover:border-primary font-label-md text-label-md transition-colors" type="button">
+                Limpar
+              </button>
+<button class="h-9 px-6 rounded bg-primary hover:bg-neutral-800 text-on-primary font-label-md text-label-md transition-colors shadow-sm" type="button">
+                Aplicar Filtros
+              </button>
+</div>
+</div>
+</section>
+<!-- 3. TABELA COMPLETA DE ITENS (Líder Design PurchaseTable Widescreen) -->
+<section class="bg-surface-container-lowest rounded-lg border border-border-hairline shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden flex flex-col">
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-border-hairline bg-surface-container-low/50">
+<th class="py-3.5 px-5 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium whitespace-nowrap" scope="col">
+<div class="flex items-center gap-1 cursor-pointer hover:text-primary">
+<span>Código (Item Final)</span>
+<span class="material-symbols-outlined text-[14px]">unfold_more</span>
+</div>
+</th>
+<th class="py-3.5 px-4 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium min-w-[320px]" scope="col">
+<div class="flex items-center gap-1 cursor-pointer hover:text-primary">
+<span>Descrição do Produto</span>
+<span class="material-symbols-outlined text-[14px]">unfold_more</span>
+</div>
+</th>
+<th class="py-3.5 px-3 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium text-center whitespace-nowrap" scope="col">
+<span>Pedido</span>
+</th>
+<th class="py-3.5 px-4 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium whitespace-nowrap" scope="col">
+<div class="flex items-center gap-1 cursor-pointer hover:text-primary">
+<span>Local Produção</span>
+<span class="material-symbols-outlined text-[14px]">unfold_more</span>
+</div>
+</th>
+<th class="py-3.5 px-3 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium text-center whitespace-nowrap" scope="col">
+<div class="flex items-center justify-center gap-1 cursor-pointer hover:text-primary">
+<span>Abertura OP</span>
+<span class="material-symbols-outlined text-[14px]">arrow_downward</span>
+</div>
+</th>
+<th class="py-3.5 px-3 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium text-right whitespace-nowrap" scope="col">
+<span>Saldo</span>
+</th>
+<th class="py-3.5 px-3 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium text-center whitespace-nowrap" scope="col">
+<span>Entrega</span>
+</th>
+<th class="py-3.5 px-4 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium min-w-[180px]" scope="col">
+<span>Disponibilidade</span>
+</th>
+<th class="py-3.5 px-3 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium text-center whitespace-nowrap" scope="col">
+<span>Status</span>
+</th>
+<th class="py-3.5 px-5 font-label-sm text-[11px] uppercase tracking-wider text-text-muted font-medium text-right whitespace-nowrap" scope="col">
+<span>Ações</span>
+</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-hairline font-body-md text-body-md text-primary">
+<!-- Linha 1: Poltrona Ninho -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1PONI00002814PP</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">POLTRONA NINHO EST.MAD - TECIDO SARJA LISA H10713 - EM...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">LE FABRI02</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">01/08/2025</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">2</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">7/7 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 2: Poltrona Volta -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1POVT000003207</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">POLTRONA VOLTA EST. MAD - TECIDO LINHAO LISO B22029 - A...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">ESTOF UL</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">10/09/2025</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">1</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">1/1 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 3: Banco Joia -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1BCJ0ES0000PP</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">BANCO JOIA EST MAD. - TECIDO KROYAL VIENA COR 1630 - AC...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">ESTOF UL</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">01/10/2025</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">1</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">9/9 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 4: Namoradeira Volta -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1NMVT0200PPR26</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">NAMORADEIRA VOLTA EST. MAD - TECIDO H10101 - ACABAME...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">ESTOF UL</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">10/02/2026</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">1</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">1/1 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 5: Comoda Slim (Com Número de Pedido e Resumo) -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1COSL1000001PP</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">COMODA SLIM 100 X 50 X 90,5 ALT CM EST. MAD - ACABAMEN...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md">
+<span class="inline-flex items-center gap-0.5 font-medium text-primary hover:text-wood-sienna transition-colors cursor-pointer">
+                      176091
+                      <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+</span>
+</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">UL ACABA01</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">19/02/2026</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">0,67</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">31/12/2026</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">10/10 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+<button class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">receipt_long</span>
+<span>Resumo</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Linha 6: Cadeira Cuna -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1CACU000003064</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">CADEIRA CUNA EST. MAD - ACABAMENTO FREIJO LAVADO - SO...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">ESTOF UL</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">02/03/2026</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">13</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">17/17 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 7: Poltrona Viki (Deficit: Faltam 2) -->
+<tr class="bg-terracotta-soft/[0.04] hover:bg-terracotta-soft/[0.08] transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1POVKES00PPR26</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">POLTRONA VIKI ASS/ENC. ESTOFADO EST.MAD - TECIDO COUR...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">ESTOF UL</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">27/04/2026</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">11</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">24/26 disp.</span>
+<span class="font-mono text-secondary font-semibold">92,3%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 92.3%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-terracotta-soft/10 text-terracotta-soft font-label-sm text-[11px] font-semibold">
+<span class="material-symbols-outlined text-[13px]">warning</span>
+                      Faltam 2
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 8: Mesa de Jantar Renda -->
+<tr class="hover:bg-surface-container-low/40 transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1MERD260002923</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">MESA DE JANTAR RENDA 260X120 CM (TAMPO INTEIRO) EST.M...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">CC ACABA01</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">06/06/2026</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">0,67</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">-</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">11/11 disp.</span>
+<span class="font-mono text-olive-sobrio font-semibold">100%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-olive-sobrio h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-olive-sobrio/10 text-olive-sobrio font-label-sm text-[11px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-olive-sobrio"></span>
+                      Disponível
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<button class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+</td>
+</tr>
+<!-- Linha 9: Poltrona Viki 2 (Com Pedido e Faltam 1) -->
+<tr class="bg-terracotta-soft/[0.04] hover:bg-terracotta-soft/[0.08] transition-colors group">
+<td class="py-3.5 px-5 font-mono text-label-md font-medium text-primary">1POVKESAT77834</td>
+<td class="py-3.5 px-4 font-body-md text-label-md text-primary uppercase font-normal">POLTRONA VIKI ASS/ENC. ESTOFADO EST.MAD - TECIDO B2603...</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md">
+<span class="inline-flex items-center gap-0.5 font-medium text-primary hover:text-wood-sienna transition-colors cursor-pointer">
+                      206737
+                      <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+</span>
+</td>
+<td class="py-3.5 px-4 font-label-md text-label-md text-on-surface-variant">ESTOF UL</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">10/06/2026</td>
+<td class="py-3.5 px-3 text-right font-mono text-label-md font-medium text-primary">2</td>
+<td class="py-3.5 px-3 text-center font-mono text-label-md text-text-muted">25/11/2026</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-[11px]">
+<span class="text-text-muted">2/3 disp.</span>
+<span class="font-mono text-terracotta-soft font-semibold">66,7%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-terracotta-soft h-full rounded-full" style="width: 66.7%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-terracotta-soft/10 text-terracotta-soft font-label-sm text-[11px] font-semibold">
+<span class="material-symbols-outlined text-[13px]">warning</span>
+                      Faltam 1
+                    </span>
+</td>
+<td class="py-3.5 px-5 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1.5">
+<button class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">visibility</span>
+<span>Ver Insumos</span>
+</button>
+<button class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-subtle bg-transparent text-primary hover:border-primary font-label-sm text-label-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[14px] text-text-muted">receipt_long</span>
+<span>Resumo</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Rodapé de Paginação e Informações -->
+<div class="px-6 py-3.5 border-t border-border-hairline bg-surface-container-low/40 flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<span class="font-label-sm text-label-sm text-text-muted">
+                Exibindo <span class="font-medium text-primary font-mono">50</span> de <span class="font-medium text-primary font-mono">6.061</span> itens finais
+              </span>
+<span class="h-3.5 w-px bg-border-subtle hidden sm:inline-block"></span>
+<div class="hidden sm:flex items-center gap-1.5">
+<span class="font-label-sm text-label-sm text-text-muted">Linhas por página:</span>
+<select class="bg-transparent font-label-sm text-label-sm text-primary font-semibold focus:outline-none cursor-pointer">
+<option>50</option>
+<option>100</option>
+<option>250</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="font-label-sm text-label-sm text-text-muted italic flex items-center gap-1.5 hidden md:flex">
+<span class="material-symbols-outlined text-[15px]">mouse</span>
+                Role internamente para carregar mais linhas
+              </span>
+<!-- Controles de Página -->
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded flex items-center justify-center border border-border-subtle bg-surface-container-lowest text-text-muted hover:text-primary transition-colors disabled:opacity-40" disabled="" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<div class="px-3 font-mono text-label-md text-primary font-medium">1 / 122</div>
+<button class="w-8 h-8 rounded flex items-center justify-center border border-border-subtle bg-surface-container-lowest text-primary hover:border-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>
