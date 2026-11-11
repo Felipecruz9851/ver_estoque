@@ -7,6 +7,7 @@ da fila ordenada por Data de Abertura, e gerencia a simulação/destaque de pedi
 """
 
 from datetime import datetime
+import json
 import re
 import threading
 import time
@@ -64,6 +65,32 @@ _enriquecimento: Dict[str, Any] = {
     "tc_map_3_item": {},
     "tecidos_cust_raw": [],
 }
+
+# Cache em memória do mapeamento de fábricas e locais (DIVISAO_FABRICAS.json)
+_cache_divisao_fabricas: Optional[Dict[str, Any]] = None
+_cache_divisao_fabricas_mtime: float = 0.0
+
+
+def carregar_divisao_fabricas() -> Dict[str, Any]:
+    """Carrega dinamicamente a divisão de fábricas e locais com metadados de ícones."""
+    global _cache_divisao_fabricas, _cache_divisao_fabricas_mtime
+    arquivo = getattr(settings, "DIVISAO_FABRICAS_FILE", settings.DATA_DIR / "DIVISAO_FABRICAS.json")
+    if not arquivo.exists():
+        return {"metadados_fabricas": {}, "dados": []}
+
+    try:
+        mtime = arquivo.stat().st_mtime
+        if _cache_divisao_fabricas is not None and mtime == _cache_divisao_fabricas_mtime:
+            return _cache_divisao_fabricas
+        with open(arquivo, "r", encoding="utf-8") as f:
+            conteudo = json.load(f)
+        _cache_divisao_fabricas = conteudo
+        _cache_divisao_fabricas_mtime = mtime
+        return conteudo
+    except Exception as e:
+        print(f"[service] Erro ao carregar DIVISAO_FABRICAS.json: {e}")
+        return _cache_divisao_fabricas or {"metadados_fabricas": {}, "dados": []}
+
 
 # ==============================================================================
 # Gestão de Sessões Isoladas por Usuário / Navegador (Cookies)
@@ -1581,7 +1608,7 @@ def analisar_itens_finais(
     """
     filtros = filtros or {}
 
-    local_filtro = str(filtros.get("local_producao", "") or "").strip()
+    local_filtro = filtros.get("local_producao")
     pedido_filtro = str(filtros.get("pedido", "") or "").strip()
     codigo_filtro = str(filtros.get("codigo", "") or "").strip().upper()
     status_filtro = str(filtros.get("status", "todos") or "todos").strip().lower()
@@ -1619,6 +1646,7 @@ def analisar_itens_finais(
             },
             "pedidos_simulados_ativos": pedidos_ativos,
             "locais_producao": locais_producao,
+            "divisao_fabricas": carregar_divisao_fabricas(),
             "data_carga": info_carga["data_carga"],
             "data_carregamento": info_carga["data_carregamento"],
             "snapshot": info_carga["snapshot"],
@@ -1633,8 +1661,19 @@ def analisar_itens_finais(
     if apenas_simulados:
         mask &= itens_full["simulado"] == True  # noqa: E712
 
-    if local_filtro and local_filtro.upper() != "TODOS":
-        mask &= itens_full["raiz_Fábrica"].str.upper() == local_filtro.upper()
+    if local_filtro:
+        if isinstance(local_filtro, (list, tuple, set)):
+            locais_set = {str(x).strip().upper() for x in local_filtro if str(x).strip()}
+            if locais_set and "TODOS" not in locais_set:
+                mask &= itens_full["raiz_Fábrica"].astype(str).str.upper().isin(locais_set)
+        elif isinstance(local_filtro, str):
+            s_limpo = local_filtro.strip()
+            if s_limpo and s_limpo.upper() != "TODOS":
+                locais_set = {x.strip().upper() for x in s_limpo.split(",") if x.strip()}
+                if len(locais_set) == 1:
+                    mask &= itens_full["raiz_Fábrica"].astype(str).str.upper() == list(locais_set)[0]
+                elif len(locais_set) > 1:
+                    mask &= itens_full["raiz_Fábrica"].astype(str).str.upper().isin(locais_set)
 
     if pedido_filtro:
         mask &= itens_full["raiz_Pedido_Str"].str.contains(pedido_filtro, case=False, na=False)
@@ -1770,6 +1809,7 @@ def analisar_itens_finais(
         },
         "pedidos_simulados_ativos": pedidos_ativos,
         "locais_producao": locais_producao,
+        "divisao_fabricas": carregar_divisao_fabricas(),
         "data_carga": info_carga["data_carga"],
         "data_carregamento": info_carga["data_carregamento"],
         "snapshot": info_carga["snapshot"],

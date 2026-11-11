@@ -61,7 +61,13 @@ export default function DisponibilidadeEstoque({
   onAbrirDetalhes,
   onAbrirResumoPedido,
   onAbrirSimulador,
+  onAbrirModalFiltroLocal = () => {},
 }) {
+  const qtdLocaisFiltrados = Array.isArray(filtroLocal)
+    ? filtroLocal.length
+    : filtroLocal && String(filtroLocal).trim() && String(filtroLocal).toUpperCase() !== "TODOS"
+    ? 1
+    : 0;
   /**
    * Renderizador de cabeçalho de coluna com popover de filtro e indicação visual
    */
@@ -318,27 +324,61 @@ export default function DisponibilidadeEstoque({
         <section className="shrink-0 bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col gap-3">
           {/* Linha 1: Controles de Busca e Período */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
-            {/* Local de Produção */}
+            {/* Local de Produção / Centros Fabris */}
             <div className="md:col-span-3 flex flex-col">
               <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
                 Local de Produção
               </label>
               <div className="relative">
-                <select
-                  value={filtroLocal}
-                  onChange={(e) => setFiltroLocal(e.target.value)}
-                  className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-3 pr-8 text-xs text-[#1A1A1A] appearance-none focus:outline-none focus:border-[#1A1A1A] transition-colors cursor-pointer"
+                <button
+                  type="button"
+                  onClick={onAbrirModalFiltroLocal}
+                  className={`w-full h-9 rounded-sm px-3 text-xs flex items-center justify-between transition-all cursor-pointer border ${
+                    qtdLocaisFiltrados > 0
+                      ? "bg-[#FCFAF7] border-[#8B5A2B] text-[#1A1A1A] font-medium shadow-xs"
+                      : "bg-white border-[#E0E0E0] text-[#1A1A1A] hover:border-[#1A1A1A]"
+                  }`}
+                  title="Clique para filtrar por fábricas e locais de produção"
                 >
-                  <option value="">Todos os Locais</option>
-                  {locaisProducao.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
-                <span className="material-symbols-outlined absolute right-2.5 top-2 text-[18px] text-[#757575] pointer-events-none">
-                  expand_more
-                </span>
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className={`material-symbols-outlined text-[17px] ${
+                        qtdLocaisFiltrados > 0 ? "text-[#8B5A2B]" : "text-[#757575]"
+                      }`}
+                    >
+                      factory
+                    </span>
+                    {qtdLocaisFiltrados > 0 ? (
+                      <span className="truncate">
+                        {qtdLocaisFiltrados}{" "}
+                        {qtdLocaisFiltrados === 1 ? "local selecionado" : "locais selecionados"}
+                      </span>
+                    ) : (
+                      <span className="text-[#424242]">
+                        Todos os Locais{" "}
+                        <span className="text-[10px] text-[#9E9E9E] font-normal">(Sem filtro)</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {qtdLocaisFiltrados > 0 && (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFiltroLocal([]);
+                        }}
+                        className="text-[#B84A39] hover:bg-[#FFEBEE] rounded-full p-0.5 text-xs font-bold leading-none cursor-pointer"
+                        title="Limpar filtro de locais"
+                      >
+                        ✕
+                      </span>
+                    )}
+                    <span className="material-symbols-outlined text-[17px] text-[#757575]">
+                      tune
+                    </span>
+                  </div>
+                </button>
               </div>
             </div>
 

@@ -1,4 +1,54 @@
 {
+  "metadados_fabricas": {
+    "PLANEJADOS": {
+      "nome": "Planejados",
+      "codigo": "PLANEJ",
+      "icone": "countertops",
+      "ordem": 1
+    },
+    "UNILIDER": {
+      "nome": "Unilíder",
+      "codigo": "UNILID",
+      "icone": "precision_manufacturing",
+      "ordem": 2
+    },
+    "SALA DE JANTAR": {
+      "nome": "Sala de Jantar",
+      "codigo": "JANTAR",
+      "icone": "chair",
+      "ordem": 3
+    },
+    "LIDER ESTOFADOS": {
+      "nome": "Líder Estofados",
+      "codigo": "ESTOF",
+      "icone": "weekend",
+      "ordem": 4
+    },
+    "ATELIE": {
+      "nome": "Ateliê",
+      "codigo": "ATEL",
+      "icone": "content_cut",
+      "ordem": 5
+    },
+    "COMPONENTES UNILIDER": {
+      "nome": "Componentes Unilíder",
+      "codigo": "COMP_UL",
+      "icone": "handyman",
+      "ordem": 6
+    },
+    "ITENS ACABADOS": {
+      "nome": "Itens Acabados",
+      "codigo": "ACAB",
+      "icone": "inventory_2",
+      "ordem": 7
+    },
+    "OUTROS": {
+      "nome": "Outros Centros",
+      "codigo": "OUTROS",
+      "icone": "category",
+      "ordem": 8
+    }
+  },
   "dados": [
     {
       "Local": "COLCHOES",

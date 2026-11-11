@@ -19,6 +19,7 @@ SNAPSHOTS_AUTO_SYNC = os.environ.get(
 EXPORTS_DIR = DATA_DIR / "exports"
 OC_CACHE_FILE = DATA_DIR / "oc_abertas_cache.pkl"
 TECIDOS_CUSTOMIZADOS_CACHE_FILE = DATA_DIR / "tecidos_customizados_cache.pkl"
+DIVISAO_FABRICAS_FILE = DATA_DIR / "DIVISAO_FABRICAS.json"
 TECIDOS_CUSTOMIZADOS_URL = os.environ.get(
     "VER_ESTOQUE_TECIDOS_CUSTOMIZADOS_URL", "http://192.168.0.6/pcp/tecidos_customizados3.php"
 )

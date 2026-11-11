@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import { apiCall } from "./api";
 import Sidebar from "./components/Sidebar";
 import SimuladorModal from "./components/SimuladorModal";
+import ModalFiltroFabricaLocal from "./components/ModalFiltroFabricaLocal";
 import DisponibilidadeEstoque from "./screens/DisponibilidadeEstoque";
 import MatrizFaltasProduzidos from "./screens/MatrizFaltasProduzidos";
 import ResumoPedido from "./screens/ResumoPedido";
@@ -43,6 +44,8 @@ export default function VerEstoque() {
   });
   const [pedidosSimuladosAtivos, setPedidosSimuladosAtivos] = useState([]);
   const [locaisProducao, setLocaisProducao] = useState([]);
+  const [divisaoFabricas, setDivisaoFabricas] = useState(null);
+  const [modalFiltroLocalAberto, setModalFiltroLocalAberto] = useState(false);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
   const [snapshotNome, setSnapshotNome] = useState("");
@@ -58,7 +61,7 @@ export default function VerEstoque() {
   const [exportando, setExportando] = useState(false);
 
   // Filtros Globais da Disponibilidade
-  const [filtroLocal, setFiltroLocal] = useState("");
+  const [filtroLocal, setFiltroLocal] = useState([]);
   const [filtroPedido, setFiltroPedido] = useState("");
   const [filtroCodigo, setFiltroCodigo] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("todos"); // 'todos' | 'disponivel' | 'falta'
@@ -212,6 +215,7 @@ export default function VerEstoque() {
           setPedidosSimuladosAtivos(res.pedidos_simulados_ativos);
         }
         if (res.locais_producao) setLocaisProducao(res.locais_producao);
+        if (res.divisao_fabricas) setDivisaoFabricas(res.divisao_fabricas);
         if (res.data_carga) setDataCarga(res.data_carga);
         if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
@@ -617,8 +621,10 @@ export default function VerEstoque() {
         const paiInicial =
           matrizLocaisPaiSel.length > 0
             ? matrizLocaisPaiSel
-            : filtroLocal
-            ? [filtroLocal]
+            : Array.isArray(filtroLocal) && filtroLocal.length > 0
+            ? filtroLocal
+            : filtroLocal && typeof filtroLocal === "string" && filtroLocal.trim()
+            ? [filtroLocal.trim()]
             : opRes.locais_item_final || [];
         const compInicial =
           matrizLocaisCompSel.length > 0
@@ -687,7 +693,7 @@ export default function VerEstoque() {
 
   // Limpeza de Filtros
   const limparFiltros = () => {
-    setFiltroLocal("");
+    setFiltroLocal([]);
     setFiltroPedido("");
     setFiltroCodigo("");
     setFiltroStatus("todos");
@@ -700,7 +706,7 @@ export default function VerEstoque() {
   };
 
   const temFiltrosAtivos =
-    Boolean(filtroLocal) ||
+    Boolean(Array.isArray(filtroLocal) ? filtroLocal.length > 0 : filtroLocal) ||
     Boolean(filtroPedido) ||
     Boolean(filtroCodigo) ||
     filtroStatus !== "todos" ||
@@ -813,6 +819,7 @@ export default function VerEstoque() {
           onAbrirDetalhes={abrirDetalhes}
           onAbrirResumoPedido={abrirResumoPedido}
           onAbrirSimulador={abrirModalSimulador}
+          onAbrirModalFiltroLocal={() => setModalFiltroLocalAberto(true)}
         />
       )}
 
@@ -921,6 +928,16 @@ export default function VerEstoque() {
         handleRemoverPedidoSimulado={handleRemoverPedidoSimulado}
         onLimparSimulacao={handleLimparSimulacao}
         handleLimparSimulacao={handleLimparSimulacao}
+      />
+
+      {/* MODAL DE FILTRO DE FÁBRICAS E LOCAIS DE PRODUÇÃO (LÍDER DESIGN) */}
+      <ModalFiltroFabricaLocal
+        aberto={modalFiltroLocalAberto}
+        onFechar={() => setModalFiltroLocalAberto(false)}
+        locaisDisponiveis={locaisProducao}
+        divisaoFabricas={divisaoFabricas}
+        locaisSelecionados={filtroLocal}
+        onAplicar={(novosLocais) => setFiltroLocal(novosLocais)}
       />
     </div>
   );
