@@ -2,7 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
-| 2026-11-11 | Espelhamento do ícone sync no botão de recarregar para sentido de rotação correto | CONCLUIDO | [[2026-11-11]] |
+| 2026-11-11 | Aplicação integral da identidade visual Líder Design nas telas e modais a partir das referências HTML | CONCLUIDO | [[2026-11-11]] |
 | 2026-11-10 | Linha de subtotal no topo das tabelas de componentes faltantes por fábrica e ajuste correspondente na imagem PNG | CONCLUIDO | [[2026-11-10]] |
 | 2026-11-09 | Padronização para 2 casas decimais, KPI Total de Itens Avaliados e Tela de Matriz Pivot de Componentes Produzidos Faltantes (Local Pai × Local Comp × Prazo Expedição) | CONCLUIDO | [[2026-11-09]] |
 | 2026-11-06 | Ajustes na tela de Resumo de Pedidos (soma do saldo de OCs até a abertura e cabeçalho fixo com transição suave entre MP e Componentes) | CONCLUIDO | [[2026-11-06]] |

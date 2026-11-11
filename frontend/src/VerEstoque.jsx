@@ -1031,36 +1031,36 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
     }
 
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* BLOCO 1: MATÉRIAS-PRIMAS (TIPO C) */}
-        <section className="border border-[#E0E0E0] rounded-sm bg-white overflow-hidden shadow-2xs">
-          <div className="px-4 py-2.5 bg-[#FFF8E1] border-b border-[#FFE082] flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+        <section className="bg-white border border-[#E5E5E5] rounded-[3px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
+          <div className="px-6 py-4 bg-[#FAFAFA] border-b border-[#E5E5E5] flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
               <span className="material-symbols-outlined text-[18px] text-[#8B5A2B]">
                 inventory_2
               </span>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#5D4037]">
-                Matérias-Primas e Insumos Comprados (Tipo C)
+              <h3 className="text-xs font-semibold tracking-wider text-[#1A1A1A] uppercase">
+                MATÉRIAS-PRIMAS E INSUMOS COMPRADOS (TIPO C)
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#8B5A2B] text-white">
+              <span className="w-5 h-5 flex items-center justify-center rounded-full bg-[#8B5A2B]/10 text-[#8B5A2B] text-[10px] font-semibold">
                 {materiasPrimas.length}
               </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="px-2 py-0.5 rounded bg-white border border-[#FFE082] text-[#5D4037] font-medium">
-                Com OC Aberta: <strong>{resumo.mp_com_oc || 0}</strong>/{materiasPrimas.length}
+              <span className="inline-flex items-center text-[11px] font-medium px-2.5 py-1 bg-white border border-[#E0E0E0] text-[#1A1A1A] rounded-sm">
+                Com OC Aberta: <strong className="ml-1 font-semibold text-neutral-800">{resumo.mp_com_oc || 0} / {materiasPrimas.length}</strong>
               </span>
               {(resumo.mp_vinculadas_pedido || 0) > 0 && (
-                <span className="px-2 py-0.5 rounded bg-[#EEF2FF] border border-[#C7D2FE] text-[#312E81] font-semibold">
-                  OC Vinculada ao Pedido: <strong>{resumo.mp_vinculadas_pedido}</strong>
+                <span className="inline-flex items-center text-[11px] font-medium px-2.5 py-1 bg-[#EEF2FF] border border-[#C7D2FE] text-[#312E81] rounded-sm">
+                  OC Vinculada ao Pedido: <strong className="ml-1 font-semibold text-[#1A1A1A]">{resumo.mp_vinculadas_pedido}</strong>
                 </span>
               )}
             </div>
           </div>
 
           {materiasPrimas.length === 0 ? (
-            <div className="p-4 text-center text-xs text-[#757575]">
+            <div className="p-5 text-center text-xs text-neutral-500 font-light">
               {isAbaFaltando
                 ? "✓ Nenhuma matéria-prima comprada (Tipo C) em falta."
                 : "Nenhuma matéria-prima comprada neste filtro."}
@@ -1073,56 +1073,56 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               className="overflow-auto max-h-[min(520px,65vh)] relative focus:outline-none"
             >
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
+                <thead className="sticky top-0 z-10 bg-white text-neutral-400 uppercase text-[10px] font-medium tracking-wider border-b border-[#E0E0E0] shadow-2xs">
                   <tr>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Matéria-Prima</th>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Descrição</th>
+                    <th scope="col" className="py-3 px-5 font-medium bg-white whitespace-nowrap">Matéria-Prima</th>
+                    <th scope="col" className="py-3 px-4 font-medium bg-white">Descrição</th>
                     {exibirItensAfetados && (
-                      <th scope="col" className="p-2.5 bg-[#FAFAFA]">Item(ns) do Pedido</th>
+                      <th scope="col" className="py-3 px-4 font-medium bg-white">Item(ns) do Pedido</th>
                     )}
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Baixa</th>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo Total Estoque</th>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo na Fila</th>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Consumo</th>
+                    <th scope="col" className="py-3 px-3 font-medium bg-white text-center">Baixa</th>
+                    <th scope="col" className="py-3 px-4 font-medium bg-white text-right">Saldo Total Estoque</th>
+                    <th scope="col" className="py-3 px-4 font-medium bg-white text-right">Saldo na Fila</th>
+                    <th scope="col" className="py-3 px-4 font-medium bg-white text-right">Consumo</th>
                     {isAbaFaltando && (
-                      <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right font-bold text-[#C62828]">
+                      <th scope="col" className="py-3 px-4 font-medium bg-white text-right text-[#B84A39]">
                         Falta
                       </th>
                     )}
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Ordem de Compra (OC)</th>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Previsão OC</th>
+                    <th scope="col" className="py-3 px-5 font-medium bg-white">Ordem de Compra (OC)</th>
+                    <th scope="col" className="py-3 px-4 font-medium bg-white text-center">Previsão OC</th>
                     <th
                       scope="col"
-                      className="p-2.5 bg-[#FAFAFA] text-right"
+                      className="py-3 px-4 font-medium bg-white text-center"
                       title="Soma do saldo em OCs com previsão de entrega até a data de abertura da ordem"
                     >
                       Saldo OC até Abertura
                     </th>
-                    <th scope="col" className="p-2.5 bg-[#FAFAFA]">Vínculo / Observação OC</th>
+                    <th scope="col" className="py-3 px-5 font-medium bg-white text-center">Vínculo / Observação OC</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                <tbody className="divide-y divide-[#F0F0F0]">
                   {materiasPrimas.map((mp, idx) => (
                     <tr
                       key={`${mp.item}_${idx}`}
-                      className={isAbaFaltando ? "hover:bg-[#FFFDF7]" : "hover:bg-[#F9FBF9]"}
+                      className="hover:bg-[#FBFBFB] transition-colors"
                     >
-                      <th scope="row" className="p-2.5 font-mono font-bold text-[#1A1A1A] whitespace-nowrap">
+                      <th scope="row" className="py-3.5 px-5 font-mono font-medium text-[#1A1A1A] whitespace-nowrap text-left font-normal">
                         {mp.item}
                       </th>
                       <td
-                        className="p-2.5 text-[#424242] max-w-[230px] truncate"
+                        className="py-3.5 px-4 font-normal text-[#1A1A1A] max-w-xs truncate"
                         title={mp.descricao}
                       >
                         {mp.descricao || "-"}
                       </td>
                       {exibirItensAfetados && (
-                        <td className="p-2.5">
+                        <td className="py-3.5 px-4">
                           <div className="flex flex-wrap gap-1 max-w-[210px]">
                             {(mp.itens_finais_afetados || []).map((af, aIdx) => (
                               <span
                                 key={aIdx}
-                                className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                className="px-1.5 py-0.5 rounded bg-[#F8F8F8] border border-[#E0E0E0] font-mono text-[10px] text-neutral-600"
                                 title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${formatarQtd(af.consumo)} • Falta: ${formatarQtd(af.falta)}`}
                               >
                                 {af.item_final}
@@ -1131,131 +1131,128 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           </div>
                         </td>
                       )}
-                      <td className="p-2.5 text-center">
+                      <td className="py-3.5 px-3 text-center">
                         <span
-                          className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                          className={`px-2 py-0.5 text-[10px] font-semibold rounded-sm border ${
                             mp.baixa === "S"
-                              ? "bg-[#E8F5E9] text-[#2E7D32]"
-                              : "bg-[#F2F2F2] text-[#757575]"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200/50"
+                              : "bg-neutral-100 text-neutral-600 border-neutral-200"
                           }`}
                         >
                           {mp.baixa || "-"}
                         </span>
                       </td>
                       <td
-                        className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]"
+                        className="py-3.5 px-4 text-right font-medium text-[#1A1A1A]"
                         title="Saldo total físico em estoque (Situação L)"
                       >
                         {formatarQtd(mp.estoque_total ?? mp.estoque_l)}
                       </td>
-                      <td className="p-2.5 text-right font-mono text-[#424242]">
+                      <td className="py-3.5 px-4 text-right font-normal text-neutral-600">
                         {formatarQtd(mp.saldo_fila)}
                       </td>
-                      <td className="p-2.5 text-right font-mono font-medium">
+                      <td className="py-3.5 px-4 text-right font-normal text-neutral-600">
                         {formatarQtd(mp.consumo)}
                       </td>
                       {isAbaFaltando && (
-                        <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/30">
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-[#B84A39] bg-rose-50/40">
                           {formatarQtd(mp.falta)}
                         </td>
                       )}
-                      <td className="p-2.5 whitespace-nowrap">
+                      <td className="py-3.5 px-5">
                         {mp.oc_numero ? (
-                          <div className="flex flex-col leading-tight gap-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-bold text-[#1A1A1A]">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-[#1A1A1A]">
                                 OC #{mp.oc_numero}
                               </span>
                               {mp.oc_sit === "A" ? (
                                 <span
-                                  className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2]"
+                                  className="text-[9px] font-medium px-1.5 py-0.5 bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2] rounded-sm"
                                   title="OC em aberto (sit_oc=S / situação A)"
                                 >
                                   Em Aberto (A)
                                 </span>
                               ) : mp.oc_pedido_compra ? (
                                 <span
-                                  className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]"
+                                  className="text-[9px] font-medium px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-sm"
                                   title={`Pedido de Compra no fornecedor #${mp.oc_pedido_compra}`}
                                 >
                                   Ped.Compra #{mp.oc_pedido_compra}
                                 </span>
                               ) : null}
                             </div>
-                            <span className="text-[10px] text-[#666666]">
-                              Qtd OC: <strong>{formatarQtd(mp.oc_saldo)}</strong>
+                            <div className="text-[10px] text-neutral-400 mt-0.5">
+                              Qtd OC: <strong className="text-neutral-600">{formatarQtd(mp.oc_saldo)}</strong>
                               {mp.oc_fornecedor
                                 ? ` • ${mp.oc_fornecedor}`
                                 : mp.oc_comprador
                                 ? ` • Compr.: ${mp.oc_comprador}`
                                 : ""}
-                            </span>
+                            </div>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium text-rose-800 bg-rose-50 border border-rose-200/60 rounded-sm">
                             Sem OC aberta
                           </span>
                         )}
                       </td>
-                      <td className="p-2.5 text-center font-mono font-semibold whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center">
                         {mp.oc_previsao ? (
-                          <span className="px-2 py-0.5 rounded bg-[#FFF8E1] border border-[#FFE082] text-[#5D4037]">
+                          <span className="inline-block px-2 py-0.5 text-[11px] font-mono text-amber-900 bg-amber-50/80 border border-amber-200/60 rounded-sm">
                             {mp.oc_previsao}
                           </span>
                         ) : (
-                          <span className="text-[#9E9E9E]">-</span>
+                          <span className="text-neutral-400 font-mono">-</span>
                         )}
                       </td>
                       <td
-                        className="p-2.5 text-right whitespace-nowrap"
+                        className="py-3.5 px-4 text-center"
                         title={
                           mp.oc_data_abertura_ref
                             ? `Soma das OCs deste item com previsão <= ${mp.oc_data_abertura_ref} (Data de Abertura da Ordem)`
                             : "Data de abertura da ordem não informada"
                         }
                       >
-                        <div className="flex flex-col items-end leading-tight gap-0.5">
+                        <div className="flex flex-col items-center leading-tight gap-0.5">
                           <span
-                            className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
+                            className={`inline-block px-2 py-0.5 font-mono text-[11px] font-medium rounded-sm border ${
                               (mp.oc_saldo_ate_abertura || 0) > 0
                                 ? (mp.oc_saldo_ate_abertura || 0) >= (mp.falta || 0)
-                                  ? "bg-[#E8F5E9] text-[#2E7D32] border border-[#A5D6A7]"
-                                  : "bg-[#FFF8E1] text-[#E65100] border border-[#FFE082]"
-                                : "bg-[#F5F5F5] text-[#757575] border border-[#E0E0E0]"
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  : "bg-amber-50 text-amber-900 border-amber-200"
+                                : "bg-[#F8F8F8] border-[#E0E0E0] text-neutral-700"
                             }`}
                           >
                             {formatarQtd(mp.oc_saldo_ate_abertura)}
                           </span>
-                          <span className="text-[10px] text-[#666666]">
+                          <span className="text-[9px] text-neutral-400 mt-0.5">
                             {mp.oc_data_abertura_ref ? (
-                              <>
-                                até <strong>{mp.oc_data_abertura_ref}</strong>
-                              </>
+                              <>até {mp.oc_data_abertura_ref}</>
                             ) : (
                               "Sem dt. abertura"
                             )}
                           </span>
                           {(mp.oc_saldo_total_item || 0) > (mp.oc_saldo_ate_abertura || 0) && (
                             <span
-                              className="text-[9px] text-[#1565C0]"
-                              title="Saldo total somando todas as OCs abertas deste item (incluindo previsões após a abertura da ordem)"
+                              className="text-[9px] text-neutral-400 font-mono"
+                              title="Saldo total somando todas as OCs abertas deste item"
                             >
                               Total OC: {formatarQtd(mp.oc_saldo_total_item)}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="p-2.5">
+                      <td className="py-3.5 px-5 text-center">
                         {mp.oc_numero ? (
                           mp.oc_vinculada_pedido ? (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-bold bg-[#EEF2FF] text-[#312E81] border border-[#C7D2FE]">
-                                <span className="material-symbols-outlined text-[12px]">link</span>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-sm">
                                 Vinculada ao Pedido ({mp.oc_vinculo})
                               </span>
                               {mp.oc_texto && (
                                 <span
-                                  className="text-[10px] font-mono text-[#4338CA] max-w-[230px] truncate"
+                                  className="text-[10px] font-mono text-neutral-500 max-w-[200px] truncate"
                                   title={mp.oc_texto}
                                 >
                                   {mp.oc_texto}
@@ -1263,13 +1260,13 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               )}
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded text-[10px] font-medium bg-[#F5F5F5] text-[#424242] border border-[#E0E0E0]">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-[11px] font-medium text-neutral-700 px-2.5 py-1 bg-white border border-[#E0E0E0] rounded-sm whitespace-nowrap shadow-none">
                                 Previsão mais antiga
                               </span>
                               {mp.oc_texto && (
                                 <span
-                                  className="text-[10px] text-[#757575] max-w-[230px] truncate"
+                                  className="text-[10px] text-neutral-400 max-w-[200px] truncate"
                                   title={mp.oc_texto}
                                 >
                                   {mp.oc_texto}
@@ -1278,7 +1275,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             </div>
                           )
                         ) : (
-                          <span className="text-[10px] text-[#9E9E9E]">-</span>
+                          <span className="text-neutral-400 font-light">-</span>
                         )}
                       </td>
                     </tr>
@@ -1290,65 +1287,65 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
         </section>
 
         {/* BLOCO 2: COMPONENTES PRODUZIDOS (TIPO P) AGRUPADOS POR FÁBRICA */}
-        <section className="space-y-3">
+        <section className="space-y-4 pt-2">
           <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px] text-[#1565C0]">
-                precision_manufacturing
+            <div className="flex items-center gap-2.5">
+              <span className="text-[#4A6B82]">
+                <span className="material-symbols-outlined text-[18px]">precision_manufacturing</span>
               </span>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#1565C0]">
-                Componentes Produzidos Internamente (Tipo P) • Agrupados por Fábrica
+              <h3 className="text-xs font-semibold tracking-wider text-[#1A1A1A] uppercase">
+                COMPONENTES PRODUZIDOS INTERNAMENTE (TIPO P) <span className="font-normal text-neutral-400">•</span> AGRUPADOS POR FÁBRICA
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1565C0] text-white">
+              <span className="w-5 h-5 flex items-center justify-center rounded-full bg-[#4A6B82]/10 text-[#4A6B82] text-[10px] font-semibold">
                 {resumo.total_componentes || 0}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9] text-[#0D47A1] font-medium">
-                Fábricas Envolvidas: <strong>{componentesPorFabrica.length}</strong>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center text-[11px] font-medium px-2.5 py-1 bg-white border border-[#E0E0E0] text-neutral-700 rounded-sm">
+                Fábricas Envolvidas: <strong className="ml-1 text-[#1A1A1A]">{componentesPorFabrica.length}</strong>
               </span>
-              <span className="px-2 py-0.5 rounded bg-white border border-[#D5D5D5] text-[#424242] font-medium">
-                Com OP Aberta: <strong>{resumo.comp_com_op || 0}</strong>/{resumo.total_componentes || 0}
+              <span className="inline-flex items-center text-[11px] font-medium px-2.5 py-1 bg-white border border-[#E0E0E0] text-neutral-700 rounded-sm">
+                Com OP Aberta: <strong className="ml-1 text-[#1A1A1A]">{resumo.comp_com_op || 0}/{resumo.total_componentes || 0}</strong>
               </span>
             </div>
           </div>
 
           {componentesPorFabrica.length === 0 ? (
-            <div className="p-4 border border-[#E0E0E0] rounded-sm bg-white text-center text-xs text-[#757575]">
+            <div className="p-5 border border-[#E5E5E5] rounded-[3px] bg-white text-center text-xs text-neutral-500 font-light">
               {isAbaFaltando
                 ? "✓ Nenhum componente produzido (Tipo P) em falta."
                 : "Nenhum componente produzido neste filtro."}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {componentesPorFabrica.map((grupo) => (
                 <div
                   key={grupo.fabrica}
-                  className="border border-[#E0E0E0] rounded-sm bg-white overflow-hidden shadow-2xs"
+                  className="bg-white border border-[#E5E5E5] rounded-[3px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden"
                 >
                   {/* Cabeçalho da Fábrica */}
-                  <div className="px-4 py-2 bg-[#E3F2FD]/65 border-b border-[#BBDEFB] flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[16px] text-[#0D47A1]">
+                  <div className="px-6 py-3 bg-[#F4F7FA] border-b border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-[16px] text-[#4A6B82]">
                         factory
                       </span>
-                      <span className="text-xs font-bold text-[#0D47A1]">
+                      <span className="text-xs font-semibold text-[#1A1A1A]">
                         Fábrica: {grupo.fabrica}
                       </span>
-                      <span className="px-2 py-0.2 rounded-full text-[10px] font-bold bg-[#0D47A1] text-white">
+                      <span className="text-[10px] font-medium px-2 py-0.5 bg-[#E2E8F0] text-neutral-700 rounded-sm">
                         {grupo.total_itens} item(ns)
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px]">
+                    <div className="flex items-center gap-3 text-xs text-neutral-600 font-medium">
                       {grupo.total_faltando > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-[#FFEBEE] text-[#C62828] font-semibold">
+                        <span className="text-[#B84A39] font-semibold text-[11px]">
                           {grupo.total_faltando} em falta
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded bg-white border border-[#BBDEFB] text-[#0D47A1] font-medium">
-                        OPs abertas: <strong>{grupo.total_com_op}</strong>/{grupo.total_itens}
+                      <span>
+                        OPs abertas: <strong className="text-[#1A1A1A] font-semibold">{grupo.total_com_op}/{grupo.total_itens}</strong>
                       </span>
                     </div>
                   </div>
@@ -1361,52 +1358,52 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                     className="overflow-auto max-h-[min(520px,65vh)] relative focus:outline-none"
                   >
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold border-b border-[#E0E0E0] text-[11px] shadow-2xs">
+                      <thead className="sticky top-0 z-10 bg-white text-neutral-400 uppercase text-[10px] font-medium tracking-wider border-b border-[#E0E0E0] shadow-2xs">
                         <tr>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA]">Componente</th>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA]">Descrição</th>
+                          <th scope="col" className="py-3 px-5 font-medium bg-white whitespace-nowrap">Componente</th>
+                          <th scope="col" className="py-3 px-4 font-medium bg-white">Descrição do Componente</th>
                           {exibirItensAfetados && (
-                            <th scope="col" className="p-2.5 bg-[#FAFAFA]">Item(ns) do Pedido</th>
+                            <th scope="col" className="py-3 px-4 font-medium bg-white">Item(ns) do Pedido</th>
                           )}
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Baixa</th>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo Total Estoque</th>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Saldo na Fila</th>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right">Consumo</th>
+                          <th scope="col" className="py-3 px-3 font-medium bg-white text-center">Baixa</th>
+                          <th scope="col" className="py-3 px-4 font-medium bg-white text-right">Saldo Total Estoque</th>
+                          <th scope="col" className="py-3 px-4 font-medium bg-white text-right">Saldo na Fila</th>
+                          <th scope="col" className="py-3 px-4 font-medium bg-white text-right">Consumo</th>
                           {isAbaFaltando && (
-                            <th scope="col" className="p-2.5 bg-[#FAFAFA] text-right font-bold text-[#C62828]">
+                            <th scope="col" className="py-3 px-4 font-medium bg-white text-right text-[#B84A39]">
                               Falta
                             </th>
                           )}
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA]">OP Componente</th>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Abertura OP</th>
-                          <th scope="col" className="p-2.5 bg-[#FAFAFA] text-center">Entrega OP</th>
+                          <th scope="col" className="py-3 px-5 font-medium bg-white">OP Componente</th>
+                          <th scope="col" className="py-3 px-4 font-medium bg-white text-center">Abertura OP</th>
+                          <th scope="col" className="py-3 px-4 font-medium bg-white text-center">Entrega OP</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                      <tbody className="divide-y divide-[#F0F0F0]">
                         {grupo.itens.map((comp, cIdx) => (
                           <tr
                             key={`${comp.item}_${cIdx}`}
-                            className={isAbaFaltando ? "hover:bg-[#F5F9FF]" : "hover:bg-[#F9FBF9]"}
+                            className="hover:bg-[#FBFBFB] transition-colors"
                           >
                             <th
                               scope="row"
-                              className="p-2.5 font-mono font-bold text-[#1A1A1A] whitespace-nowrap"
+                              className="py-3.5 px-5 font-mono font-medium text-[#1A1A1A] whitespace-nowrap text-left font-normal"
                             >
                               {comp.item}
                             </th>
                             <td
-                              className="p-2.5 text-[#424242] max-w-[230px] truncate"
+                              className="py-3.5 px-4 font-normal text-[#1A1A1A] max-w-xs truncate"
                               title={comp.descricao}
                             >
                               {comp.descricao || "-"}
                             </td>
                             {exibirItensAfetados && (
-                              <td className="p-2.5">
+                              <td className="py-3.5 px-4">
                                 <div className="flex flex-wrap gap-1 max-w-[210px]">
                                   {(comp.itens_finais_afetados || []).map((af, aIdx) => (
                                     <span
                                       key={aIdx}
-                                      className="px-1.5 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] font-mono text-[10px] text-[#333333]"
+                                      className="px-1.5 py-0.5 rounded bg-[#F8F8F8] border border-[#E0E0E0] font-mono text-[10px] text-neutral-600"
                                       title={`Fila #${af.posicao_fila} • ${af.descricao || ""} • Consumo: ${formatarQtd(af.consumo)} • Falta: ${formatarQtd(af.falta)}`}
                                     >
                                       {af.item_final}
@@ -1415,79 +1412,75 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 </div>
                               </td>
                             )}
-                            <td className="p-2.5 text-center">
+                            <td className="py-3.5 px-3 text-center">
                               <span
-                                className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
+                                className={`px-2 py-0.5 text-[10px] font-semibold rounded-sm border ${
                                   comp.baixa === "S"
-                                    ? "bg-[#E8F5E9] text-[#2E7D32]"
-                                    : "bg-[#F2F2F2] text-[#757575]"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200/50"
+                                    : "bg-neutral-100 text-neutral-600 border-neutral-200"
                                 }`}
                               >
                                 {comp.baixa || "-"}
                               </span>
                             </td>
                             <td
-                              className="p-2.5 text-right font-mono font-semibold text-[#1A1A1A] bg-[#FAFAFA]"
+                              className="py-3.5 px-4 text-right font-medium text-[#1A1A1A]"
                               title="Saldo total físico em estoque (Situação L)"
                             >
                               {formatarQtd(comp.estoque_total ?? comp.estoque_l)}
                             </td>
-                            <td className="p-2.5 text-right font-mono text-[#424242]">
+                            <td className="py-3.5 px-4 text-right font-normal text-neutral-600">
                               {formatarQtd(comp.saldo_fila)}
                             </td>
-                            <td className="p-2.5 text-right font-mono font-medium">
+                            <td className="py-3.5 px-4 text-right font-normal text-neutral-600">
                               {formatarQtd(comp.consumo)}
                             </td>
                             {isAbaFaltando && (
-                              <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/30">
+                              <td className="py-3.5 px-4 text-right font-mono font-bold text-[#B84A39] bg-rose-50/40">
                                 {formatarQtd(comp.falta)}
                               </td>
                             )}
-                            <td className="p-2.5 whitespace-nowrap">
+                            <td className="py-3.5 px-5 whitespace-nowrap">
                               {comp.ordem_prod ? (
-                                <div className="flex flex-col leading-tight">
+                                <div className="flex flex-col leading-tight gap-0.5">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="font-mono font-bold text-[#0D47A1]">
+                                    <span className="font-semibold text-[#1A1A1A]">
                                       OP #{comp.ordem_prod}
                                     </span>
                                     <span
-                                      className={`px-1.5 py-0.2 rounded text-[9px] font-semibold ${
+                                      className={`px-1.5 py-0.2 rounded text-[9px] font-medium border ${
                                         comp.op_vinculo === "PEDIDO"
-                                          ? "bg-[#EEF2FF] text-[#312E81] border border-[#C7D2FE]"
-                                          : "bg-[#F5F5F5] text-[#666666] border border-[#E0E0E0]"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          : "bg-neutral-100 text-neutral-600 border-neutral-200"
                                       }`}
                                     >
                                       {comp.op_vinculo === "PEDIDO" ? "Pedido" : "Lote"}
                                     </span>
                                   </div>
                                   {comp.op_saldo > 0 && (
-                                    <span className="text-[10px] text-[#666666]">
-                                      Saldo OP: <strong>{formatarQtd(comp.op_saldo)}</strong>
+                                    <span className="text-[10px] text-neutral-400">
+                                      Saldo OP: <strong className="text-neutral-600">{formatarQtd(comp.op_saldo)}</strong>
                                     </span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
+                                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium text-rose-800 bg-rose-50 border border-rose-200/60 rounded-sm">
                                   Sem OP aberta
                                 </span>
                               )}
                             </td>
-                            <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                            <td className="py-3.5 px-4 text-center font-mono text-neutral-600 whitespace-nowrap">
                               {comp.op_data_abertura ? (
-                                <span className="px-2 py-0.5 rounded bg-[#F5F5F5] border border-[#E0E0E0] text-[#1A1A1A] font-medium">
-                                  {comp.op_data_abertura}
-                                </span>
+                                comp.op_data_abertura
                               ) : (
-                                <span className="text-[#9E9E9E]">-</span>
+                                <span className="text-neutral-400">-</span>
                               )}
                             </td>
-                            <td className="p-2.5 text-center font-mono whitespace-nowrap">
+                            <td className="py-3.5 px-4 text-center font-mono text-neutral-600 whitespace-nowrap">
                               {comp.op_data_entrega ? (
-                                <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9] text-[#0D47A1] font-semibold">
-                                  {comp.op_data_entrega}
-                                </span>
+                                comp.op_data_entrega
                               ) : (
-                                <span className="text-[#9E9E9E]">-</span>
+                                <span className="text-neutral-400">-</span>
                               )}
                             </td>
                           </tr>
@@ -1672,959 +1665,1055 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
   };
 
   return (
-    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col bg-[#F8F8F8] text-[#1A1A1A] font-sans">
-      {/* HEADER SUPERIOR LÍDER DESIGN (FIXO NO TOPO) */}
-      <header className="h-14 shrink-0 bg-white/95 backdrop-blur-md border-b border-[#E0E0E0] px-6 py-2.5 flex items-center justify-between shadow-xs z-30">
-        <div className="flex items-center gap-4">
-          {!isStandalone && onVoltar && (
-            <button
-              onClick={onVoltar}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-[#D5D5D5] bg-white text-[#1A1A1A] text-xs font-medium hover:bg-[#F2F2F2] transition-colors"
-              title="Voltar"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-              <span>Voltar</span>
-            </button>
-          )}
-
-          <img src={logoLider} alt="Líder Design" className="h-7 w-auto" />
-
-          <div className="h-4 w-px bg-[#E0E0E0]" />
-
-          <div>
-            <h1 className="text-base font-semibold tracking-tight text-[#1A1A1A]">
-              Disponibilidade de Estoque por Item Final
-            </h1>
-            <p className="text-[11px] text-[#666666]">
-              Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L
+    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-row bg-[#F8F8F8] text-[#1A1A1A] font-sans">
+      {/* SIDEBAR FIXA À ESQUERDA (LÍDER DESIGN) */}
+      <aside className="w-64 min-w-[256px] max-w-[256px] h-screen bg-[#FAFAFA] border-r border-[#EAEAEA] flex flex-col justify-between shrink-0 select-none z-30">
+        <div className="flex flex-col">
+          {/* Topo Brand Líder */}
+          <div className="p-6 border-b border-[#EAEAEA]">
+            <img src={logoLider} alt="Líder Design" className="h-7 w-auto" />
+            <p className="text-[9px] tracking-[0.25em] text-[#757575] font-medium uppercase mt-1">
+              DESIGN • GESTÃO INDUSTRIAL
             </p>
           </div>
+
+          {/* Seção Navegação do Sistema */}
+          <div className="px-5 py-3">
+            <span className="text-[10px] uppercase tracking-wider text-[#8C8C8C] font-semibold">
+              Navegação do Sistema
+            </span>
+          </div>
+
+          <nav className="px-3 flex flex-col gap-1 text-xs">
+            {/* Disponibilidade de Estoque - Menu Principal Ativo */}
+            <button
+              type="button"
+              className="w-full flex items-center px-3 py-2.5 rounded-sm transition-all bg-[#1A1A1A] text-white font-medium shadow-[0_1px_8px_rgba(0,0,0,0.06)] text-left cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] mr-3 text-neutral-300">
+                inventory_2
+              </span>
+              <span className="tracking-tight text-xs">Disponibilidade de Estoque</span>
+            </button>
+
+            {/* Faltas Produzidos (Matriz) */}
+            <button
+              type="button"
+              onClick={abrirMatrizFaltantes}
+              disabled={loading}
+              className="w-full flex items-center px-3 py-2.5 rounded-sm text-[#555] hover:bg-[#EAEAEA]/70 hover:text-[#1A1A1A] transition-all text-left cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] mr-3 text-[#757575]">
+                precision_manufacturing
+              </span>
+              <span className="tracking-tight text-xs">Faltas Produzidos (Matriz)</span>
+            </button>
+
+            {/* Resumo do Pedido */}
+            <button
+              type="button"
+              onClick={() => abrirResumoPedido(filtroPedido)}
+              disabled={loading}
+              className="w-full flex items-center px-3 py-2.5 rounded-sm text-[#555] hover:bg-[#EAEAEA]/70 hover:text-[#1A1A1A] transition-all text-left cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] mr-3 text-[#757575]">
+                receipt_long
+              </span>
+              <span className="tracking-tight text-xs">Resumo do Pedido</span>
+            </button>
+
+            {/* Simulador de Pedidos */}
+            <button
+              type="button"
+              onClick={abrirModalSimulador}
+              disabled={loading}
+              className="w-full flex items-center px-3 py-2.5 rounded-sm text-[#555] hover:bg-[#EAEAEA]/70 hover:text-[#1A1A1A] transition-all text-left cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px] mr-3 text-[#757575]">
+                tune
+              </span>
+              <span className="tracking-tight text-xs flex-1">Simulador de Pedidos</span>
+              {pedidosSimuladosAtivos.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-[#8B5A2B] text-white text-[10px] font-bold">
+                  {pedidosSimuladosAtivos.length}
+                </span>
+              )}
+            </button>
+
+            {pedidosSimuladosAtivos.length > 0 && (
+              <button
+                type="button"
+                onClick={handleLimparSimulacao}
+                disabled={loading}
+                className="w-full flex items-center px-3 py-2 rounded-sm text-[#C62828] hover:bg-[#FFEBEE] transition-all text-left text-xs cursor-pointer mt-1"
+                title="Limpar todos os pedidos simulados"
+              >
+                <span className="material-symbols-outlined text-[16px] mr-3 text-[#C62828]">
+                  restart_alt
+                </span>
+                <span className="tracking-tight text-xs">Limpar Simulação</span>
+              </button>
+            )}
+          </nav>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {sessionId && (
-            <div
-              className="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-[#EEF2FF] border border-[#C7D2FE] rounded-sm text-left shadow-2xs"
-              title={`Sessão isolada via cookie no navegador\nID: ${sessionId}\nExecuções e simulações são mantidas exclusivamente neste navegador.`}
-            >
-              <span className="material-symbols-outlined text-[16px] text-[#4F46E5]">
-                shield
-              </span>
-              <div className="flex flex-col leading-none">
-                <span className="text-[9px] font-semibold text-[#4338CA] uppercase tracking-wider">
-                  Sessão Isolada
-                </span>
-                <span className="text-[11px] font-semibold text-[#312E81] font-mono mt-0.5">
+        {/* Rodapé Sidebar Metadados & Ações */}
+        <div className="flex flex-col border-t border-[#EAEAEA] bg-white">
+          <div className="p-4 border-b border-[#EAEAEA] space-y-2">
+            {sessionId && (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#3B6E4C]" />
+                  <span className="text-[10px] uppercase tracking-wider text-[#757575] font-semibold">
+                    Sessão Isolada
+                  </span>
+                </div>
+                <p className="font-mono text-xs font-semibold text-[#1A1A1A] pl-3 mt-0.5">
                   {sessionId.slice(0, 8)}
-                </span>
+                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {(dataCarga || dataCarregamento) && (
-            <div
-              className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-[#F9F9F9] border border-[#E0E0E0] rounded-sm text-left shadow-2xs"
-              title={`Snapshot: ${snapshotNome || "ERP"}\nBase de dados ERP: ${dataCarga}\nProcessado em memória: ${dataCarregamento || dataCarga}\nServidor: 366n:8001`}
-            >
-              <span className="material-symbols-outlined text-[16px] text-[#757575]">
-                schedule
-              </span>
-              <div className="flex flex-col leading-none">
-                <span className="text-[9px] font-semibold text-[#888888] uppercase tracking-wider">
-                  Dados Carregados {snapshotNome ? `(${snapshotNome})` : ""}
+            {(dataCarga || dataCarregamento) && (
+              <div className="pt-1 border-t border-[#F0F0F0]">
+                <span className="text-[10px] uppercase tracking-wider text-[#8C8C8C] font-medium block">
+                  Snapshot da Base {snapshotNome ? `(${snapshotNome})` : ""}
                 </span>
-                <span className="text-[11px] font-semibold text-[#1A1A1A] font-mono mt-0.5">
+                <span className="font-mono text-xs text-[#1A1A1A] mt-0.5 block">
                   {dataCarga || dataCarregamento}
                 </span>
               </div>
-            </div>
-          )}
-
-          {/* BOTÃO MATRIZ PIVOT DE COMPONENTES PRODUZIDOS FALTANTES */}
-          <button
-            onClick={abrirMatrizFaltantes}
-            disabled={loading}
-            className="px-3.5 py-1.5 rounded-sm bg-[#0D47A1] text-white text-xs font-medium hover:bg-[#093170] transition-colors flex items-center gap-1.5 shadow-sm"
-            title="Abrir Matriz Pivot de itens produzidos faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[16px]">pivot_table_chart</span>
-            <span>Faltas Produzidos (Matriz)</span>
-          </button>
-
-          {/* BOTÃO RESUMO GERENCIAL DO PEDIDO */}
-          <button
-            onClick={() => abrirResumoPedido(filtroPedido)}
-            disabled={loading}
-            className="px-3.5 py-1.5 rounded-sm bg-[#8B5A2B] text-white text-xs font-medium hover:bg-[#6F4722] transition-colors flex items-center gap-1.5 shadow-sm"
-            title="Abrir tela de resumo gerencial de um pedido: o que falta para resolver o pedido ou o item"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[16px]">assignment_late</span>
-            <span>Resumo do Pedido</span>
-          </button>
-
-          {/* BOTÃO CONSULTAR / SIMULAR PEDIDO ESPECÍFICO */}
-          <button
-            onClick={abrirModalSimulador}
-            disabled={loading}
-            className="px-3.5 py-1.5 rounded-sm bg-[#4338CA] text-white text-xs font-medium hover:bg-[#3730A3] transition-colors flex items-center gap-1.5 shadow-sm"
-            title="Consultar pedido específico na Intranet e simular posição na fila"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[16px]">science</span>
-            <span>Consultar / Simular Pedido</span>
-            {pedidosSimuladosAtivos.length > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-white/20 text-[10px] font-bold">
-                {pedidosSimuladosAtivos.length}
-              </span>
             )}
-          </button>
+          </div>
 
-          {pedidosSimuladosAtivos.length > 0 && (
+          <div className="p-3 flex flex-col gap-2 bg-[#FAFAFA]">
             <button
-              onClick={handleLimparSimulacao}
-              disabled={loading}
-              className="px-2.5 py-1.5 rounded-sm border border-[#C62828]/40 bg-[#FFEBEE]/60 text-[#C62828] text-xs font-medium hover:bg-[#FFEBEE] transition-colors flex items-center gap-1"
-              title="Limpar todos os pedidos simulados/destacados e restaurar tabela original"
+              onClick={() => carregarDados(true, 0, true)}
+              disabled={loading || loadingMore}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#D5D5D5] rounded-sm text-[#1A1A1A] hover:bg-[#F5F5F5] text-xs font-medium transition-colors cursor-pointer"
               type="button"
             >
-              <span className="material-symbols-outlined text-[15px]">restart_alt</span>
-              <span>Limpar Simulação</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => carregarDados(true, 0, true)}
-            disabled={loading || loadingMore}
-            className="px-3 py-1.5 rounded-sm border border-[#D5D5D5] bg-white text-[#1A1A1A] text-xs font-medium hover:bg-[#F2F2F2] transition-colors flex items-center gap-1"
-            title="Recalcular estrutura BFS e atualizar dados"
-            type="button"
-          >
-            <span className={`inline-flex items-center justify-center ${loading ? "animate-spin" : ""}`}>
-              <span className="material-symbols-outlined text-[16px] -scale-x-100 inline-block">
-                sync
-              </span>
-            </span>
-            <span>Recarregar Dados</span>
-          </button>
-
-          <button
-            onClick={handleExportarExcel}
-            disabled={exportando || totalRegistros === 0}
-            className="px-3.5 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5 shadow-sm"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[16px]">
-              {exportando ? "hourglass_top" : "download"}
-            </span>
-            <span>{exportando ? "Exportando..." : "Exportar Excel"}</span>
-          </button>
-        </div>
-      </header>
-
-      {/* CONTEÚDO PRINCIPAL AJUSTADO À ALTURA DA TELA (SEM OVERFLOW VERTICAL EXTERNO) */}
-      <main className="flex-1 flex flex-col px-6 py-3 w-full max-w-[95%] mx-auto min-h-0 overflow-hidden space-y-2.5">
-        {/* CARDS DE RESUMO (COMPACTOS E FIXOS) */}
-        <section className="shrink-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#757575] uppercase tracking-wider block">
-              Total de Ordens
-            </span>
-            <div className="flex items-baseline justify-between mt-0.5">
-              <span className="text-xl font-bold text-[#1A1A1A]">
-                {metricas.total_itens_finais.toLocaleString("pt-BR")}
-              </span>
-              <span className="text-[11px] text-[#757575]">
-                {metricas.total_simulados > 0
-                  ? `${metricas.total_simulados} simulado(s)/destacado(s)`
-                  : "ordens avaliadas"}
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#1565C0] uppercase tracking-wider block items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">inventory_2</span>
-              Saldo das ordens avalaidas
-            </span>
-            <div className="flex items-baseline justify-between mt-0.5">
-              <span className="text-xl font-bold text-[#1565C0]">
-                {formatarQtd(metricas.total_itens_avaliados ?? 0)}
-              </span>
-              <span className="text-[11px] text-[#757575]">saldo pedido</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#2E7D32] uppercase tracking-wider block items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">check_circle</span>
-              100% Disponíveis na Fila
-            </span>
-            <div className="flex items-baseline justify-between mt-0.5">
-              <span className="text-xl font-bold text-[#2E7D32]">
-                {metricas.total_disponiveis.toLocaleString("pt-BR")}
-              </span>
-              <span className="text-[11px] text-[#2E7D32] font-medium">
-                {metricas.total_itens_finais > 0
-                  ? formatarPerc((metricas.total_disponiveis / metricas.total_itens_finais) * 100)
-                  : "0%"}
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#C62828] uppercase tracking-wider block items-center gap-1">
-              <span className="material-symbols-outlined text-[13px]">warning</span>
-              Com Componentes Faltando
-            </span>
-            <div className="flex items-baseline justify-between mt-0.5">
-              <span className="text-xl font-bold text-[#C62828]">
-                {metricas.total_com_falta.toLocaleString("pt-BR")}
-              </span>
-              <span className="text-[11px] text-[#C62828] font-medium">
-                {metricas.total_itens_finais > 0
-                  ? formatarPerc((metricas.total_com_falta / metricas.total_itens_finais) * 100)
-                  : "0%"}
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white p-2.5 rounded-sm border border-[#E0E0E0] shadow-xs">
-            <span className="text-[10px] font-semibold text-[#8B5A2B] uppercase tracking-wider block">
-              Total de Pedidos
-            </span>
-            <div className="flex items-baseline justify-between mt-0.5">
-              <span className="text-xl font-bold text-[#8B5A2B]">
-                {metricas.total_pedidos.toLocaleString("pt-BR")}
-              </span>
-              <span className="text-[11px] text-[#757575]">pedidos avaliados</span>
-            </div>
-          </div>
-        </section>
-
-        {/* BARRA DE FILTROS SUPERIOR (COMPACTA) */}
-        <section className="shrink-0 bg-white px-4 py-2 rounded-sm border border-[#E0E0E0] shadow-xs space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Filtro: Local de Produção */}
-            <div className="flex flex-col min-w-[160px]">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Local de Produção
-              </label>
-              <select
-                value={filtroLocal}
-                onChange={(e) => setFiltroLocal(e.target.value)}
-                className="px-2.5 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#222222]"
-              >
-                <option value="">Todos os Locais</option>
-                {locaisProducao.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {loc}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Filtro: Pedido */}
-            <div className="flex flex-col min-w-[115px]">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Número do Pedido
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: 206473"
-                value={filtroPedido}
-                onChange={(e) => setFiltroPedido(e.target.value)}
-                className="px-2.5 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#222222]"
-              />
-            </div>
-
-            {/* Filtro: Código / Descrição */}
-            <div className="flex flex-col flex-1 min-w-[170px]">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Código ou Descrição
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: 1APAE180 ou APARADOR"
-                value={filtroCodigo}
-                onChange={(e) => setFiltroCodigo(e.target.value)}
-                className="px-2.5 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#222222]"
-              />
-            </div>
-
-            {/* Filtro: Janela de Data com Chave Seletora (Abertura OP vs Entrega do Pedido) */}
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                <span className="text-[10px] font-medium text-[#666666]">
-                  Período (De / Até):
+              <span className={`inline-flex items-center justify-center ${loading ? "animate-spin" : ""}`}>
+                <span className="material-symbols-outlined text-[16px] -scale-x-100 inline-block">
+                  sync
                 </span>
+              </span>
+              <span>Recarregar Dados</span>
+            </button>
+
+            <button
+              onClick={handleExportarExcel}
+              disabled={exportando || totalRegistros === 0}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#D5D5D5] rounded-sm text-[#1A1A1A] hover:bg-[#F5F5F5] text-xs font-medium transition-colors cursor-pointer"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#666666]">
+                {exportando ? "hourglass_top" : "download"}
+              </span>
+              <span>{exportando ? "Exportando..." : "Exportar Excel"}</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ÁREA DE CONTEÚDO PRINCIPAL (LAYOUT WIDESCREEN) */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#F8F8F8]">
+        {/* HEADER TOPBAR FIXO */}
+        <header className="h-16 px-8 bg-white/95 backdrop-blur-md border-b border-[#EAEAEA] flex items-center justify-between shrink-0 z-20 shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center gap-4">
+            {!isStandalone && onVoltar && (
+              <button
+                onClick={onVoltar}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-[#D5D5D5] bg-white text-[#1A1A1A] text-xs font-medium hover:bg-[#F2F2F2] transition-colors cursor-pointer"
+                title="Voltar"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                <span>Voltar</span>
+              </button>
+            )}
+
+            <div>
+              <h2 className="font-serif text-lg font-medium tracking-tight text-[#1A1A1A] leading-tight">
+                Disponibilidade de Estoque por Item Final
+              </h2>
+              <p className="text-xs text-[#757575] mt-0.5 tracking-wide">
+                Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2 bg-[#F3F3F3] px-3.5 py-1.5 rounded-sm border border-[#EAEAEA]">
+              <span className="w-2 h-2 rounded-full bg-[#3B6E4C]" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#666666]">
+                Matriz Industrial
+              </span>
+            </div>
+
+            <div className="h-6 w-px bg-[#EAEAEA]" />
+
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col text-right hidden sm:flex">
+                <span className="text-xs font-semibold text-[#1A1A1A] leading-snug">
+                  Controladoria Fabril
+                </span>
+                <span className="text-[10px] text-[#757575]">PCP &amp; Engenharia</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-[#1A1A1A] flex items-center justify-center text-white text-xs font-medium">
+                CF
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* CORPO DO WORKSPACE COM SCROLL INTERNO */}
+        <main className="flex-1 flex flex-col px-8 py-5 min-h-0 overflow-hidden space-y-4">
+          {/* 1. METRICS / KPIS (5 Cards em Grid Widescreen) */}
+          <section className="shrink-0 grid grid-cols-1 md:grid-cols-5 gap-3.5">
+            {/* Card 1 */}
+            <div className="bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-[#D5D5D5]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-widest text-[#757575] font-medium">
+                  Total de Ordens
+                </span>
+                <span className="material-symbols-outlined text-[18px] text-[#757575]">analytics</span>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-medium text-[#1A1A1A] tracking-tight">
+                  {metricas.total_itens_finais.toLocaleString("pt-BR")}
+                </span>
+                <p className="text-[11px] text-[#757575] mt-0.5">
+                  {metricas.total_simulados > 0
+                    ? `${metricas.total_simulados} simulado(s)`
+                    : "ordens avaliadas"}
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-[#D5D5D5]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-widest text-[#757575] font-medium">
+                  Saldo das Ordens
+                </span>
+                <span className="material-symbols-outlined text-[18px] text-[#A0522D]">
+                  account_balance_wallet
+                </span>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-medium text-[#1A1A1A] tracking-tight">
+                  {formatarQtd(metricas.total_itens_avaliados ?? 0)}
+                </span>
+                <p className="text-[11px] text-[#757575] mt-0.5">saldo pedido em carteira</p>
+              </div>
+            </div>
+
+            {/* Card 3 */}
+            <div className="bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-[#D5D5D5]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-widest text-[#3B6E4C] font-medium">
+                  100% Disponíveis na Fila
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#3B6E4C]" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-medium text-[#1A1A1A] tracking-tight">
+                  {metricas.total_disponiveis.toLocaleString("pt-BR")}
+                </span>
+                <span className="px-2 py-0.5 rounded-xs bg-[#3B6E4C]/10 text-[#3B6E4C] text-[11px] font-semibold">
+                  {metricas.total_itens_finais > 0
+                    ? formatarPerc((metricas.total_disponiveis / metricas.total_itens_finais) * 100)
+                    : "0%"}
+                </span>
+              </div>
+              <div className="w-full bg-[#EEEEEE] h-1.5 rounded-full mt-2 overflow-hidden">
                 <div
-                  className="inline-flex rounded-sm border border-[#D5D5D5] overflow-hidden bg-[#F5F5F5]"
-                  role="group"
-                  aria-label="Selecionar tipo de data do filtro"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipoData("abertura_op")}
-                    className={`px-1.5 py-0.5 text-[10px] font-semibold transition-colors cursor-pointer ${
-                      filtroTipoData === "abertura_op"
-                        ? "bg-[#222222] text-white"
-                        : "bg-white text-[#666666] hover:bg-[#EEEEEE]"
-                    }`}
-                    title="Filtrar pela Data de Abertura da OP"
+                  className="bg-[#3B6E4C] h-full transition-all duration-300"
+                  style={{
+                    width: `${
+                      metricas.total_itens_finais > 0
+                        ? Math.min(100, (metricas.total_disponiveis / metricas.total_itens_finais) * 100)
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Card 4 */}
+            <div className="bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-[#D5D5D5]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-widest text-[#B84A39] font-medium">
+                  Com Componentes Faltando
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#B84A39]" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-medium text-[#1A1A1A] tracking-tight">
+                  {metricas.total_com_falta.toLocaleString("pt-BR")}
+                </span>
+                <span className="px-2 py-0.5 rounded-xs bg-[#B84A39]/10 text-[#B84A39] text-[11px] font-semibold">
+                  {metricas.total_itens_finais > 0
+                    ? formatarPerc((metricas.total_com_falta / metricas.total_itens_finais) * 100)
+                    : "0%"}
+                </span>
+              </div>
+              <div className="w-full bg-[#EEEEEE] h-1.5 rounded-full mt-2 overflow-hidden">
+                <div
+                  className="bg-[#B84A39] h-full transition-all duration-300"
+                  style={{
+                    width: `${
+                      metricas.total_itens_finais > 0
+                        ? Math.min(100, (metricas.total_com_falta / metricas.total_itens_finais) * 100)
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Card 5 */}
+            <div className="bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-all hover:border-[#D5D5D5]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-widest text-[#757575] font-medium">
+                  Total de Pedidos
+                </span>
+                <span className="material-symbols-outlined text-[18px] text-[#757575]">inventory</span>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-medium text-[#1A1A1A] tracking-tight">
+                  {metricas.total_pedidos.toLocaleString("pt-BR")}
+                </span>
+                <p className="text-[11px] text-[#757575] mt-0.5">pedidos avaliados</p>
+              </div>
+            </div>
+          </section>
+
+          {/* 2. PAINEL DE FILTROS AVANÇADOS */}
+          <section className="shrink-0 bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col gap-3">
+            {/* Linha 1: Controles de Busca e Período */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+              {/* Local de Produção */}
+              <div className="md:col-span-3 flex flex-col">
+                <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
+                  Local de Produção
+                </label>
+                <div className="relative">
+                  <select
+                    value={filtroLocal}
+                    onChange={(e) => setFiltroLocal(e.target.value)}
+                    className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-3 pr-8 text-xs text-[#1A1A1A] appearance-none focus:outline-none focus:border-[#1A1A1A] transition-colors cursor-pointer"
                   >
-                    Abertura OP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipoData("entrega_pedido")}
-                    className={`px-1.5 py-0.5 text-[10px] font-semibold border-l border-[#D5D5D5] transition-colors cursor-pointer ${
-                      filtroTipoData === "entrega_pedido"
-                        ? "bg-[#0D47A1] text-white"
-                        : "bg-white text-[#666666] hover:bg-[#EEEEEE]"
-                    }`}
-                    title="Filtrar pela Data de Entrega do Pedido"
-                  >
-                    Entrega Pedido
-                  </button>
+                    <option value="">Todos os Locais</option>
+                    {locaisProducao.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2.5 top-2 text-[18px] text-[#757575] pointer-events-none">
+                    expand_more
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 bg-white border border-[#D5D5D5] rounded-sm px-1.5 py-0.5">
+
+              {/* Número do Pedido */}
+              <div className="md:col-span-2 flex flex-col">
+                <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
+                  Número do Pedido
+                </label>
                 <input
-                  type="date"
-                  value={filtroDataInicio}
-                  onChange={(e) => setFiltroDataInicio(e.target.value)}
-                  className="text-xs bg-transparent focus:outline-none text-[#1A1A1A] cursor-pointer"
-                  title={`Data Início de ${
-                    filtroTipoData === "entrega_pedido" ? "Entrega do Pedido" : "Abertura da OP"
-                  } (em branco = considera todas até a data fim)`}
-                />
-                <span className="text-[10px] text-[#757575] font-medium">até</span>
-                <input
-                  type="date"
-                  value={filtroDataFim}
-                  onChange={(e) => setFiltroDataFim(e.target.value)}
-                  className="text-xs bg-transparent focus:outline-none text-[#1A1A1A] cursor-pointer"
-                  title={`Data Fim de ${
-                    filtroTipoData === "entrega_pedido" ? "Entrega do Pedido" : "Abertura da OP"
-                  } (em branco = considera todas a partir da data início)`}
+                  type="text"
+                  placeholder="Ex: 206473"
+                  value={filtroPedido}
+                  onChange={(e) => setFiltroPedido(e.target.value)}
+                  className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-3 text-xs text-[#1A1A1A] placeholder-[#9E9E9E] focus:outline-none focus:border-[#1A1A1A] transition-colors"
                 />
               </div>
-            </div>
 
-            {/* BOTÕES: FILTRAR COMPONENTES POR BAIXA (S / N) */}
-            <div className="flex flex-col">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Baixa (Componente)
-              </label>
-              <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setFiltroBaixa("todos")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors ${
-                    filtroBaixa === "todos"
-                      ? "bg-[#222222] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                  title="Todos os componentes"
-                >
-                  Todas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroBaixa("S")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors border-l border-[#D5D5D5] ${
-                    filtroBaixa === "S"
-                      ? "bg-[#2E7D32] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                  title="Apenas componentes com Baixa = S (Sofre baixa)"
-                >
-                  Baixa Sim (S)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroBaixa("N")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors border-l border-[#D5D5D5] ${
-                    filtroBaixa === "N"
-                      ? "bg-[#8B5A2B] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                  title="Apenas componentes com Baixa = N (Não sofre baixa)"
-                >
-                  Baixa Não (N)
-                </button>
-              </div>
-            </div>
-
-            {/* BOTÕES: FILTRAR COMPONENTES POR TIPO (COMPRADO / PRODUZIDO) */}
-            <div className="flex flex-col">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Origem do Componente
-              </label>
-              <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipo("todos")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors ${
-                    filtroTipo === "todos"
-                      ? "bg-[#222222] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                  title="Todos os tipos de componentes"
-                >
-                  Todas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipo("C")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors border-l border-[#D5D5D5] ${
-                    filtroTipo === "C"
-                      ? "bg-[#8B5A2B] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                  title="Apenas insumos e matérias-primas compradas (Tipo C)"
-                >
-                  Comprado (C)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroTipo("P")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors border-l border-[#D5D5D5] ${
-                    filtroTipo === "P"
-                      ? "bg-[#1565C0] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                  title="Apenas peças e subconjuntos produzidos internamente (Tipo P)"
-                >
-                  Produzido (P)
-                </button>
-              </div>
-            </div>
-
-            {/* Filtro: Status de Disponibilidade */}
-            <div className="flex flex-col">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Status
-              </label>
-              <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setFiltroStatus("todos")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors ${
-                    filtroStatus === "todos"
-                      ? "bg-[#222222] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroStatus("disponivel")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors border-l border-[#D5D5D5] ${
-                    filtroStatus === "disponivel"
-                      ? "bg-[#2E7D32] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                >
-                  Disponíveis
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltroStatus("falta")}
-                  className={`px-2 py-1 text-xs font-medium transition-colors border-l border-[#D5D5D5] ${
-                    filtroStatus === "falta"
-                      ? "bg-[#C62828] text-white"
-                      : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
-                  }`}
-                >
-                  Com Falta
-                </button>
-              </div>
-            </div>
-
-            {/* BOTÃO: FILTRAR APENAS PEDIDOS SIMULADOS */}
-            <div className="flex flex-col">
-              <label className="text-[10px] font-medium text-[#666666] mb-0.5">
-                Simulador
-              </label>
-              <button
-                type="button"
-                onClick={() => setFiltroApenasSimulados((prev) => !prev)}
-                aria-pressed={filtroApenasSimulados}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-sm border transition-colors flex items-center gap-1.5 ${
-                  filtroApenasSimulados
-                    ? "bg-[#4338CA] text-white border-[#4338CA] shadow-2xs"
-                    : "bg-white text-[#4338CA] border-[#4338CA]/40 hover:bg-[#EEF2FF]"
-                }`}
-                title="Exibir apenas as linhas com pedidos consultados/simulados (mantendo o cálculo real da fila)"
-              >
-                <span className="material-symbols-outlined text-[15px]">filter_alt</span>
-                <span>Apenas Simulados</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    filtroApenasSimulados
-                      ? "bg-white/20 text-white"
-                      : "bg-[#EEF2FF] text-[#4338CA]"
-                  }`}
-                >
-                  {metricas.total_simulados || 0}
-                </span>
-              </button>
-            </div>
-
-            {/* Limpar Filtros */}
-            {temFiltrosAtivos && (
-              <div className="flex flex-col self-end">
-                <button
-                  type="button"
-                  onClick={limparFiltros}
-                  className="px-2.5 py-1 text-xs text-[#757575] hover:text-[#C62828] font-medium flex items-center gap-1 transition-colors"
-                  title="Limpar todos os filtros ativos"
-                >
-                  <span className="material-symbols-outlined text-[15px]">close</span>
-                  <span>Limpar</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* FAIXA DE PEDIDOS SIMULADOS ATIVOS + CHIPS DE FILTROS */}
-          {(pedidosSimuladosAtivos.length > 0 ||
-            Object.keys(colFiltros).length > 0 ||
-            filtroDataInicio ||
-            filtroDataFim ||
-            filtroApenasSimulados) && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-[#EEEEEE]">
-              {pedidosSimuladosAtivos.length > 0 && (
-                <>
-                  <span className="text-[10px] text-[#4338CA] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px]">science</span>
-                    Pedidos no Simulador:
+              {/* Código ou Descrição */}
+              <div className="md:col-span-4 flex flex-col">
+                <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
+                  Código ou Descrição do Produto
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ex: 1APAE180 ou APARADOR"
+                    value={filtroCodigo}
+                    onChange={(e) => setFiltroCodigo(e.target.value)}
+                    className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-3 pl-8 text-xs text-[#1A1A1A] placeholder-[#9E9E9E] focus:outline-none focus:border-[#1A1A1A] transition-colors"
+                  />
+                  <span className="material-symbols-outlined absolute left-2.5 top-2 text-[16px] text-[#757575]">
+                    search
                   </span>
-                  {pedidosSimuladosAtivos.map((ps) => {
-                    const isOrdCriada = ps.origem === "carteira";
-                    return (
-                      <span
-                        key={ps.pedido}
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] border ${
-                          isOrdCriada
-                            ? "bg-[#F8FAFC] text-[#334155] border-[#CBD5E1]"
-                            : "bg-[#EEF2FF] text-[#312E81] border-[#C7D2FE]"
-                        }`}
-                        title={
-                          isOrdCriada
-                            ? `Pedido ${ps.pedido} com ordem criada (números originais mantidos e abertura recalculada)`
-                            : `Pedido ${ps.pedido} simulado via Intranet (${ps.qtd_itens_finais} item(ns) final(is))`
-                        }
-                      >
-                        <strong className="font-mono">#{ps.pedido}</strong>
+                </div>
+              </div>
+
+              {/* Período De / Até com Chave Seletora */}
+              <div className="md:col-span-3 flex flex-col">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
+                    Período De / Até
+                  </label>
+                  <div className="flex items-center gap-1 bg-[#F5F5F5] p-0.5 rounded-sm">
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoData("abertura_op")}
+                      className={`px-2 py-0.5 rounded-xs text-[10px] font-medium transition-colors cursor-pointer ${
+                        filtroTipoData === "abertura_op"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                      title="Filtrar pela Data de Abertura da OP"
+                    >
+                      Abertura OP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipoData("entrega_pedido")}
+                      className={`px-2 py-0.5 rounded-xs text-[10px] font-medium transition-colors cursor-pointer ${
+                        filtroTipoData === "entrega_pedido"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                      title="Filtrar pela Data de Entrega do Pedido"
+                    >
+                      Entrega Pedido
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={filtroDataInicio}
+                    onChange={(e) => setFiltroDataInicio(e.target.value)}
+                    className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-2 text-center text-xs text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
+                  />
+                  <span className="text-[#757575] text-[11px]">até</span>
+                  <input
+                    type="date"
+                    value={filtroDataFim}
+                    onChange={(e) => setFiltroDataFim(e.target.value)}
+                    className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-2 text-center text-xs text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-[#EAEAEA] w-full" />
+
+            {/* Linha 2: Segmented Pills & Ações */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-5">
+                {/* Baixa Comp. */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
+                    Baixa Comp.:
+                  </span>
+                  <div className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]">
+                    <button
+                      type="button"
+                      onClick={() => setFiltroBaixa("todos")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroBaixa === "todos"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroBaixa("S")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroBaixa === "S"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Baixa Sim (S)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroBaixa("N")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroBaixa === "N"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Baixa Não (N)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Origem */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
+                    Origem:
+                  </span>
+                  <div className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]">
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipo("todos")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroTipo === "todos"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipo("C")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroTipo === "C"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Comprado (C)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroTipo("P")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroTipo === "P"
+                          ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Produzido (P)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
+                    Status:
+                  </span>
+                  <div className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]">
+                    <button
+                      type="button"
+                      onClick={() => setFiltroStatus("todos")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroStatus === "todos"
+                          ? "bg-[#1A1A1A] text-white shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroStatus("disponivel")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroStatus === "disponivel"
+                          ? "bg-[#3B6E4C] text-white shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Disponíveis
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFiltroStatus("falta")}
+                      className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                        filtroStatus === "falta"
+                          ? "bg-[#B84A39] text-white shadow-xs font-semibold"
+                          : "text-[#757575] hover:text-[#1A1A1A]"
+                      }`}
+                    >
+                      Com Falta
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação na Direita */}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setFiltroApenasSimulados((prev) => !prev)}
+                  className={`h-8 px-3 rounded-xs border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    filtroApenasSimulados
+                      ? "bg-[#8B5A2B] text-white border-[#8B5A2B]"
+                      : "bg-white border-[#E0E0E0] text-[#1A1A1A] hover:bg-[#F8F8F8]"
+                  }`}
+                  title="Exibir apenas as linhas com pedidos consultados/simulados"
+                >
+                  <span className="material-symbols-outlined text-[16px]">tune</span>
+                  <span>Apenas Simulados</span>
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-neutral-100 text-neutral-700 text-[10px] font-semibold">
+                    {metricas.total_simulados || 0}
+                  </span>
+                </button>
+
+                {temFiltrosAtivos && (
+                  <button
+                    type="button"
+                    onClick={limparFiltros}
+                    className="h-8 px-3.5 rounded-xs border border-[#E0E0E0] bg-transparent text-[#757575] hover:text-[#1A1A1A] hover:border-[#1A1A1A] text-xs transition-colors cursor-pointer"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* FAIXA DE PEDIDOS SIMULADOS ATIVOS + CHIPS DE FILTROS */}
+            {(pedidosSimuladosAtivos.length > 0 ||
+              Object.keys(colFiltros).length > 0 ||
+              filtroDataInicio ||
+              filtroDataFim ||
+              filtroApenasSimulados) && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-[#EEEEEE]">
+                {pedidosSimuladosAtivos.length > 0 && (
+                  <>
+                    <span className="text-[10px] text-[#8B5A2B] font-bold uppercase tracking-wider flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[13px]">science</span>
+                      Pedidos no Simulador:
+                    </span>
+                    {pedidosSimuladosAtivos.map((ps) => {
+                      const isOrdCriada = ps.origem === "carteira";
+                      return (
                         <span
-                          className={`text-[10px] ${
-                            isOrdCriada ? "text-[#64748B]" : "text-[#4338CA]"
+                          key={ps.pedido}
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs text-[11px] border ${
+                            isOrdCriada
+                              ? "bg-[#F8FAFC] text-[#334155] border-[#CBD5E1]"
+                              : "bg-[#FBF7F4] text-[#8B5A2B] border-[#8B5A2B]/30"
                           }`}
+                          title={
+                            isOrdCriada
+                              ? `Pedido ${ps.pedido} com ordem criada (números originais mantidos e abertura recalculada)`
+                              : `Pedido ${ps.pedido} simulado via Intranet (${ps.qtd_itens_finais} item(ns) final(is))`
+                          }
                         >
-                          {isOrdCriada ? "Ordem criada • " : ""}
-                          {ps.data_entrega
-                            ? `Entrega: ${ps.data_entrega}`
-                            : "Sem data (Fim da fila)"}
+                          <strong className="font-mono">#{ps.pedido}</strong>
+                          <span
+                            className={`text-[10px] ${
+                              isOrdCriada ? "text-[#64748B]" : "text-[#8B5A2B]"
+                            }`}
+                          >
+                            {isOrdCriada ? "Ordem criada • " : ""}
+                            {ps.data_entrega
+                              ? `Entrega: ${ps.data_entrega}`
+                              : "Sem data (Fim da fila)"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoverPedidoSimulado(ps.pedido)}
+                            className="hover:text-[#C62828] font-bold leading-none cursor-pointer"
+                            title={`Remover pedido ${ps.pedido} da simulação`}
+                          >
+                            ×
+                          </button>
                         </span>
+                      );
+                    })}
+                  </>
+                )}
+
+                {(Object.keys(colFiltros).length > 0 ||
+                  filtroDataInicio ||
+                  filtroDataFim ||
+                  filtroApenasSimulados) && (
+                  <>
+                    {pedidosSimuladosAtivos.length > 0 && (
+                      <span className="h-3.5 w-px bg-[#E0E0E0] mx-1" />
+                    )}
+                    <span className="text-[10px] text-[#757575] font-semibold uppercase tracking-wider">
+                      Filtros Ativos:
+                    </span>
+                    {filtroApenasSimulados && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#FBF7F4] text-[#8B5A2B] border border-[#8B5A2B]/30">
+                        <strong>Apenas Simulados</strong>
                         <button
                           type="button"
-                          onClick={() => handleRemoverPedidoSimulado(ps.pedido)}
-                          className="hover:text-[#C62828] font-bold leading-none"
-                          title={`Remover pedido ${ps.pedido} da simulação`}
+                          onClick={() => setFiltroApenasSimulados(false)}
+                          className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
                         >
                           ×
                         </button>
                       </span>
-                    );
-                  })}
-                </>
-              )}
-
-              {(Object.keys(colFiltros).length > 0 ||
-                filtroDataInicio ||
-                filtroDataFim ||
-                filtroApenasSimulados) && (
-                <>
-                  {pedidosSimuladosAtivos.length > 0 && (
-                    <span className="h-3.5 w-px bg-[#E0E0E0] mx-1" />
-                  )}
-                  <span className="text-[10px] text-[#757575] font-semibold uppercase tracking-wider">
-                    Filtros Ativos:
-                  </span>
-                  {filtroApenasSimulados && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]">
-                      <strong>Apenas Simulados</strong>
-                      <button
-                        type="button"
-                        onClick={() => setFiltroApenasSimulados(false)}
-                        className="hover:text-[#C62828] ml-0.5 font-bold"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {(filtroDataInicio || filtroDataFim) && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#F2F2F2] text-[#1A1A1A] border border-[#D5D5D5]">
-                      <strong>Abertura OP:</strong> {filtroDataInicio || "Início"} até{" "}
-                      {filtroDataFim || "Fim"}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFiltroDataInicio("");
-                          setFiltroDataFim("");
-                        }}
-                        className="hover:text-[#C62828] ml-0.5 font-bold"
-                        title="Remover filtro de data"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {Object.entries(colFiltros).map(([k, val]) => (
-                    <span
-                      key={k}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#F2F2F2] text-[#1A1A1A] border border-[#D5D5D5]"
-                    >
-                      <strong className="capitalize">{k}:</strong> {val}
-                      <button
-                        type="button"
-                        onClick={() => limparFiltroColuna(k)}
-                        className="hover:text-[#C62828] ml-0.5 font-bold"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* TABELA RESPONSIVA COM ALTURA FLEXÍVEL (FLEX-1 MIN-H-0 OVERFLOW-AUTO) */}
-        <section className="flex-1 flex flex-col min-h-0 bg-white rounded-sm border border-[#E0E0E0] shadow-xs overflow-hidden">
-          <div
-            ref={scrollContainerRef}
-            onScroll={handleScrollContainer}
-            tabIndex={0}
-            role="region"
-            aria-labelledby={tableId}
-            className="flex-1 min-h-0 overflow-auto relative focus:outline-none"
-          >
-            <table className="w-full text-left text-xs border-collapse">
-              <caption id={tableId} className="sr-only">
-                Tabela de análise de estoque de itens finais com rolagem infinita
-              </caption>
-              <thead className="sticky top-0 z-20 bg-[#FAFAFA] text-[#424242] border-b border-[#E0E0E0] shadow-xs">
-                <tr>
-                  {renderColumnHeader("item_final", "Código (Item Final)", "pl-4 min-w-[165px]")}
-                  {renderColumnHeader("descricao", "Descrição do Produto", "min-w-[250px]")}
-                  {renderColumnHeader("pedido", "Pedido", "min-w-[95px]", "center")}
-                  {renderColumnHeader("fabrica", "Local Produção", "min-w-[130px]")}
-                  {renderColumnHeader("data_abertura", "Abertura OP ▾", "min-w-[115px] bg-[#F2F2F2]/60", "center")}
-                  {renderColumnHeader("saldo", "Saldo Pedido", "min-w-[90px]", "right")}
-                  {renderColumnHeader("entrega", "Entrega Pedido", "min-w-[95px]", "center")}
-                  <th scope="col" className="p-2.5 text-center min-w-[130px] font-semibold text-[#424242]">
-                    Disponibilidade
-                  </th>
-                  {renderColumnHeader("status", "Status", "min-w-[110px]", "center")}
-                  <th scope="col" className="p-2.5 pr-4 text-center min-w-[100px] font-semibold text-[#424242]">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EEEEEE]">
-                {loading && itens.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="p-12 text-center text-[#757575]">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <span className="material-symbols-outlined text-3xl animate-spin text-[#1A1A1A]">
-                          progress_activity
-                        </span>
-                        <span className="text-xs">{loadingMsg}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : itens.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="p-12 text-center text-[#757575]">
-                      {filtroApenasSimulados
-                        ? "Nenhum pedido simulado/destacado ativo no momento. Clique em 'Consultar / Simular Pedido' no topo para iniciar."
-                        : "Nenhum item final encontrado para os filtros selecionados."}
-                    </td>
-                  </tr>
-                ) : (
-                  (() => {
-                    const sentinelIndex =
-                      hasMore && itens.length > 0 ? Math.max(0, itens.length - 30) : -1;
-                    return itens.map((it, idx) => {
-                      const isDisponivel = it.status === "Disponível";
-                      const isSimulado = Boolean(it.simulado);
-                      const isSimuladoCarteira = it.origem_simulacao === "carteira";
-
-                      return (
-                        <tr
-                          key={`${it.item_final}_${it.pedido}_${it.fabrica}_${idx}`}
-                          ref={idx === sentinelIndex ? sentinelRef : null}
-                          className={`transition-colors ${
-                            isSimuladoCarteira
-                              ? "bg-[#F8FAFC] hover:bg-[#F1F5F9]"
-                              : isSimulado
-                              ? "bg-[#EEF2FF]/85 hover:bg-[#E0E7FF]"
-                              : "hover:bg-[#F9F9F9]"
-                          }`}
+                    )}
+                    {(filtroDataInicio || filtroDataFim) && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#F5F5F5] text-[#1A1A1A] border border-[#E0E0E0]">
+                        <strong>Abertura OP:</strong> {filtroDataInicio || "Início"} até{" "}
+                        {filtroDataFim || "Fim"}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroDataInicio("");
+                            setFiltroDataFim("");
+                          }}
+                          className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                          title="Remover filtro de data"
                         >
-                          <th
-                            scope="row"
-                            style={
+                          ×
+                        </button>
+                      </span>
+                    )}
+                    {Object.entries(colFiltros).map(([k, val]) => (
+                      <span
+                        key={k}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#F5F5F5] text-[#1A1A1A] border border-[#E0E0E0]"
+                      >
+                        <strong className="capitalize">{k}:</strong> {val}
+                        <button
+                          type="button"
+                          onClick={() => limparFiltroColuna(k)}
+                          className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* 3. TABELA COMPLETA DE ITENS (LÍDER DESIGN) */}
+          <section className="flex-1 flex flex-col min-h-0 bg-white rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScrollContainer}
+              tabIndex={0}
+              role="region"
+              aria-labelledby={tableId}
+              className="flex-1 min-h-0 overflow-auto relative focus:outline-none"
+            >
+              <table className="w-full text-left text-xs border-collapse">
+                <caption id={tableId} className="sr-only">
+                  Tabela de análise de estoque de itens finais com rolagem infinita
+                </caption>
+                <thead className="sticky top-0 z-20 bg-white/95 backdrop-blur-xs text-[#757575] border-b border-[#EAEAEA] text-[11px] uppercase tracking-wider">
+                  <tr>
+                    {renderColumnHeader("item_final", "Código (Item Final)", "pl-5 min-w-[170px]")}
+                    {renderColumnHeader("descricao", "Descrição do Produto", "min-w-[320px]")}
+                    {renderColumnHeader("pedido", "Pedido", "min-w-[95px]", "center")}
+                    {renderColumnHeader("fabrica", "Local Produção", "min-w-[130px]")}
+                    {renderColumnHeader("data_abertura", "Abertura OP", "min-w-[115px]", "center")}
+                    {renderColumnHeader("saldo", "Saldo", "min-w-[90px]", "right")}
+                    {renderColumnHeader("entrega", "Entrega", "min-w-[95px]", "center")}
+                    <th scope="col" className="py-3 px-4 text-center min-w-[170px] font-medium text-[#757575]">
+                      Disponibilidade
+                    </th>
+                    {renderColumnHeader("status", "Status", "min-w-[120px]", "center")}
+                    <th scope="col" className="py-3 pr-5 text-right min-w-[140px] font-medium text-[#757575]">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EAEAEA]">
+                  {loading && itens.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="p-12 text-center text-[#757575]">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <span className="material-symbols-outlined text-3xl animate-spin text-[#1A1A1A]">
+                            progress_activity
+                          </span>
+                          <span className="text-xs">{loadingMsg}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : itens.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="p-12 text-center text-[#757575]">
+                        {filtroApenasSimulados
+                          ? "Nenhum pedido simulado/destacado ativo no momento. Clique em 'Simulador de Pedidos' na barra lateral para iniciar."
+                          : "Nenhum item final encontrado para os filtros selecionados."}
+                      </td>
+                    </tr>
+                  ) : (
+                    (() => {
+                      const sentinelIndex =
+                        hasMore && itens.length > 0 ? Math.max(0, itens.length - 30) : -1;
+                      return itens.map((it, idx) => {
+                        const isDisponivel = it.status === "Disponível";
+                        const isSimulado = Boolean(it.simulado);
+                        const isSimuladoCarteira = it.origem_simulacao === "carteira";
+
+                        return (
+                          <tr
+                            key={`${it.item_final}_${it.pedido}_${it.fabrica}_${idx}`}
+                            ref={idx === sentinelIndex ? sentinelRef : null}
+                            className={`transition-colors ${
                               isSimuladoCarteira
-                                ? { boxShadow: "inset 3px 0 0 #64748B" }
+                                ? "bg-[#F8FAFC] hover:bg-[#F1F5F9]"
                                 : isSimulado
-                                ? { boxShadow: "inset 4px 0 0 #4338CA" }
-                                : undefined
-                            }
-                            className="p-2.5 pl-4 font-mono font-bold text-[#1A1A1A]"
+                                ? "bg-[#FBF7F4] hover:bg-[#F7EFE9]"
+                                : isDisponivel
+                                ? "hover:bg-[#F9F9F9]"
+                                : "bg-[#B84A39]/[0.02] hover:bg-[#B84A39]/[0.06]"
+                            }`}
                           >
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span>{it.item_final}</span>
-                              {isSimuladoCarteira ? (
-                                <span
-                                  className="inline-flex items-center px-1.5 py-0.2 rounded-sm text-[9px] font-sans font-medium border border-[#CBD5E1] bg-white text-[#475569]"
-                                  title="Pedido com ordem já criada (números originais mantidos e Data de Abertura atualizada)"
-                                >
-                                  Ordem criada
-                                </span>
-                              ) : (
-                                isSimulado && (
+                            <th
+                              scope="row"
+                              style={
+                                isSimuladoCarteira
+                                  ? { boxShadow: "inset 3px 0 0 #64748B" }
+                                  : isSimulado
+                                  ? { boxShadow: "inset 4px 0 0 #8B5A2B" }
+                                  : undefined
+                              }
+                              className="py-3 px-5 font-mono text-xs font-semibold text-[#1A1A1A]"
+                            >
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>{it.item_final}</span>
+                                {isSimuladoCarteira ? (
                                   <span
-                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-sans font-bold uppercase tracking-wider bg-[#4338CA] text-white"
-                                    title="Pedido simulado consultado na Intranet"
+                                    className="inline-flex items-center px-1.5 py-0.2 rounded-xs text-[9px] font-sans font-medium border border-[#CBD5E1] bg-white text-[#475569]"
+                                    title="Pedido com ordem já criada (números originais mantidos e Data de Abertura atualizada)"
                                   >
-                                    <span className="material-symbols-outlined text-[11px]">
-                                      science
-                                    </span>
-                                    <span>Simulado</span>
+                                    Ordem criada
                                   </span>
-                                )
-                              )}
-                            </div>
-                          </th>
-                          <td className="p-2.5 max-w-[280px] truncate" title={it.descricao}>
-                            {it.descricao || "-"}
-                          </td>
-                          <td
-                            className={`p-2.5 text-center font-mono ${
-                              isSimuladoCarteira
-                                ? "font-semibold text-[#334155]"
-                                : isSimulado
-                                ? "font-bold text-[#312E81]"
-                                : "font-medium"
-                            }`}
-                          >
-                            {it.pedido ? (
-                              <button
-                                type="button"
-                                onClick={() => abrirResumoPedido(it.pedido, "TODOS")}
-                                className="px-1.5 py-0.5 rounded hover:bg-[#FFF8E1] hover:text-[#8B5A2B] border border-transparent hover:border-[#FFE082] transition-colors inline-flex items-center gap-1"
-                                title={`Abrir Resumo Gerencial do Pedido #${it.pedido}`}
-                              >
-                                <span>{it.pedido}</span>
-                                <span className="material-symbols-outlined text-[12px] opacity-65">
-                                  open_in_new
-                                </span>
-                              </button>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                          <td className="p-2.5 text-[#424242] font-medium">
-                            {it.fabrica}
-                          </td>
-                          <td
-                            className={`p-2.5 text-center font-mono font-semibold text-[#1A1A1A] ${
-                              isSimuladoCarteira
-                                ? "bg-[#F1F5F9]/60"
-                                : isSimulado
-                                ? "bg-[#E0E7FF]/40"
-                                : "bg-[#FAFAFA]/50"
-                            }`}
-                          >
-                            {it.data_abertura ? (
-                              it.data_abertura
-                            ) : isSimulado ? (
-                              <span
-                                className={`text-[10px] font-sans font-semibold ${
-                                  isSimuladoCarteira ? "text-[#475569]" : "text-[#4338CA]"
-                                }`}
-                                title="Sem data de entrega informada — posicionado no final da lista"
-                              >
-                                Sem data (Fim)
-                              </span>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                          <td className="p-2.5 text-right font-mono font-semibold">
-                            {formatarQtd(it.saldo)}
-                          </td>
-                          <td className="p-2.5 text-center text-[#666666] font-mono">
-                            {it.entrega || "-"}
-                          </td>
-                          <td className="p-2.5">
-                            <div className="flex flex-col gap-1 items-center">
-                              <div className="flex justify-between w-full text-[10px] text-[#666666]">
-                                <span>
-                                  {it.componentes_disponiveis}/{it.total_componentes} disp.
-                                </span>
-                                <span className="font-semibold">{formatarPerc(it.perc_disponivel)}</span>
+                                ) : (
+                                  isSimulado && (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-xs text-[9px] font-sans font-bold uppercase tracking-wider bg-[#8B5A2B] text-white"
+                                      title="Pedido simulado consultado na Intranet"
+                                    >
+                                      <span className="material-symbols-outlined text-[11px]">
+                                        science
+                                      </span>
+                                      <span>Simulado</span>
+                                    </span>
+                                  )
+                                )}
                               </div>
-                              <div className="w-full bg-[#E0E0E0] h-1.5 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full transition-all duration-300 ${
-                                    isDisponivel
-                                      ? "bg-[#2E7D32]"
-                                      : it.perc_disponivel > 70
-                                      ? "bg-[#F57C00]"
-                                      : "bg-[#C62828]"
-                                  }`}
-                                  style={{ width: `${Math.min(100, it.perc_disponivel)}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-2.5 text-center">
-                            {isDisponivel ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E8F5E9] text-[#2E7D32]">
-                                <span className="material-symbols-outlined text-[12px]">check</span>
-                                Disponível
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FFEBEE] text-[#C62828]">
-                                <span className="material-symbols-outlined text-[12px]">warning</span>
-                                Faltam {it.componentes_faltando}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2.5 pr-4 text-center">
-                            <div className="inline-flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => abrirDetalhes(it)}
-                                className="px-2 py-1 text-xs font-medium rounded-sm border border-[#D5D5D5] bg-white text-[#1A1A1A] hover:bg-[#F2F2F2] transition-colors inline-flex items-center gap-1 shadow-xs"
-                                title="Ver insumos deste item final (separados em Matéria-Prima e Componentes por Fábrica)"
-                              >
-                                <span className="material-symbols-outlined text-[14px]">visibility</span>
-                                <span>Ver Insumos</span>
-                              </button>
-                              {it.pedido && (
+                            </th>
+                            <td className="py-3 px-4 max-w-[320px] truncate uppercase font-normal text-xs text-[#1A1A1A]" title={it.descricao}>
+                              {it.descricao || "-"}
+                            </td>
+                            <td
+                              className={`py-3 px-3 text-center font-mono ${
+                                isSimuladoCarteira
+                                  ? "font-semibold text-[#334155]"
+                                  : isSimulado
+                                  ? "font-bold text-[#8B5A2B]"
+                                  : "font-medium"
+                              }`}
+                            >
+                              {it.pedido ? (
                                 <button
                                   type="button"
                                   onClick={() => abrirResumoPedido(it.pedido, "TODOS")}
-                                  className="px-2 py-1 text-xs font-medium rounded-sm border border-[#D7CCC8] bg-[#FFF8E1]/70 text-[#5D4037] hover:bg-[#FFE082]/60 transition-colors inline-flex items-center gap-1 shadow-xs"
-                                  title={`Resumo Gerencial do Pedido #${it.pedido}: o que falta para resolver o pedido ou o item`}
+                                  className="px-1.5 py-0.5 rounded-xs hover:bg-[#FAF5EE] hover:text-[#8B5A2B] transition-colors inline-flex items-center gap-0.5 text-xs font-medium text-[#1A1A1A] cursor-pointer"
+                                  title={`Abrir Resumo Gerencial do Pedido #${it.pedido}`}
                                 >
-                                  <span className="material-symbols-outlined text-[14px]">
-                                    assignment
+                                  <span>{it.pedido}</span>
+                                  <span className="material-symbols-outlined text-[12px] opacity-65">
+                                    open_in_new
                                   </span>
-                                  <span>Resumo</span>
                                 </button>
+                              ) : (
+                                <span className="text-[#9E9E9E]">-</span>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    });
-                  })()
-                )}
+                            </td>
+                            <td className="py-3 px-4 text-[#555] text-xs font-medium">
+                              {it.fabrica}
+                            </td>
+                            <td
+                              className={`py-3 px-3 text-center font-mono text-xs text-[#1A1A1A] ${
+                                isSimuladoCarteira
+                                  ? "bg-[#F1F5F9]/60"
+                                  : isSimulado
+                                  ? "bg-[#FAF5EE]/40"
+                                  : ""
+                              }`}
+                            >
+                              {it.data_abertura ? (
+                                it.data_abertura
+                              ) : isSimulado ? (
+                                <span
+                                  className={`text-[10px] font-sans font-semibold ${
+                                    isSimuladoCarteira ? "text-[#475569]" : "text-[#8B5A2B]"
+                                  }`}
+                                  title="Sem data de entrega informada — posicionado no final da lista"
+                                >
+                                  Sem data (Fim)
+                                </span>
+                              ) : (
+                                <span className="text-[#9E9E9E]">-</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono font-medium text-[#1A1A1A] text-xs">
+                              {formatarQtd(it.saldo)}
+                            </td>
+                            <td className="py-3 px-3 text-center text-[#757575] font-mono text-xs">
+                              {it.entrega || "-"}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-[#757575]">
+                                    {it.componentes_disponiveis}/{it.total_componentes} disp.
+                                  </span>
+                                  <span className={`font-mono font-semibold ${isDisponivel ? "text-[#3B6E4C]" : it.perc_disponivel > 70 ? "text-[#835425]" : "text-[#B84A39]"}`}>
+                                    {formatarPerc(it.perc_disponivel)}
+                                  </span>
+                                </div>
+                                <div className="w-full bg-[#EEEEEE] h-1.5 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${
+                                      isDisponivel
+                                        ? "bg-[#3B6E4C]"
+                                        : it.perc_disponivel > 70
+                                        ? "bg-[#835425]"
+                                        : "bg-[#B84A39]"
+                                    }`}
+                                    style={{ width: `${Math.min(100, it.perc_disponivel)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
+                              {isDisponivel ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#3B6E4C]/10 text-[#3B6E4C] text-[11px] font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#3B6E4C]" />
+                                  Disponível
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#B84A39]/10 text-[#B84A39] text-[11px] font-semibold">
+                                  <span className="material-symbols-outlined text-[13px]">warning</span>
+                                  Faltam {it.componentes_faltando}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 pr-5 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => abrirDetalhes(it)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#E0E0E0] bg-transparent text-[#1A1A1A] hover:border-[#1A1A1A] text-xs transition-colors cursor-pointer"
+                                  title="Ver insumos deste item final"
+                                >
+                                  <span className="material-symbols-outlined text-[14px] text-[#757575]">
+                                    visibility
+                                  </span>
+                                  <span>Ver Insumos</span>
+                                </button>
+                                {it.pedido && (
+                                  <button
+                                    type="button"
+                                    onClick={() => abrirResumoPedido(it.pedido, "TODOS")}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-[#E0E0E0] bg-transparent text-[#1A1A1A] hover:border-[#1A1A1A] text-xs transition-colors cursor-pointer"
+                                    title={`Resumo Gerencial do Pedido #${it.pedido}`}
+                                  >
+                                    <span className="material-symbols-outlined text-[14px] text-[#757575]">
+                                      receipt_long
+                                    </span>
+                                    <span>Resumo</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()
+                  )}
 
-                {/* INDICADOR DE STATUS / LOADING AO FINAL DA TABELA */}
-                {itens.length > 0 && (
-                  <tr>
-                    <td colSpan={10} className="p-3 text-center text-xs text-[#757575] bg-[#FAFAFA]">
-                      {loadingMore ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="material-symbols-outlined text-[16px] animate-spin text-[#1A1A1A]">
-                            progress_activity
+                  {/* INDICADOR DE STATUS / LOADING AO FINAL DA TABELA */}
+                  {itens.length > 0 && (
+                    <tr>
+                      <td colSpan={10} className="p-3 text-center text-xs text-[#757575] bg-[#FAFAFA]">
+                        {loadingMore ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-[16px] animate-spin text-[#1A1A1A]">
+                              progress_activity
+                            </span>
+                            <span>Carregando mais linhas...</span>
+                          </div>
+                        ) : hasMore ? (
+                          <span className="text-[#9E9E9E] text-[11px]">
+                            Role a tabela para carregar mais registros
                           </span>
-                          <span>Carregando mais linhas...</span>
-                        </div>
-                      ) : hasMore ? (
-                        <span className="text-[#9E9E9E] text-[11px]">
-                          Role a tabela para carregar mais registros
-                        </span>
-                      ) : (
-                        <span className="text-[#757575] font-medium text-[11px]">
-                          ✓ Todos os {totalRegistros.toLocaleString("pt-BR")} itens finais carregados.
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                        ) : (
+                          <span className="text-[#757575] font-medium text-[11px]">
+                            ✓ Todos os {totalRegistros.toLocaleString("pt-BR")} itens finais carregados.
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          {/* RODAPÉ INFORMATIVO DE ROLAGEM INFINITA (FIXO NO FINAL DA TABELA) */}
-          <div className="shrink-0 px-4 py-2 border-t border-[#E0E0E0] flex items-center justify-between text-xs text-[#666666] bg-white">
-            <span className="font-medium">
-              Exibindo <strong className="text-[#1A1A1A]">{itens.length}</strong> de{" "}
-              <strong className="text-[#1A1A1A]">
-                {totalRegistros.toLocaleString("pt-BR")}
-              </strong>{" "}
-              itens finais
-            </span>
+            {/* RODAPÉ INFORMATIVO DE ROLAGEM INFINITA */}
+            <div className="shrink-0 px-6 py-3 border-t border-[#EAEAEA] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-4 text-xs text-[#757575]">
+              <div className="flex items-center gap-3">
+                <span>
+                  Exibindo <span className="font-medium text-[#1A1A1A] font-mono">{itens.length}</span> de{" "}
+                  <span className="font-medium text-[#1A1A1A] font-mono">
+                    {totalRegistros.toLocaleString("pt-BR")}
+                  </span>{" "}
+                  itens finais
+                </span>
+              </div>
 
-            <span className="text-[11px] text-[#757575]">
-              {hasMore ? "Role internamente para buscar mais linhas" : "Fim dos registros"}
-            </span>
-          </div>
-        </section>
-      </main>
+              <div className="flex items-center gap-6">
+                <span className="text-[11px] text-[#757575] italic flex items-center gap-1.5 hidden md:flex">
+                  <span className="material-symbols-outlined text-[15px]">mouse</span>
+                  {hasMore ? "Role internamente para carregar mais linhas" : "Fim dos registros"}
+                </span>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
 
       {/* MODAL NATIVO <dialog> DO SIMULADOR DE PEDIDOS (INTRANET) */}
       <dialog
         ref={simDialogRef}
         aria-labelledby={simDialogTitleId}
-        className="w-full max-w-2xl rounded-sm shadow-2xl border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto"
+        className="w-full max-w-[690px] rounded-xs shadow-lider-modal border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto backdrop:bg-black/30 backdrop:backdrop-blur-[2px] animate-in fade-in zoom-in-95 duration-200"
       >
         <form onSubmit={handleConfirmarSimulacao} className="flex flex-col max-h-[90vh]">
           {/* Cabeçalho do Modal */}
-          <div className="px-5 py-4 border-b border-[#E0E0E0] flex items-start justify-between bg-[#FAFAFA]">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-[#4338CA]">
-                  science
-                </span>
-                <h2 id={simDialogTitleId} className="text-sm font-bold text-[#1A1A1A]">
+          <header className="px-8 pt-7 pb-5 flex items-start justify-between border-b border-[#EDEDED] bg-white">
+            <div className="flex items-start gap-3.5">
+              <div className="mt-0.5 w-8 h-8 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] flex items-center justify-center text-[#8B5A2B] shrink-0">
+                <svg className="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div>
+                <h2 id={simDialogTitleId} className="font-display font-medium text-[17px] tracking-tight text-[#1A1A1A]">
                   Consultar e Simular Pedidos Específicos
                 </h2>
+                <p className="text-xs text-[#757575] font-normal leading-relaxed mt-1">
+                  Consulta estrutura e saldo na Intranet (<span className="font-mono text-[11px] text-[#1A1A1A]">192.168.0.6</span>), posiciona pela data de abertura e recalcula o estoque cumulativo.
+                </p>
               </div>
-              <p className="text-[11px] text-[#666666]">
-                Consulta estrutura e saldo na Intranet (192.168.0.6), posiciona pela data de abertura e recalcula o estoque cumulativo.
-              </p>
             </div>
             <button
               type="button"
               onClick={fecharModalSimulador}
-              className="text-[#757575] hover:text-[#1A1A1A] p-1 rounded-sm hover:bg-[#EEEEEE]"
-              aria-label="Fechar modal de simulação"
+              className="text-[#9E9E9E] hover:text-[#1A1A1A] p-1.5 -mr-1 transition-colors rounded-xs focus:outline-none"
+              aria-label="Fechar janela"
             >
-              <span className="material-symbols-outlined text-[20px]">close</span>
+              <svg className="w-4 h-4 stroke-[1.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-          </div>
+          </header>
 
           {/* Corpo do Modal */}
-          <div className="p-5 overflow-y-auto space-y-4">
+          <div className="p-8 space-y-6 overflow-y-auto bg-white max-h-[calc(90vh-140px)]">
             {erroSimulador && (
               <div
                 role="alert"
-                className="p-3 rounded-sm bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] text-xs flex items-start gap-2"
+                className="p-3.5 rounded-xs bg-[#FFEBEE]/80 border border-[#EF9A9A] text-[#C62828] text-xs flex items-start gap-2.5"
               >
                 <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
                   error
@@ -2636,7 +2725,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             {avisoSimulador && (
               <div
                 role="status"
-                className="p-3 rounded-sm bg-[#FFF8E1] border border-[#FFE082] text-[#8D6E63] text-xs flex items-start gap-2"
+                className="p-3.5 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] text-[#8B5A2B] text-xs flex items-start gap-2.5"
               >
                 <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
                   info
@@ -2646,15 +2735,13 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             )}
 
             {/* Credenciais da Intranet */}
-            <fieldset className="border border-[#E0E0E0] rounded-sm p-3.5 bg-[#FAFAFA]/60">
-              <legend className="px-1.5 text-[11px] font-bold uppercase tracking-wider text-[#424242]">
-                Credenciais da Intranet
-              </legend>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col">
+            <fieldset className="lider-fieldset">
+              <legend className="lider-legend">Credenciais da Intranet</legend>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                   <label
                     htmlFor={userFieldId}
-                    className="text-[11px] font-semibold text-[#424242] mb-1"
+                    className="block text-[11px] font-medium text-[#1A1A1A] mb-1.5"
                   >
                     Usuário da Intranet
                   </label>
@@ -2670,18 +2757,18 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                     value={intranetUsuario}
                     onChange={(e) => setIntranetUsuario(e.target.value)}
                     placeholder="Seu usuário (192.168.0.6)"
-                    className="px-2.5 py-1.5 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#4338CA]"
+                    className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] placeholder-[#9E9E9E] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors shadow-none"
                   />
                 </div>
 
-                <div className="flex flex-col">
+                <div>
                   <label
                     htmlFor={passFieldId}
-                    className="text-[11px] font-semibold text-[#424242] mb-1"
+                    className="block text-[11px] font-medium text-[#1A1A1A] mb-1.5"
                   >
                     Senha da Intranet
                   </label>
-                  <div className="relative flex items-center">
+                  <div className="relative">
                     <input
                       id={passFieldId}
                       name="password"
@@ -2690,41 +2777,40 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                       value={intranetSenha}
                       onChange={(e) => setIntranetSenha(e.target.value)}
                       placeholder="Sua senha"
-                      className="w-full px-2.5 py-1.5 pr-16 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#4338CA]"
+                      className="w-full h-10 pl-3.5 pr-16 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] placeholder-[#9E9E9E] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors shadow-none"
                     />
                     <button
                       type="button"
                       onClick={() => setMostrarSenha((prev) => !prev)}
-                      className="absolute right-1.5 px-1.5 py-0.5 text-[10px] font-semibold text-[#666666] hover:text-[#1A1A1A] rounded hover:bg-[#F2F2F2]"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[11px] font-medium text-[#757575] hover:text-[#1A1A1A] tracking-wide focus:outline-none transition-colors"
                     >
                       {mostrarSenha ? "Ocultar" : "Mostrar"}
                     </button>
                   </div>
                 </div>
               </div>
-              <p className="text-[10px] text-[#757575] mt-2">
+              <p className="text-[11px] text-[#757575] font-normal mt-3.5 leading-relaxed">
                 Pedidos já em carteira mantêm seus números/saldos originais e têm a Data de Abertura atualizada pela Entrega Desejada. Pedidos novos têm saldo e estrutura importados da Intranet.
               </p>
             </fieldset>
 
             {/* Lista de Pedidos e Datas de Entrega */}
-            <fieldset className="border border-[#E0E0E0] rounded-sm p-3.5 space-y-2.5">
-              <legend className="px-1.5 text-[11px] font-bold uppercase tracking-wider text-[#424242]">
-                Pedidos para Consultar / Simular
-              </legend>
+            <fieldset className="lider-fieldset">
+              <legend className="lider-legend">Pedidos para Consultar / Simular</legend>
 
-              <div className="space-y-2">
+              <div className="space-y-3.5">
                 {linhasSimulador.map((linha, index) => (
                   <div
                     key={linha.id}
-                    className="grid grid-cols-1 sm:grid-cols-[1fr_195px_36px] gap-2 items-end"
+                    className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 group"
                   >
-                    <div className="flex flex-col">
+                    <div className="flex-1">
                       <label
                         htmlFor={`ped_${linha.id}`}
-                        className="text-[11px] font-medium text-[#666666] mb-0.5"
+                        className="block text-[11px] font-medium text-[#1A1A1A] mb-1.5"
                       >
-                        Número do Pedido {linhasSimulador.length > 1 ? `#${index + 1}` : ""} *
+                        Número do Pedido {linhasSimulador.length > 1 ? `#${index + 1}` : ""}{" "}
+                        <span className="text-[#8B5A2B]">*</span>
                       </label>
                       <input
                         id={`ped_${linha.id}`}
@@ -2739,14 +2825,14 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           atualizarLinhaPedido(linha.id, "pedido", e.target.value)
                         }
                         placeholder="Ex: 188366 (ou 188366, 188367)"
-                        className="px-2.5 py-1.5 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#4338CA] font-mono"
+                        className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs font-mono text-[#1A1A1A] placeholder-[#9E9E9E] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors"
                       />
                     </div>
 
-                    <div className="flex flex-col">
+                    <div className="w-full sm:w-56">
                       <label
                         htmlFor={`dt_${linha.id}`}
-                        className="text-[11px] font-medium text-[#666666] mb-0.5"
+                        className="block text-[11px] font-medium text-[#1A1A1A] mb-1.5"
                       >
                         Data de Entrega Desejada
                       </label>
@@ -2758,50 +2844,56 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         onChange={(e) =>
                           atualizarLinhaPedido(linha.id, "data_entrega", e.target.value)
                         }
-                        className="px-2.5 py-1.5 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#4338CA] cursor-pointer"
+                        className="w-full h-10 px-3.5 bg-white border border-[#E0E0E0] text-xs text-[#1A1A1A] rounded-xs focus:border-[#1A1A1A] focus:ring-0 transition-colors uppercase font-mono"
                       />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => removerLinhaPedido(linha.id)}
-                      className="h-[30px] flex items-center justify-center rounded-sm border border-[#E0E0E0] text-[#757575] hover:text-[#C62828] hover:border-[#EF9A9A] hover:bg-[#FFEBEE]/50 transition-colors"
-                      title="Remover linha"
-                      aria-label={`Remover linha ${index + 1}`}
-                    >
-                      <span className="material-symbols-outlined text-[16px]">delete</span>
-                    </button>
+                    <div className="sm:self-end">
+                      <button
+                        type="button"
+                        onClick={() => removerLinhaPedido(linha.id)}
+                        className="w-10 h-10 flex items-center justify-center border border-[#E0E0E0] text-[#9E9E9E] hover:text-red-700 hover:border-red-200 transition-colors rounded-xs bg-white focus:outline-none"
+                        title="Remover linha"
+                        aria-label={`Remover linha ${index + 1}`}
+                      >
+                        <svg className="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div className="mt-4 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={adicionarLinhaPedido}
-                  className="px-2.5 py-1 text-xs font-semibold text-[#4338CA] bg-[#EEF2FF] hover:bg-[#E0E7FF] border border-[#C7D2FE] rounded-sm flex items-center gap-1 transition-colors"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-[#E0E0E0] hover:border-[#1A1A1A] text-[#1A1A1A] bg-white text-xs font-medium rounded-xs transition-colors focus:outline-none w-fit cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[15px]">add</span>
+                  <svg className="w-3.5 h-3.5 stroke-[1.7]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
                   <span>Adicionar outro pedido</span>
                 </button>
 
-                <span className="text-[10px] text-[#757575]">
-                  Em branco = posiciona o pedido no <strong>final da lista</strong>.
+                <span className="text-[11px] text-[#757575] font-normal text-right">
+                  Em branco = posiciona o pedido no <strong className="text-[#1A1A1A] font-medium">final da lista</strong>.
                 </span>
               </div>
             </fieldset>
 
             {/* Resumo de pedidos já ativos no simulador */}
             {pedidosSimuladosAtivos.length > 0 && (
-              <div className="p-3 rounded-sm bg-[#EEF2FF]/60 border border-[#C7D2FE] space-y-1.5">
+              <div className="p-3.5 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[#312E81]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8B5A2B]">
                     Pedidos já ativos nesta simulação ({pedidosSimuladosAtivos.length})
                   </span>
                   <button
                     type="button"
                     onClick={handleLimparSimulacao}
-                    className="text-[11px] font-semibold text-[#C62828] hover:underline"
+                    className="text-[11px] font-medium text-red-700 hover:underline"
                   >
                     Limpar todos
                   </button>
@@ -2810,17 +2902,17 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   {pedidosSimuladosAtivos.map((ps) => (
                     <span
                       key={ps.pedido}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white border border-[#C7D2FE] text-[11px] text-[#312E81]"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-white border border-[#E0E0E0] text-[11px] text-[#1A1A1A]"
                     >
                       <strong className="font-mono">#{ps.pedido}</strong>
-                      <span className="text-[10px] text-[#4338CA]">
+                      <span className="text-[10px] text-[#757575]">
                         {ps.origem === "carteira" ? "Ordem criada • " : ""}
                         {ps.data_entrega || "Fim da fila"}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoverPedidoSimulado(ps.pedido)}
-                        className="hover:text-[#C62828] font-bold ml-0.5"
+                        className="hover:text-red-700 font-bold ml-1 text-sm leading-none"
                       >
                         ×
                       </button>
@@ -2832,22 +2924,22 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           </div>
 
           {/* Rodapé do Modal */}
-          <div className="px-5 py-3.5 border-t border-[#E0E0E0] bg-[#FAFAFA] flex items-center justify-end gap-2">
+          <footer className="px-8 py-5 bg-[#FAF7F2]/40 border-t border-[#EDEDED] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={fecharModalSimulador}
               disabled={simulando}
-              className="px-3.5 py-1.5 text-xs font-medium border border-[#D5D5D5] bg-white text-[#424242] rounded-sm hover:bg-[#F2F2F2] transition-colors"
+              className="px-5 py-2.5 bg-transparent border border-[#E0E0E0] text-[#1A1A1A] text-xs font-medium rounded-xs hover:bg-white hover:border-[#1A1A1A] transition-all focus:outline-none cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={simulando}
-              className="px-4 py-1.5 text-xs font-semibold bg-[#4338CA] text-white rounded-sm hover:bg-[#3730A3] transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#222222] hover:bg-black text-white text-xs font-medium tracking-wide rounded-xs transition-all shadow-none hover:shadow-sm focus:outline-none disabled:opacity-60 cursor-pointer"
             >
               <span
-                className={`material-symbols-outlined text-[16px] ${
+                className={`material-symbols-outlined text-[15px] ${
                   simulando ? "animate-spin" : ""
                 }`}
               >
@@ -2857,163 +2949,217 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                 {simulando ? "Consultando e Recalculando..." : "Confirmar e Recalcular Fila"}
               </span>
             </button>
-          </div>
+          </footer>
         </form>
       </dialog>
 
       {/* MODAL DE DETALHES DO ITEM FINAL (ORGANIZADO EM MATÉRIA-PRIMA E COMPONENTES POR FÁBRICA) */}
       {itemSelecionado && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-90% rounded-sm shadow-2xl flex flex-col max-h-[92vh] border border-[#E0E0E0] animate-fade-in">
-            {/* Header do Modal */}
-            <div className="p-5 border-b border-[#E0E0E0] flex items-start justify-between bg-[#FAFAFA] gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-base font-bold text-[#1A1A1A]">
-                    {itemSelecionado.item_final}
-                  </span>
-                  {itemSelecionado.simulado && (
-                    itemSelecionado.origem_simulacao === "carteira" ? (
-                      <span className="px-2 py-0.5 rounded-sm text-[10px] font-medium border border-[#CBD5E1] bg-white text-[#475569]">
-                        Ordem criada
+        <div className="fixed inset-0 z-50 bg-[#000000]/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-[90%] xl:max-w-7xl rounded-xs shadow-lider-modal flex flex-col max-h-[92vh] border border-[#E8E8E8] animate-in fade-in duration-200 overflow-hidden">
+            {/* Header do Modal Líder Design */}
+            <header className="h-[68px] px-8 bg-white border-b border-[#EAEAEA] flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-[17px] font-semibold text-[#1A1A1A] tracking-tight font-serif">
+                      Detalhamento de Insumos por Item Final
+                    </h2>
+                    {itemSelecionado.simulado && (
+                      itemSelecionado.origem_simulacao === "carteira" ? (
+                        <span className="px-2 py-0.5 rounded-xs text-[10px] font-medium border border-[#CBD5E1] bg-white text-[#475569]">
+                          Ordem criada
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-xs text-[10px] font-semibold uppercase tracking-wider bg-[#8B5A2B] text-white flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[12px]">science</span>
+                          Simulado (Intranet)
+                        </span>
+                      )
+                    )}
+                    {(detalhesItem
+                      ? detalhesItem.total_faltando === 0
+                      : itemSelecionado.status === "Disponível") ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-xs text-[11px] font-medium bg-[#EBF4EC] text-[#245D31] border border-[#D5E8D7]">
+                        ● 100% Disponível na Fila
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#4338CA] text-white flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[12px]">science</span>
-                        Simulado (Intranet)
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-xs text-[11px] font-semibold bg-[#FFEBEE] text-[#C62828] border border-[#FFCDD2]">
+                        ● {detalhesItem
+                          ? detalhesItem.total_faltando
+                          : itemSelecionado.componentes_faltando}{" "}
+                        insumo(s) em falta
                       </span>
-                    )
-                  )}
-                  {(detalhesItem
-                    ? detalhesItem.total_faltando === 0
-                    : itemSelecionado.status === "Disponível") ? (
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F5E9] text-[#2E7D32]">
-                      100% Disponível na Fila
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFEBEE] text-[#C62828]">
-                      {detalhesItem
-                        ? detalhesItem.total_faltando
-                        : itemSelecionado.componentes_faltando}{" "}
-                      insumo(s) em falta
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-[#666666]">
-                  {itemSelecionado.descricao || "Sem descrição comercial"}
-                </p>
-                <div className="flex flex-wrap gap-4 text-[11px] text-[#757575] pt-1">
-                  {detalhesItem?.posicao_fila && (
-                    <span>
-                      Posição na Fila:{" "}
-                      <strong className="text-[#4338CA] font-mono">
-                        #{detalhesItem.posicao_fila}
-                      </strong>
-                    </span>
-                  )}
-                  <span>
-                    Pedido:{" "}
-                    <strong className="text-[#1A1A1A] font-mono">
-                      {itemSelecionado.pedido || "-"}
-                    </strong>
-                  </span>
-                  <span>
-                    Fábrica:{" "}
-                    <strong className="text-[#1A1A1A]">{itemSelecionado.fabrica}</strong>
-                  </span>
-                  <span>
-                    Abertura OP:{" "}
-                    <strong className="text-[#1A1A1A] font-mono">
-                      {itemSelecionado.data_abertura || "Sem data (Fim da fila)"}
-                    </strong>
-                  </span>
-                  <span>
-                    Saldo: <strong className="text-[#1A1A1A]">{formatarQtd(itemSelecionado.saldo)}</strong>
-                  </span>
-                  <span>
-                    Entrega:{" "}
-                    <strong className="text-[#1A1A1A] font-mono">
-                      {itemSelecionado.entrega || "-"}
-                    </strong>
-                  </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[#757575] mt-0.5">
+                    Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {itemSelecionado.pedido && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const ped = itemSelecionado.pedido;
-                      fecharDetalhes();
-                      abrirResumoPedido(ped, "TODOS");
-                    }}
-                    className="px-3 py-1.5 rounded-sm bg-[#8B5A2B] text-white text-xs font-semibold hover:bg-[#6F4722] transition-colors flex items-center gap-1.5 shadow-xs"
-                    title="Abrir tela de resumo gerencial para o pedido completo"
-                  >
-                    <span className="material-symbols-outlined text-[15px]">assignment</span>
-                    <span>Resumo do Pedido #{itemSelecionado.pedido}</span>
-                  </button>
-                )}
-
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-xs bg-[#F5F5F5] border border-[#E0E0E0] text-[11px] text-[#444] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"></span>
+                  MATRIZ INDUSTRIAL
+                </div>
+                <div className="flex items-center gap-2.5 pl-2 border-l border-[#EDEDED]">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-[12px] font-semibold text-[#1A1A1A] leading-tight">Controladoria Fabril</div>
+                    <div className="text-[10px] text-[#888]">PCP &amp; Engenharia</div>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-[#222] text-white flex items-center justify-center font-medium text-[11px]">
+                    CF
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={fecharDetalhes}
-                  className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#F2F2F2] transition-colors"
-                  title="Fechar"
+                  className="p-1.5 text-[#666] hover:text-[#1A1A1A] hover:bg-[#F2F2F2] rounded-xs transition-colors ml-1 cursor-pointer"
+                  title="Fechar detalhamento"
+                  aria-label="Fechar detalhamento"
                 >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                    <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               </div>
+            </header>
+
+            {/* Item Card Meta Section */}
+            <div className="px-8 pt-6 pb-2 bg-[#F8F8F8]">
+              <section className="bg-white border border-[#E5E5E5] rounded-xs p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#F0F0F0] pb-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-xs uppercase tracking-wider text-[#8B5A2B] bg-[#F7F2ED] px-2 py-0.5 rounded-xs font-semibold border border-[#E8DFD5]">
+                        Código: {itemSelecionado.item_final}
+                      </span>
+                      <span className="text-xs text-[#888]">• Item Final Faturável</span>
+                    </div>
+                    <h3 className="text-base font-medium text-[#1A1A1A] tracking-tight font-sans">
+                      {itemSelecionado.descricao || "Sem descrição comercial"}
+                    </h3>
+                  </div>
+
+                  {itemSelecionado.pedido && (
+                    <div className="shrink-0 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ped = itemSelecionado.pedido;
+                          fecharDetalhes();
+                          abrirResumoPedido(ped, "TODOS");
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#8B5A2B] hover:bg-[#784c22] text-white text-xs font-medium rounded-xs shadow-xs transition-all cursor-pointer"
+                        title="Abrir tela de resumo gerencial para o pedido completo"
+                      >
+                        <svg className="w-4 h-4 text-white/90" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span>Resumo do Pedido #{itemSelecionado.pedido}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Metadados da Fila em Grid Minimalista */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-[#757575] block mb-0.5 uppercase tracking-wide">Posição na Fila</span>
+                    <span className="font-semibold text-[#1A1A1A] text-sm font-mono">
+                      {detalhesItem?.posicao_fila ? `#${detalhesItem.posicao_fila}` : "-"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#757575] block mb-0.5 uppercase tracking-wide">Número do Pedido</span>
+                    <span className="font-semibold text-[#1A1A1A] text-sm font-mono">
+                      {itemSelecionado.pedido || "-"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#757575] block mb-0.5 uppercase tracking-wide">Fábrica Responsável</span>
+                    <span className="font-medium text-[#1A1A1A]">{itemSelecionado.fabrica}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#757575] block mb-0.5 uppercase tracking-wide">Abertura da OP</span>
+                    <span className="font-medium text-[#1A1A1A] font-mono">
+                      {itemSelecionado.data_abertura || "Sem data"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#757575] block mb-0.5 uppercase tracking-wide">Saldo OP</span>
+                    <span className="font-semibold text-[#1A1A1A] text-sm font-mono">
+                      {formatarQtd(itemSelecionado.saldo)} un
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#757575] block mb-0.5 uppercase tracking-wide">Data de Entrega</span>
+                    <span className="font-medium text-[#1A1A1A] font-mono">
+                      {itemSelecionado.entrega || "-"}
+                    </span>
+                  </div>
+                </div>
+              </section>
             </div>
 
             {/* BARRA DE CONTROLES E FILTROS INTERNOS DO MODAL */}
-            <div className="px-5 py-2.5 border-b border-[#E0E0E0] flex flex-wrap items-center justify-between gap-3 bg-white">
+            <div className="px-8 py-3 bg-[#F8F8F8] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-[#E5E5E5]">
               {/* Abas: Faltando vs Disponíveis */}
-              <div className="flex gap-4">
+              <div className="flex items-center space-x-2" role="tablist">
                 <button
                   type="button"
                   onClick={() => setAbaDetalhe("faltando")}
-                  className={`py-1.5 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-xs transition-colors cursor-pointer ${
                     abaDetalhe === "faltando"
-                      ? "border-[#C62828] text-[#C62828]"
-                      : "border-transparent text-[#757575] hover:text-[#1A1A1A]"
+                      ? "font-semibold text-[#1A1A1A] bg-white border border-[#DDD] shadow-xs"
+                      : "text-[#757575] hover:text-[#1A1A1A]"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[16px]">warning</span>
-                  <span>O que falta para o item ({detalhesItem?.total_faltando || 0})</span>
+                  <svg className="w-3.5 h-3.5 text-[#B84A39]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>O que falta para o item</span>
+                  <span className="text-[10px] bg-[#EAEAEA] text-[#666] px-1.5 py-0.2 rounded-full font-mono">
+                    {detalhesItem?.total_faltando || 0}
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setAbaDetalhe("disponiveis")}
-                  className={`py-1.5 text-xs font-semibold flex items-center gap-1.5 border-b-2 transition-colors ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs rounded-xs transition-colors cursor-pointer ${
                     abaDetalhe === "disponiveis"
-                      ? "border-[#2E7D32] text-[#2E7D32]"
-                      : "border-transparent text-[#757575] hover:text-[#1A1A1A]"
+                      ? "font-semibold text-[#1A1A1A] bg-white border border-[#DDD] shadow-xs"
+                      : "text-[#757575] hover:text-[#1A1A1A]"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                  <span>Disponíveis ({detalhesItem?.total_disponiveis || 0})</span>
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>Disponíveis</span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-mono font-bold">
+                    {detalhesItem?.total_disponiveis || 0}
+                  </span>
                 </button>
               </div>
 
               {/* FILTROS INTERNOS DO MODAL (BAIXA E TIPO) */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-[#666]">
                 {/* Filtro Baixa no Modal */}
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#666666]">Baixa:</span>
-                  <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-[10px]">
+                  <span className="text-[11px] uppercase tracking-wide text-[#888]">Baixa:</span>
+                  <div className="inline-flex border border-[#E0E0E0] rounded-xs bg-white p-0.5">
                     <button
                       type="button"
                       onClick={() => {
                         setModalBaixa("todos");
                         carregarDetalhes(itemSelecionado, "todos", modalTipo);
                       }}
-                      className={`px-2 py-0.5 font-medium ${
+                      className={`px-2 py-0.5 text-[11px] rounded-xs cursor-pointer ${
                         modalBaixa === "todos"
-                          ? "bg-[#222222] text-white"
-                          : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                          ? "bg-[#1A1A1A] text-white font-medium"
+                          : "text-[#555] hover:text-black"
                       }`}
                     >
                       Todas
@@ -3024,10 +3170,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         setModalBaixa("S");
                         carregarDetalhes(itemSelecionado, "S", modalTipo);
                       }}
-                      className={`px-2 py-0.5 font-medium border-l border-[#D5D5D5] ${
+                      className={`px-2 py-0.5 text-[11px] rounded-xs cursor-pointer ${
                         modalBaixa === "S"
-                          ? "bg-[#2E7D32] text-white"
-                          : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                          ? "bg-[#1A1A1A] text-white font-medium"
+                          : "text-[#555] hover:text-black"
                       }`}
                     >
                       S
@@ -3038,10 +3184,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         setModalBaixa("N");
                         carregarDetalhes(itemSelecionado, "N", modalTipo);
                       }}
-                      className={`px-2 py-0.5 font-medium border-l border-[#D5D5D5] ${
+                      className={`px-2 py-0.5 text-[11px] rounded-xs cursor-pointer ${
                         modalBaixa === "N"
-                          ? "bg-[#8B5A2B] text-white"
-                          : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                          ? "bg-[#1A1A1A] text-white font-medium"
+                          : "text-[#555] hover:text-black"
                       }`}
                     >
                       N
@@ -3051,18 +3197,18 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
 
                 {/* Filtro Tipo no Modal */}
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-[#666666]">Origem:</span>
-                  <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-[10px]">
+                  <span className="text-[11px] uppercase tracking-wide text-[#888]">Origem:</span>
+                  <div className="inline-flex border border-[#E0E0E0] rounded-xs bg-white p-0.5">
                     <button
                       type="button"
                       onClick={() => {
                         setModalTipo("todos");
                         carregarDetalhes(itemSelecionado, modalBaixa, "todos");
                       }}
-                      className={`px-2 py-0.5 font-medium ${
+                      className={`px-2 py-0.5 text-[11px] rounded-xs cursor-pointer ${
                         modalTipo === "todos"
-                          ? "bg-[#222222] text-white"
-                          : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                          ? "bg-[#1A1A1A] text-white font-medium"
+                          : "text-[#555] hover:text-black"
                       }`}
                     >
                       Todas
@@ -3073,10 +3219,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         setModalTipo("C");
                         carregarDetalhes(itemSelecionado, modalBaixa, "C");
                       }}
-                      className={`px-2 py-0.5 font-medium border-l border-[#D5D5D5] ${
+                      className={`px-2 py-0.5 text-[11px] rounded-xs cursor-pointer ${
                         modalTipo === "C"
-                          ? "bg-[#8B5A2B] text-white"
-                          : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                          ? "bg-[#1A1A1A] text-white font-medium"
+                          : "text-[#555] hover:text-black"
                       }`}
                     >
                       Matéria-Prima (C)
@@ -3087,10 +3233,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                         setModalTipo("P");
                         carregarDetalhes(itemSelecionado, modalBaixa, "P");
                       }}
-                      className={`px-2 py-0.5 font-medium border-l border-[#D5D5D5] ${
+                      className={`px-2 py-0.5 text-[11px] rounded-xs cursor-pointer ${
                         modalTipo === "P"
-                          ? "bg-[#1565C0] text-white"
-                          : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                          ? "bg-[#1A1A1A] text-white font-medium"
+                          : "text-[#555] hover:text-black"
                       }`}
                     >
                       Componente (P)
@@ -3101,9 +3247,9 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             </div>
 
             {/* Conteúdo Gerencial do Modal (Separado em Matéria-Prima e Componentes por Fábrica) */}
-            <div className="p-5 overflow-y-auto flex-1 bg-[#F9F9F9]">
+            <div className="p-8 overflow-y-auto flex-1 bg-[#F8F8F8]">
               {carregandoDetalhes ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#757575]">
+                <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575] bg-white border border-[#E8E8E8] rounded-xs">
                   <span className="material-symbols-outlined text-3xl animate-spin text-[#1A1A1A]">
                     progress_activity
                   </span>
@@ -3112,7 +3258,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   </span>
                 </div>
               ) : !detalhesItem ? (
-                <div className="py-8 text-center text-xs text-[#757575]">
+                <div className="py-12 text-center text-xs text-[#757575] bg-white border border-[#E8E8E8] rounded-xs">
                   Dados não disponíveis.
                 </div>
               ) : abaDetalhe === "faltando" ? (
@@ -3123,7 +3269,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="p-4 border-t border-[#E0E0E0] flex justify-between items-center bg-[#FAFAFA]">
+            <footer className="px-8 py-4 border-t border-[#EAEAEA] flex justify-between items-center bg-white">
               <span className="text-[11px] text-[#757575]">
                 {detalhesItem
                   ? `Total de ${detalhesItem.total_componentes} insumos cadastrados na estrutura`
@@ -3132,11 +3278,11 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               <button
                 type="button"
                 onClick={fecharDetalhes}
-                className="px-4 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors"
+                className="px-5 py-2 rounded-xs bg-[#1A1A1A] text-white text-xs font-medium hover:bg-black transition-colors cursor-pointer"
               >
                 Fechar
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}
@@ -3145,48 +3291,53 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       <dialog
         ref={resumoDialogRef}
         aria-labelledby={resumoDialogTitleId}
-        className="w-full max-w-80% rounded-sm shadow-2xl border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto"
+        className="w-full max-w-[90%] xl:max-w-7xl rounded-xs shadow-lider-modal border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto backdrop:bg-black/30 backdrop:backdrop-blur-[2px] overflow-hidden"
       >
-        <div className="flex flex-col max-h-[92vh]">
+        <div className="flex flex-col max-h-[90%]">
           {/* Cabeçalho do Resumo Gerencial com Busca de Pedido */}
-          <div className="px-5 py-4 border-b border-[#E0E0E0] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-[#8B5A2B]">
-                  assignment_late
-                </span>
-                <h2 id={resumoDialogTitleId} className="text-sm font-bold text-[#1A1A1A]">
-                  Resumo Gerencial do Pedido — O que falta para resolver o pedido ou o item
-                </h2>
+          <header className="px-8 py-5 border-b border-[#EAEAEA] bg-white flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] flex items-center justify-center text-[#8B5A2B] shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </div>
-              <p className="text-[11px] text-[#666666]">
-                Visão consolidada separada por Matéria-Prima (previsão de OC) e Componentes agrupados por Fábrica (abertura e entrega de OP).
-              </p>
+              <div>
+                <h2 id={resumoDialogTitleId} className="font-serif text-lg font-medium tracking-tight text-[#1A1A1A]">
+                  Resumo Gerencial do Pedido <span className="font-sans font-light text-neutral-400 mx-1">—</span> <span className="font-normal text-sm text-neutral-600">O que falta para resolver o pedido ou o item</span>
+                </h2>
+                <p className="text-xs text-[#757575] font-light tracking-wide mt-0.5">
+                  Visão consolidada separada por Matéria-Prima (previsão de OC) e Componentes agrupados por fábrica (abertura e entrega de OP).
+                </p>
+              </div>
             </div>
 
             {/* Busca rápida de Pedido dentro da tela de resumo */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   carregarResumoPedido(resumoPedidoInput, "TODOS", resumoBaixa, resumoTipo);
                 }}
-                className="flex items-center gap-1.5"
+                className="flex items-center bg-[#F8F8F8] border border-[#E0E0E0] rounded-xs p-1 pl-3 text-xs shadow-none"
               >
-                <label className="text-xs font-semibold text-[#424242]">Pedido:</label>
+                <label htmlFor="order-search" className="text-neutral-500 font-medium mr-2">Pedido:</label>
                 <input
+                  id="order-search"
                   type="text"
                   value={resumoPedidoInput}
                   onChange={(e) => setResumoPedidoInput(e.target.value)}
-                  placeholder="Ex: 205408"
-                  className="w-32 px-2.5 py-1 text-xs font-mono font-bold bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#8B5A2B]"
+                  placeholder="Ex: 176091"
+                  className="bg-transparent border-none text-xs font-semibold text-[#1A1A1A] focus:ring-0 p-0 w-24 font-mono"
                 />
                 <button
                   type="submit"
                   disabled={carregandoResumo}
-                  className="px-3 py-1 text-xs font-semibold bg-[#8B5A2B] text-white rounded-sm hover:bg-[#6F4722] transition-colors flex items-center gap-1"
+                  className="bg-[#1A1A1A] text-white hover:bg-neutral-800 transition-colors text-xs font-medium px-3.5 py-1.5 rounded-xs flex items-center gap-1.5 ml-2 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-[15px]">search</span>
+                  <svg className="w-3.5 h-3.5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                   <span>Consultar</span>
                 </button>
               </form>
@@ -3194,20 +3345,23 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
               <button
                 type="button"
                 onClick={fecharResumoPedido}
-                className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#EEEEEE] transition-colors"
+                className="text-neutral-400 hover:text-[#1A1A1A] transition-colors p-1.5 rounded-xs hover:bg-[#F2F2F2] cursor-pointer"
+                title="Fechar visão"
                 aria-label="Fechar resumo do pedido"
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <svg className="w-5 h-5 stroke-[1.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </div>
-          </div>
+          </header>
 
           {/* Corpo do Resumo do Pedido */}
-          <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-[#F9F9F9]">
+          <div className="p-8 overflow-y-auto flex-1 space-y-6 bg-[#F8F8F8]">
             {erroResumo && (
               <div
                 role="alert"
-                className="p-3 rounded-sm bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] text-xs flex items-center gap-2"
+                className="p-3.5 rounded-xs bg-[#FFEBEE]/80 border border-[#EF9A9A] text-[#C62828] text-xs flex items-center gap-2.5"
               >
                 <span className="material-symbols-outlined text-[16px]">error</span>
                 <span>{erroResumo}</span>
@@ -3215,7 +3369,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             )}
 
             {carregandoResumo ? (
-              <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575]">
+              <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575] bg-white border border-[#E8E8E8] rounded-xs">
                 <span className="material-symbols-outlined text-3xl animate-spin text-[#8B5A2B]">
                   progress_activity
                 </span>
@@ -3224,137 +3378,134 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                 </span>
               </div>
             ) : !resumoDados ? (
-              <div className="py-12 text-center text-xs text-[#757575]">
+              <div className="py-12 text-center text-xs text-[#757575] bg-white border border-[#E8E8E8] rounded-xs">
                 Informe o número de um pedido acima e clique em <strong>Consultar</strong> para visualizar o resumo gerencial.
               </div>
             ) : (
               <>
                 {/* FAIXA DE DADOS DO PEDIDO E KPIS EXECUTIVOS */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-12 gap-5">
                   {/* Card 1: Dados do Pedido */}
-                  <div className="bg-white p-3.5 rounded-sm border border-[#E0E0E0] shadow-2xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#757575]">
-                        Pedido #{resumoDados.pedido || "-"}
-                      </span>
+                  <article className="col-span-12 lg:col-span-5 bg-white border border-[#E5E5E5] rounded-xs p-5 shadow-xs flex flex-col justify-between">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] tracking-wider uppercase font-semibold text-neutral-400">
+                          PEDIDO #{resumoDados.pedido || "-"}
+                        </span>
+                        <h3 className="text-sm font-semibold text-[#1A1A1A] mt-1 tracking-tight truncate max-w-sm" title={resumoDados.cliente}>
+                          Cliente: {resumoDados.cliente || "Não informado"}
+                        </h3>
+                      </div>
                       {resumoDados.status_pedido === "Disponível" ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F5E9] text-[#2E7D32]">
+                        <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-medium text-emerald-800 bg-emerald-50/80 border border-emerald-200/60 rounded-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
                           Pedido 100% Disponível
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FFEBEE] text-[#C62828]">
-                          {resumoDados.itens_pedido_com_falta} de {resumoDados.total_itens_pedido} item(ns) com falta
+                        <span className="inline-flex items-center px-2.5 py-1 text-[11px] font-medium text-[#C62828] bg-[#FFEBEE] border border-[#FFCDD2] rounded-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#C62828] mr-1.5"></span>
+                          {resumoDados.itens_pedido_com_falta} de {resumoDados.total_itens_pedido} com falta
                         </span>
                       )}
                     </div>
-                    <p
-                      className="text-xs font-bold text-[#1A1A1A] truncate"
-                      title={resumoDados.cliente}
-                    >
-                      Cliente: {resumoDados.cliente || "Não informado"}
-                    </p>
-                    <div className="flex flex-wrap gap-3 text-[11px] text-[#666666]">
-                      <span>
-                        Abertura:{" "}
-                        <strong className="font-mono text-[#1A1A1A]">
-                          {resumoDados.data_abertura || "-"}
-                        </strong>
-                      </span>
-                      <span>
-                        Entrega:{" "}
-                        <strong className="font-mono text-[#1A1A1A]">
-                          {resumoDados.entrega || "-"}
-                        </strong>
-                      </span>
-                      <span>
-                        Itens Finais:{" "}
-                        <strong className="text-[#1A1A1A]">{resumoDados.total_itens_pedido}</strong>
-                      </span>
+                    <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[#F0F0F0] text-xs">
+                      <div>
+                        <span className="text-neutral-400 block text-[10px] uppercase font-medium">Abertura</span>
+                        <span className="font-medium text-[#1A1A1A] font-mono">{resumoDados.data_abertura || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400 block text-[10px] uppercase font-medium">Entrega</span>
+                        <span className="font-medium text-[#1A1A1A] font-mono">{resumoDados.entrega || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-neutral-400 block text-[10px] uppercase font-medium">Itens Finais</span>
+                        <span className="font-medium text-[#1A1A1A] font-mono">{resumoDados.total_itens_pedido}</span>
+                      </div>
                     </div>
-                  </div>
+                  </article>
 
                   {/* Card 2: Pendências de Matéria-Prima (Compras) */}
-                  <div className="bg-white p-3.5 rounded-sm border border-[#FFE082] shadow-2xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#8B5A2B] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">inventory_2</span>
-                        Matérias-Primas Faltantes (Tipo C)
-                      </span>
-                      <span className="text-lg font-bold text-[#8B5A2B] font-mono">
+                  <article className="col-span-12 lg:col-span-3.5 bg-white border border-[#E5E5E5] rounded-xs p-5 shadow-xs flex flex-col justify-between">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-[#8B5A2B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" strokeLinecap="round" strokeLinejoin="round"></path>
+                        </svg>
+                        <h3 className="text-[11px] font-semibold tracking-wider text-[#1A1A1A] uppercase">
+                          MATÉRIAS-PRIMAS FALTANTES (TIPO C)
+                        </h3>
+                      </div>
+                      <span className="font-serif text-2xl font-light text-[#1A1A1A]">
                         {resumoDados.gerencial_faltando?.resumo?.materias_primas_faltando || 0}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-[11px] text-[#5D4037] pt-1">
-                      <span className="px-2 py-0.5 rounded bg-[#FFF8E1] border border-[#FFE082]">
-                        Com OC aberta:{" "}
-                        <strong>{resumoDados.gerencial_faltando?.resumo?.mp_com_oc || 0}</strong>
+                    <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-[#F0F0F0]">
+                      <span className="inline-flex items-center text-[11px] font-normal px-2 py-1 bg-[#F8F8F8] border border-[#E0E0E0] text-neutral-600 rounded-xs">
+                        Com OC aberta: <strong className="ml-1 font-semibold text-[#1A1A1A]">{resumoDados.gerencial_faltando?.resumo?.mp_com_oc || 0}</strong>
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-[#EEF2FF] border border-[#C7D2FE] text-[#312E81]">
-                        OC vinculada ao pedido:{" "}
-                        <strong>
-                          {resumoDados.gerencial_faltando?.resumo?.mp_vinculadas_pedido || 0}
-                        </strong>
+                      <span className="inline-flex items-center text-[11px] font-normal px-2 py-1 bg-[#F8F8F8] border border-[#E0E0E0] text-neutral-600 rounded-xs">
+                        OC vinculada: <strong className="ml-1 font-semibold text-[#1A1A1A]">{resumoDados.gerencial_faltando?.resumo?.mp_vinculadas_pedido || 0}</strong>
                       </span>
                     </div>
-                  </div>
+                  </article>
 
                   {/* Card 3: Pendências de Componentes por Fábrica (Produção) */}
-                  <div className="bg-white p-3.5 rounded-sm border border-[#90CAF9] shadow-2xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#1565C0] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">
-                          precision_manufacturing
-                        </span>
-                        Componentes Faltantes (Tipo P)
-                      </span>
-                      <span className="text-lg font-bold text-[#1565C0] font-mono">
+                  <article className="col-span-12 lg:col-span-3.5 bg-white border border-[#E5E5E5] rounded-xs p-5 shadow-xs flex flex-col justify-between">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-[#4A6B82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.07a4.5 4.5 0 004.486-6.32l-3.27 3.27-2.335-.778-.778-2.335 3.27-3.27a4.5 4.5 0 00-6.32 4.486c.118.58.094 1.193-.07 1.743" strokeLinecap="round" strokeLinejoin="round"></path>
+                        </svg>
+                        <h3 className="text-[11px] font-semibold tracking-wider text-[#1A1A1A] uppercase">
+                          COMPONENTES FALTANTES (TIPO P)
+                        </h3>
+                      </div>
+                      <span className="font-serif text-2xl font-light text-[#1A1A1A]">
                         {resumoDados.gerencial_faltando?.resumo?.componentes_faltando || 0}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-[11px] text-[#0D47A1] pt-1">
-                      <span className="px-2 py-0.5 rounded bg-[#E3F2FD] border border-[#90CAF9]">
-                        Fábricas com pendência:{" "}
-                        <strong>
-                          {resumoDados.gerencial_faltando?.resumo?.total_fabricas || 0}
-                        </strong>
+                    <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-[#F0F0F0]">
+                      <span className="inline-flex items-center text-[11px] font-normal px-2 py-1 bg-[#F8F8F8] border border-[#E0E0E0] text-neutral-600 rounded-xs">
+                        Fábricas com pendência: <strong className="ml-1 font-semibold text-[#1A1A1A]">{resumoDados.gerencial_faltando?.resumo?.total_fabricas || 0}</strong>
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-white border border-[#BBDEFB]">
-                        Com OP aberta:{" "}
-                        <strong>{resumoDados.gerencial_faltando?.resumo?.comp_com_op || 0}</strong>
+                      <span className="inline-flex items-center text-[11px] font-normal px-2 py-1 bg-[#F8F8F8] border border-[#E0E0E0] text-neutral-600 rounded-xs">
+                        Com OP aberta: <strong className="ml-1 font-semibold text-[#1A1A1A]">{resumoDados.gerencial_faltando?.resumo?.comp_com_op || 0}</strong>
                       </span>
                     </div>
-                  </div>
+                  </article>
                 </div>
 
                 {/* SELETOR DE ESCOPO: RESOLVER O PEDIDO INTEIRO OU UM ITEM ESPECÍFICO DO PEDIDO */}
-                <div className="bg-white p-3 rounded-sm border border-[#E0E0E0] shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#424242]">
-                      Escopo da Análise — Selecione o Pedido Completo ou um Item do Pedido:
+                <section className="bg-white border border-[#E5E5E5] rounded-xs p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs uppercase tracking-wider font-semibold text-[#757575]">
+                      ESCOPO DA ANÁLISE <span className="font-normal text-neutral-400">—</span> SELECIONE O PEDIDO COMPLETO OU UM ITEM:
                     </span>
-                    <span className="text-[11px] text-[#757575]">
-                      {resumoItemEscopo === "TODOS"
-                        ? `Exibindo consolidado de todos os ${resumoDados.total_itens_pedido} itens do pedido`
-                        : `Filtrado para o item ${resumoItemEscopo}`}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-0.5">
                     <button
                       type="button"
                       onClick={() =>
                         carregarResumoPedido(resumoDados.pedido, "TODOS", resumoBaixa, resumoTipo)
                       }
-                      className={`px-3 py-1.5 rounded-sm text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
+                      className={`text-xs px-3.5 py-1.5 rounded-xs font-medium flex items-center gap-2 shadow-xs transition-colors cursor-pointer ${
                         resumoItemEscopo === "TODOS"
-                          ? "bg-[#222222] text-white border-[#222222]"
-                          : "bg-[#FAFAFA] text-[#424242] border-[#D5D5D5] hover:bg-[#F0F0F0]"
+                          ? "bg-[#1A1A1A] text-white"
+                          : "border border-[#E0E0E0] hover:border-neutral-400 bg-white text-neutral-700"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[15px]">layers</span>
+                      <svg className="w-3.5 h-3.5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                       <span>Pedido Completo ({resumoDados.total_itens_pedido} itens)</span>
                     </button>
+                  </div>
 
+                  <div className="text-xs text-[#757575] font-light tracking-wide">
+                    {resumoItemEscopo === "TODOS"
+                      ? `Exibindo consolidado de todos os ${resumoDados.total_itens_pedido} itens do pedido`
+                      : `Filtrado para o item ${resumoItemEscopo}`}
+                  </div>
+
+                  <div className="w-full flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pt-2 border-t border-[#F0F0F0]">
                     {(resumoDados.itens_do_pedido || []).map((itPed, idx) => {
                       const selecionado = resumoItemEscopo === itPed.item_final;
                       const disp = itPed.status === "Disponível";
@@ -3372,24 +3523,22 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             )
                           }
                           title={`${itPed.descricao || ""} • Fábrica: ${itPed.fabrica} • Fila #${itPed.posicao_fila}`}
-                          className={`px-2.5 py-1.5 rounded-sm text-xs border transition-colors flex items-center gap-1.5 ${
+                          className={`text-xs px-3 py-1.5 rounded-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
                             selecionado
-                              ? "bg-[#8B5A2B] text-white border-[#8B5A2B] font-bold"
-                              : disp
-                              ? "bg-white text-[#2E7D32] border-[#C8E6C9] hover:bg-[#E8F5E9]/40"
-                              : "bg-white text-[#C62828] border-[#FFCDD2] hover:bg-[#FFEBEE]/40"
+                              ? "bg-[#8B5A2B] text-white font-medium shadow-xs"
+                              : "border border-[#E0E0E0] hover:border-neutral-400 bg-white text-neutral-700"
                           }`}
                         >
-                          <span className="font-mono text-[10px] opacity-80">
+                          <span className={selecionado ? "text-white/80" : "text-neutral-400"}>
                             #{itPed.posicao_fila}
                           </span>
-                          <span className="font-mono">{itPed.item_final}</span>
+                          <span className="font-mono font-medium">{itPed.item_final}</span>
                           <span
-                            className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                            className={`px-1 py-0.2 rounded-xs text-[9px] font-semibold ml-1 ${
                               selecionado
                                 ? "bg-white/20 text-white"
                                 : disp
-                                ? "bg-[#E8F5E9] text-[#2E7D32]"
+                                ? "bg-emerald-100 text-emerald-800"
                                 : "bg-[#FFEBEE] text-[#C62828]"
                             }`}
                           >
@@ -3399,21 +3548,23 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                       );
                     })}
                   </div>
-                </div>
+                </section>
 
                 {/* BARRA DE ABAS (O QUE FALTA RESOLVER vs DISPONÍVEIS) E FILTROS (BAIXA / ORIGEM) */}
-                <div className="px-4 py-2 bg-white border border-[#E0E0E0] rounded-sm flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex gap-4">
+                <section className="flex flex-wrap items-center justify-between border-b border-[#E0E0E0] pb-2 gap-4">
+                  <div className="flex items-center gap-6" role="tablist">
                     <button
                       type="button"
                       onClick={() => setAbaResumo("faltando")}
-                      className={`py-1.5 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-colors ${
+                      className={`text-xs pb-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
                         abaResumo === "faltando"
-                          ? "border-[#C62828] text-[#C62828]"
-                          : "border-transparent text-[#757575] hover:text-[#1A1A1A]"
+                          ? "font-semibold text-[#1A1A1A] border-b-2 border-[#1A1A1A]"
+                          : "font-medium text-neutral-400 hover:text-neutral-700"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[16px]">warning</span>
+                      <svg className="w-3.5 h-3.5 stroke-[1.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                       <span>
                         O que falta para resolver{" "}
                         {resumoItemEscopo === "TODOS" ? "o Pedido" : `o Item ${resumoItemEscopo}`}{" "}
@@ -3424,22 +3575,24 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                     <button
                       type="button"
                       onClick={() => setAbaResumo("disponiveis")}
-                      className={`py-1.5 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-colors ${
+                      className={`text-xs pb-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
                         abaResumo === "disponiveis"
-                          ? "border-[#2E7D32] text-[#2E7D32]"
-                          : "border-transparent text-[#757575] hover:text-[#1A1A1A]"
+                          ? "font-semibold text-[#1A1A1A] border-b-2 border-[#1A1A1A]"
+                          : "font-medium text-neutral-400 hover:text-neutral-700"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                      <svg className="w-3.5 h-3.5 text-emerald-600 stroke-[2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M4.5 12.75l6 6 9-13.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                       <span>Insumos já Disponíveis ({resumoDados.total_disponiveis || 0})</span>
                     </button>
                   </div>
 
                   {/* Filtros Baixa e Tipo do Resumo */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4 text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-[#666666]">Baixa:</span>
-                      <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-[10px]">
+                      <span className="text-neutral-400 font-medium">Baixa:</span>
+                      <div className="inline-flex border border-[#E0E0E0] rounded-xs overflow-hidden bg-white">
                         {["todos", "S", "N"].map((bOpt) => (
                           <button
                             key={bOpt}
@@ -3453,10 +3606,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 resumoTipo
                               );
                             }}
-                            className={`px-2 py-0.5 font-medium border-l first:border-l-0 border-[#D5D5D5] ${
+                            className={`px-2.5 py-1 text-[11px] font-semibold border-l first:border-l-0 border-[#E0E0E0] cursor-pointer ${
                               resumoBaixa === bOpt
-                                ? "bg-[#222222] text-white"
-                                : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                                ? "bg-[#1A1A1A] text-white"
+                                : "text-neutral-600 hover:bg-[#F8F8F8]"
                             }`}
                           >
                             {bOpt === "todos" ? "Todas" : bOpt}
@@ -3466,8 +3619,8 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-[#666666]">Tipo:</span>
-                      <div className="flex rounded-sm border border-[#D5D5D5] overflow-hidden text-[10px]">
+                      <span className="text-neutral-400 font-medium">Tipo:</span>
+                      <div className="inline-flex border border-[#E0E0E0] rounded-xs overflow-hidden bg-white">
                         {[
                           { k: "todos", l: "Todos" },
                           { k: "C", l: "Matéria-Prima (C)" },
@@ -3485,10 +3638,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 tOpt.k
                               );
                             }}
-                            className={`px-2 py-0.5 font-medium border-l first:border-l-0 border-[#D5D5D5] ${
+                            className={`px-2.5 py-1 text-[11px] font-semibold border-l first:border-l-0 border-[#E0E0E0] cursor-pointer ${
                               resumoTipo === tOpt.k
-                                ? "bg-[#222222] text-white"
-                                : "bg-white text-[#666666] hover:bg-[#F2F2F2]"
+                                ? "bg-[#1A1A1A] text-white"
+                                : "text-neutral-600 hover:bg-[#F8F8F8]"
                             }`}
                           >
                             {tOpt.l}
@@ -3497,7 +3650,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
 
                 {/* SEÇÕES GERENCIAIS: MATÉRIAS-PRIMAS (C) E COMPONENTES AGRUPADOS POR FÁBRICA (P) */}
                 {abaResumo === "faltando"
@@ -3516,7 +3669,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           </div>
 
           {/* Rodapé do Modal de Resumo */}
-          <div className="px-5 py-3.5 border-t border-[#E0E0E0] bg-[#FAFAFA] flex items-center justify-between">
+          <footer className="px-8 py-4 border-t border-[#EAEAEA] bg-white flex items-center justify-between">
             <span className="text-[11px] text-[#757575]">
               {resumoDados
                 ? `Pedido #${resumoDados.pedido || "-"} • ${resumoDados.total_insumos} insumo(s) avaliado(s) no escopo`
@@ -3525,11 +3678,11 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             <button
               type="button"
               onClick={fecharResumoPedido}
-              className="px-4 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors"
+              className="px-5 py-2 rounded-xs bg-[#1A1A1A] text-white text-xs font-medium hover:bg-black transition-colors cursor-pointer"
             >
               Fechar Resumo
             </button>
-          </div>
+          </footer>
         </div>
       </dialog>
 
@@ -3537,68 +3690,66 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
       <dialog
         ref={matrizDialogRef}
         aria-labelledby={matrizDialogTitleId}
-        className="w-full max-w-[95%] rounded-sm shadow-2xl border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto"
+        className="w-full max-w-[97vw] rounded-xs shadow-lider-modal border border-[#E8E8E8] p-0 bg-white text-[#1A1A1A] m-auto backdrop:bg-black/30 backdrop:backdrop-blur-[2px] overflow-hidden"
       >
         <div className="flex flex-col max-h-[94vh]">
-          {/* Cabeçalho da Matriz Pivot */}
-          <div className="px-5 py-3.5 border-b border-[#E0E0E0] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-[#0D47A1]">
-                  pivot_table_chart
-                </span>
-                <h2 id={matrizDialogTitleId} className="text-sm font-bold text-[#1A1A1A]">
-                  Matriz Pivot — Componentes Produzidos Faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição
-                </h2>
+          {/* Cabeçalho da Matriz Pivot Líder Design */}
+          <header className="bg-white border-b border-[#E8E8E8] px-8 py-5 flex-shrink-0 z-20">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-[#8B5A2B]"></span>
+                  <h2 id={matrizDialogTitleId} className="text-lg lg:text-xl font-medium tracking-tight text-[#1A1A1A] font-heading">
+                    Matriz Pivot — Componentes Produzidos Faltantes por Local do Item Pai × Local do Componente × Prazo de Expedição
+                  </h2>
+                </div>
+                <p className="text-xs text-[#757575] max-w-4xl leading-relaxed font-normal">
+                  Agrupamento por fábrica do item final e fábrica do componente produzido (Tipo P), exibindo os saldos faltantes em colunas por prazo de expedição (calculado com base no Representante).
+                </p>
               </div>
-              <p className="text-[11px] text-[#666666]">
-                Agrupamento por fábrica do item final e fábrica do componente produzido (Tipo P), exibindo os saldos faltantes em colunas por prazo de expedição (calculado com base no Representante).
-              </p>
+
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setMatrizMenuAberto((prev) => !prev)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-[#1A1A1A] bg-transparent border border-[#D4D4D4] rounded-xs hover:bg-[#F8F8F8] transition cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
+                  </svg>
+                  <span>{matrizMenuAberto ? "Ocultar Menu de Filtros" : "Abrir Menu de Filtros"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportarMatrizExcel}
+                  disabled={exportandoMatriz || carregandoMatriz || !matrizDados?.linhas_planas?.length}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-[#1A1A1A] hover:bg-[#2E2E2E] rounded-xs transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
+                  </svg>
+                  <span>{exportandoMatriz ? "Exportando..." : "Exportar Matriz Excel"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={fecharMatrizFaltantes}
+                  className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-xs hover:bg-[#EEEEEE] transition-colors cursor-pointer"
+                  aria-label="Fechar matriz de componentes faltantes"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setMatrizMenuAberto((prev) => !prev)}
-                className={`px-3 py-1.5 rounded-sm text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
-                  matrizMenuAberto
-                    ? "bg-[#E3F2FD] text-[#0D47A1] border-[#90CAF9]"
-                    : "bg-white text-[#424242] border-[#D5D5D5] hover:bg-[#F2F2F2]"
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">tune</span>
-                <span>{matrizMenuAberto ? "Ocultar Menu de Filtros" : "Abrir Menu de Filtros"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportarMatrizExcel}
-                disabled={exportandoMatriz || carregandoMatriz || !matrizDados?.linhas_planas?.length}
-                className="px-3.5 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors flex items-center gap-1.5 shadow-xs disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {exportandoMatriz ? "hourglass_top" : "download"}
-                </span>
-                <span>{exportandoMatriz ? "Exportando..." : "Exportar Matriz Excel"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={fecharMatrizFaltantes}
-                className="text-[#757575] hover:text-[#1A1A1A] p-1.5 rounded-sm hover:bg-[#EEEEEE] transition-colors"
-                aria-label="Fechar matriz de componentes faltantes"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-          </div>
+          </header>
 
           {/* Corpo da Tela da Matriz Pivot */}
-          <div className="p-5 overflow-y-auto flex-1 space-y-4 bg-[#F9F9F9]">
+          <div className="p-8 overflow-y-auto flex-1 space-y-6 bg-[#F8F8F8]">
             {erroMatriz && (
               <div
                 role="alert"
-                className="p-3 rounded-sm bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] text-xs flex items-center gap-2"
+                className="p-3.5 rounded-xs bg-[#FFEBEE]/80 border border-[#EF9A9A] text-[#C62828] text-xs flex items-center gap-2.5"
               >
                 <span className="material-symbols-outlined text-[16px]">error</span>
                 <span>{erroMatriz}</span>
@@ -3607,63 +3758,56 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
 
             {/* MENU DE OPÇÕES DE FILTROS PARA CÁLCULO */}
             {matrizMenuAberto && (
-              <section className="bg-white border border-[#D5D5D5] rounded-sm p-4 shadow-2xs space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#EEEEEE]">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px] text-[#0D47A1]">
-                      checklist
-                    </span>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]">
-                      Menu de Opções de Filtros para Cálculo
-                    </h3>
+              <section className="bg-white border border-[#E8E8E8] rounded-xs p-6 shadow-lider transition-all duration-300">
+                <div className="flex items-center justify-between pb-4 mb-5 border-b border-[#E8E8E8]">
+                  <div className="flex items-center gap-2 text-xs font-medium text-[#1A1A1A] tracking-wider uppercase">
+                    <svg className="w-4 h-4 text-[#8B5A2B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
+                    </svg>
+                    <span>Menu de Opções de Filtros para Cálculo</span>
                   </div>
-                  <span className="text-[11px] text-[#666666]">
+                  <span className="text-[11px] text-[#757575]">
                     Marque os locais desejados para compor o cálculo • Prazos de expedição trazem todos os disponíveis automaticamente
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {/* COLUNA 1: LOCAL DE PRODUÇÃO DO ITEM FINAL (PAI) */}
-                  <div className="border border-[#E0E0E0] rounded-sm p-3 bg-[#FAFAFA] flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#1A1A1A] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px] text-[#0D47A1]">
-                          domain
-                        </span>
-                        1. Local Produção do Item Final (Pai)
-                      </span>
-                      <span className="px-1.5 py-0.2 rounded bg-[#E3F2FD] text-[#0D47A1] text-[10px] font-bold">
+                  <div className="border border-[#E8E8E8] p-4 rounded-xs flex flex-col bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-[#1A1A1A]">1. Local Produção do Item Pai (Pai)</span>
+                      <span className="text-[10px] font-semibold bg-[#F8F8F8] border border-[#E8E8E8] px-2 py-0.5 rounded-xs text-[#1A1A1A]">
                         {matrizLocaisPaiSel.length}/{opcoesMatriz.locais_item_final.length}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={matrizBuscaLocalPai}
-                        onChange={(e) => setMatrizBuscaLocalPai(e.target.value)}
-                        placeholder="Filtrar local do item final..."
-                        className="flex-1 px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#0D47A1]"
-                      />
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={matrizBuscaLocalPai}
+                          onChange={(e) => setMatrizBuscaLocalPai(e.target.value)}
+                          placeholder="Filtrar local do item final..."
+                          className="w-full text-xs py-1.5 px-3 bg-[#F8F8F8] border border-[#E8E8E8] rounded-xs focus:border-[#1A1A1A] focus:ring-0"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => setMatrizLocaisPaiSel(opcoesMatriz.locais_item_final || [])}
-                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#F0F0F0]"
-                        title="Marcar todos os locais de produção do item final"
+                        className="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-xs hover:bg-[#F8F8F8] text-[#1A1A1A] cursor-pointer"
                       >
                         Todos
                       </button>
                       <button
                         type="button"
                         onClick={() => setMatrizLocaisPaiSel([])}
-                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#FFEBEE] text-[#C62828]"
-                        title="Desmarcar todos"
+                        className="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-xs hover:bg-[#F8F8F8] text-[#757575] cursor-pointer"
                       >
                         Limpar
                       </button>
                     </div>
 
-                    <div className="max-h-36 overflow-y-auto bg-white border border-[#E0E0E0] rounded-sm p-2 grid grid-cols-2 gap-1.5">
+                    <div className="max-h-48 overflow-y-auto pr-1 grid grid-cols-2 gap-2 text-xs">
                       {(opcoesMatriz.locais_item_final || [])
                         .filter((loc) =>
                           loc.toUpperCase().includes(matrizBuscaLocalPai.trim().toUpperCase())
@@ -3673,19 +3817,19 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           return (
                             <label
                               key={loc}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] cursor-pointer select-none border transition-colors ${
+                              className={`flex items-center gap-2 p-1.5 border rounded-xs cursor-pointer select-none transition-colors ${
                                 checked
-                                  ? "bg-[#E3F2FD]/70 border-[#90CAF9] text-[#0D47A1] font-semibold"
-                                  : "bg-white border-transparent hover:bg-[#F5F5F5] text-[#424242]"
+                                  ? "bg-[#F8F8F8] border-[#1A1A1A] text-[#1A1A1A] font-medium"
+                                  : "border-[#E8E8E8] hover:bg-[#F8F8F8] text-[#555]"
                               }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleLocalPaiMatriz(loc)}
-                                className="accent-[#0D47A1] rounded-xs"
+                                className="rounded-xs border-[#D4D4D4] text-[#1A1A1A] focus:ring-0 w-3.5 h-3.5"
                               />
-                              <span className="truncate" title={loc}>
+                              <span className="truncate text-[11px]" title={loc}>
                                 {loc}
                               </span>
                             </label>
@@ -3695,46 +3839,41 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   </div>
 
                   {/* COLUNA 2: LOCAL DE PRODUÇÃO DO COMPONENTE PRODUZIDO */}
-                  <div className="border border-[#E0E0E0] rounded-sm p-3 bg-[#FAFAFA] flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#1A1A1A] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px] text-[#8B5A2B]">
-                          precision_manufacturing
-                        </span>
-                        2. Local do Componente Produzido (P)
-                      </span>
-                      <span className="px-1.5 py-0.2 rounded bg-[#FFF8E1] text-[#8B5A2B] border border-[#FFE082] text-[10px] font-bold">
+                  <div className="border border-[#E8E8E8] p-4 rounded-xs flex flex-col bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-[#1A1A1A]">2. Local do Componente Produzido (P)</span>
+                      <span className="text-[10px] font-semibold bg-[#F8F8F8] border border-[#E8E8E8] px-2 py-0.5 rounded-xs text-[#1A1A1A]">
                         {matrizLocaisCompSel.length}/{opcoesMatriz.locais_componente.length}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={matrizBuscaLocalComp}
-                        onChange={(e) => setMatrizBuscaLocalComp(e.target.value)}
-                        placeholder="Filtrar local do componente..."
-                        className="flex-1 px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#8B5A2B]"
-                      />
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={matrizBuscaLocalComp}
+                          onChange={(e) => setMatrizBuscaLocalComp(e.target.value)}
+                          placeholder="Filtrar local do componente..."
+                          className="w-full text-xs py-1.5 px-3 bg-[#F8F8F8] border border-[#E8E8E8] rounded-xs focus:border-[#1A1A1A] focus:ring-0"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => setMatrizLocaisCompSel(opcoesMatriz.locais_componente || [])}
-                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#F0F0F0]"
-                        title="Marcar todos os locais de produção de componentes"
+                        className="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-xs hover:bg-[#F8F8F8] text-[#1A1A1A] cursor-pointer"
                       >
                         Todos
                       </button>
                       <button
                         type="button"
                         onClick={() => setMatrizLocaisCompSel([])}
-                        className="px-2 py-1 text-[10px] font-semibold bg-white border border-[#D5D5D5] rounded-sm hover:bg-[#FFEBEE] text-[#C62828]"
-                        title="Desmarcar todos"
+                        className="px-2.5 py-1.5 text-[11px] font-medium border border-[#E8E8E8] rounded-xs hover:bg-[#F8F8F8] text-[#757575] cursor-pointer"
                       >
                         Limpar
                       </button>
                     </div>
 
-                    <div className="max-h-36 overflow-y-auto bg-white border border-[#E0E0E0] rounded-sm p-2 grid grid-cols-2 gap-1.5">
+                    <div className="max-h-48 overflow-y-auto pr-1 grid grid-cols-2 gap-2 text-xs">
                       {(opcoesMatriz.locais_componente || [])
                         .filter((loc) =>
                           loc.toUpperCase().includes(matrizBuscaLocalComp.trim().toUpperCase())
@@ -3744,19 +3883,19 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           return (
                             <label
                               key={loc}
-                              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] cursor-pointer select-none border transition-colors ${
+                              className={`flex items-center gap-2 p-1.5 border rounded-xs cursor-pointer select-none transition-colors ${
                                 checked
-                                  ? "bg-[#FFF8E1] border-[#FFE082] text-[#5D4037] font-semibold"
-                                  : "bg-white border-transparent hover:bg-[#F5F5F5] text-[#424242]"
+                                  ? "bg-[#FBF7F4] border-[#8B5A2B]/40 text-[#8B5A2B] font-semibold"
+                                  : "border-[#E8E8E8] hover:bg-[#F8F8F8] text-[#555]"
                               }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleLocalCompMatriz(loc)}
-                                className="accent-[#8B5A2B] rounded-xs"
+                                className="rounded-xs border-[#8B5A2B] text-[#8B5A2B] focus:ring-0 w-3.5 h-3.5"
                               />
-                              <span className="truncate" title={loc}>
+                              <span className="truncate text-[11px]" title={loc}>
                                 {loc}
                               </span>
                             </label>
@@ -3766,44 +3905,31 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   </div>
 
                   {/* COLUNA 3: PRAZOS DE EXPEDIÇÃO E PARÂMETROS DE CÁLCULO */}
-                  <div className="border border-[#E0E0E0] rounded-sm p-3 bg-[#FAFAFA] flex flex-col justify-between gap-2.5">
-                    <div className="space-y-2.5">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#1A1A1A] flex items-center gap-1 mb-1">
-                          <span className="material-symbols-outlined text-[14px] text-[#2E7D32]">
-                            local_shipping
+                  <div className="border border-[#E8E8E8] p-4 rounded-xs flex flex-col justify-between bg-white">
+                    <div>
+                      <span className="text-xs font-medium text-[#1A1A1A] block mb-2">3. Prazos de Expedição (Base Representante)</span>
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {[
+                          { key: "10", label: "R. Multimarcas e Nordeste" },
+                          { key: "8", label: "Fora de MG" },
+                          { key: "3", label: "MG e franquia" },
+                        ].map((pCol) => (
+                          <span
+                            key={pCol.key}
+                            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-xs bg-[#F8F8F8] text-[#1A1A1A] border border-[#E8E8E8]"
+                          >
+                            <span className="text-[#8B5A2B]">✓</span> {pCol.label}
                           </span>
-                          3. Prazos de Expedição (Base Representante)
-                        </span>
-                        <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#E0E0E0] rounded-sm">
-                          {[
-                            { key: "10", label: "R. Multimarcas e Nordeste" },
-                            { key: "8", label: "Fora de MG" },
-                            { key: "3", label: "MG e franquia" },
-                          ].map((pCol) => (
-                            <span
-                              key={pCol.key}
-                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]"
-                            >
-                              ✓ {pCol.label}
-                            </span>
-                          ))}
-                          <span className="text-[10px] text-[#666666] ml-1">
-                            (Todos disponíveis incluídos nas colunas)
-                          </span>
-                        </div>
+                        ))}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* Modo de Abatimento do Estoque */}
-                        <div className="flex flex-col">
-                          <label className="text-[10px] font-semibold text-[#555555] mb-0.5">
-                            Escopo de Abatimento
-                          </label>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="text-[10px] text-[#757575] uppercase block mb-1">Escopo de Abatimento</label>
                           <select
                             value={matrizEscopoAbatimento}
                             onChange={(e) => setMatrizEscopoAbatimento(e.target.value)}
-                            className="px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#0D47A1]"
+                            className="w-full text-xs py-1 px-2 border border-[#E8E8E8] bg-white rounded-xs focus:border-[#1A1A1A] focus:ring-0"
                             title="Fila Global: abate o estoque na fila completa e filtra os faltantes. Apenas Selecionados: abate o estoque exclusivamente entre os locais marcados."
                           >
                             <option value="global">Fila Global Completa</option>
@@ -3811,37 +3937,28 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           </select>
                         </div>
 
-                        {/* Baixa do Componente */}
-                        <div className="flex flex-col">
-                          <label className="text-[10px] font-semibold text-[#555555] mb-0.5">
-                            Baixa Componente
-                          </label>
+                        <div>
+                          <label className="text-[10px] text-[#757575] uppercase block mb-1">Baixa Componente</label>
                           <select
                             value={matrizBaixa}
                             onChange={(e) => setMatrizBaixa(e.target.value)}
-                            className="px-2 py-1 text-xs bg-white border border-[#D5D5D5] rounded-sm focus:outline-none focus:border-[#0D47A1]"
+                            className="w-full text-xs py-1 px-2 border border-[#E8E8E8] bg-white rounded-xs focus:border-[#1A1A1A] focus:ring-0"
                           >
                             <option value="todos">Todas (S e N)</option>
-                            <option value="S">Apenas Baixa Sim (S)</option>
-                            <option value="N">Apenas Baixa Não (N)</option>
+                            <option value="S">Apenas Baixadas (S)</option>
+                            <option value="N">Apenas Pendentes (N)</option>
                           </select>
                         </div>
                       </div>
 
-                      {/* Janela de Entrega do Pedido */}
-                      <div className="flex flex-col">
-                        <label
-                          className="text-[10px] font-semibold text-[#555555] mb-0.5"
-                          title="Filtra os itens pais pela data de Entrega do Pedido"
-                        >
-                          Entrega do Pedido (Opcional)
-                        </label>
-                        <div className="flex items-center gap-1 bg-white border border-[#D5D5D5] rounded-sm px-2 py-0.5">
+                      <div>
+                        <label className="text-[10px] text-[#757575] uppercase block mb-1">Entrega do Pedido (Opcional)</label>
+                        <div className="flex items-center gap-2">
                           <input
                             type="date"
                             value={matrizDataInicio}
                             onChange={(e) => setMatrizDataInicio(e.target.value)}
-                            className="text-xs bg-transparent focus:outline-none flex-1"
+                            className="w-1/2 text-xs py-1 px-2 border border-[#E8E8E8] rounded-xs bg-white focus:border-[#1A1A1A] focus:ring-0 font-mono"
                             title="Data inicial de Entrega do Pedido"
                           />
                           <span className="text-[10px] text-[#757575]">até</span>
@@ -3849,7 +3966,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             type="date"
                             value={matrizDataFim}
                             onChange={(e) => setMatrizDataFim(e.target.value)}
-                            className="text-xs bg-transparent focus:outline-none flex-1"
+                            className="w-1/2 text-xs py-1 px-2 border border-[#E8E8E8] rounded-xs bg-white focus:border-[#1A1A1A] focus:ring-0 font-mono"
                             title="Data final de Entrega do Pedido"
                           />
                         </div>
@@ -3860,20 +3977,12 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                       type="button"
                       onClick={() => carregarMatrizFaltantes()}
                       disabled={carregandoMatriz}
-                      className="w-full py-2 px-4 rounded-sm bg-[#0D47A1] text-white text-xs font-bold hover:bg-[#093170] transition-colors flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-60"
+                      className="w-full mt-4 py-2 px-4 bg-[#1A1A1A] hover:bg-[#2D2D2D] text-white text-xs font-medium rounded-xs flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-60"
                     >
-                      <span
-                        className={`material-symbols-outlined text-[16px] ${
-                          carregandoMatriz ? "animate-spin" : ""
-                        }`}
-                      >
-                        {carregandoMatriz ? "progress_activity" : "calculate"}
-                      </span>
-                      <span>
-                        {carregandoMatriz
-                          ? "Calculando Matriz Pivot..."
-                          : "Calcular / Atualizar Matriz Pivot"}
-                      </span>
+                      <svg className="w-3.5 h-3.5 text-[#8B5A2B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
+                      </svg>
+                      <span>{carregandoMatriz ? "Calculando Matriz Pivot..." : "Calcular / Atualizar Matriz Pivot"}</span>
                     </button>
                   </div>
                 </div>
@@ -3882,8 +3991,8 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
 
             {/* CONTEÚDO DOS RESULTADOS DA MATRIZ PIVOT */}
             {carregandoMatriz ? (
-              <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575] bg-white border border-[#E0E0E0] rounded-sm">
-                <span className="material-symbols-outlined text-3xl animate-spin text-[#0D47A1]">
+              <div className="py-16 flex flex-col items-center justify-center gap-2 text-[#757575] bg-white border border-[#E8E8E8] rounded-xs">
+                <span className="material-symbols-outlined text-3xl animate-spin text-[#1A1A1A]">
                   progress_activity
                 </span>
                 <span className="text-xs font-medium">
@@ -3891,7 +4000,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                 </span>
               </div>
             ) : !matrizDados ? (
-              <div className="py-12 text-center text-xs text-[#757575] bg-white border border-[#E0E0E0] rounded-sm">
+              <div className="py-12 text-center text-xs text-[#757575] bg-white border border-[#E8E8E8] rounded-xs">
                 Marque os filtros desejados acima e clique em <strong>Calcular / Atualizar Matriz Pivot</strong>.
               </div>
             ) : (
@@ -3985,16 +4094,16 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                   return (
                     <>
                       {/* CARDS DE TOTAIS GERAIS E SOMAS POR PRAZO DE EXPEDIÇÃO */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                        <div className="bg-white p-3 rounded-sm border border-[#E0E0E0] shadow-2xs">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#666666] block">
+                      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="bg-white border border-[#E8E8E8] p-5 rounded-xs shadow-lider flex flex-col justify-between">
+                          <span className="text-[10px] uppercase font-semibold text-[#757575] tracking-wider mb-2">
                             Fábricas de Componente
                           </span>
                           <div className="flex items-baseline justify-between mt-1">
-                            <span className="text-lg font-bold text-[#1A1A1A] font-mono">
+                            <span className="text-2xl font-light tracking-tight text-[#1A1A1A] font-mono">
                               {gruposPorFabricaComp.length.toLocaleString("pt-BR")}
                             </span>
-                            <span className="text-[10px] text-[#757575]">
+                            <span className="text-[11px] text-[#8C8C8C]">
                               {(
                                 matrizDados.totais_gerais?.total_componentes_distintos || 0
                               ).toLocaleString("pt-BR")}{" "}
@@ -4009,33 +4118,39 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                           return (
                             <div
                               key={colP.key}
-                              className="bg-white p-3 rounded-sm border border-[#90CAF9] shadow-2xs"
+                              className="bg-white border border-[#E8E8E8] p-5 rounded-xs shadow-lider flex flex-col justify-between"
                             >
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#0D47A1] flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[13px]">
-                                  local_shipping
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"></span>
+                                <span className="text-[10px] uppercase font-semibold text-[#757575] tracking-wider">
+                                  {colP.label}
                                 </span>
-                                {colP.label}
-                              </span>
-                              <div className="flex items-baseline justify-between mt-1">
-                                <span className="text-lg font-bold text-[#0D47A1] font-mono">
+                              </div>
+                              <div className="flex items-baseline justify-between mt-2">
+                                <span className="text-2xl font-light tracking-tight text-[#1A1A1A] font-mono">
                                   {formatarQtd(valorPrazo)}
                                 </span>
-                                <span className="text-[10px] text-[#666666]">peças</span>
+                                <span className="text-[11px] text-[#757575]">peças</span>
                               </div>
                             </div>
                           );
                         })}
 
-                        <div className="bg-[#FFEBEE]/50 p-3 rounded-sm border border-[#EF9A9A] shadow-2xs">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#C62828] block">
-                            Total Faltante Geral
-                          </span>
-                          <div className="flex items-baseline justify-between mt-1">
-                            <span className="text-lg font-bold text-[#C62828] font-mono">
+                        {/* Metric 5: Alerta Sóbrio Líder */}
+                        <div className="bg-white border-l-4 border-l-[#8B5A2B] border-y border-r border-[#E8E8E8] p-5 rounded-xs shadow-lider flex flex-col justify-between">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-semibold text-[#8B5A2B] tracking-wider">
+                              Total Faltante Geral
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-xs bg-[#FBF7F4] text-[#8B5A2B] font-medium border border-[#8B5A2B]/20">
+                              Crítico
+                            </span>
+                          </div>
+                          <div className="flex items-baseline justify-between mt-2">
+                            <span className="text-2xl font-normal tracking-tight text-[#1A1A1A] font-mono">
                               {formatarQtd(matrizDados.totais_gerais?.soma_falta_geral || 0)}
                             </span>
-                            <span className="text-[10px] text-[#C62828] font-semibold">
+                            <span className="text-[11px] text-[#757575]">
                               {(
                                 matrizDados.totais_gerais?.total_pedidos_afetados || 0
                               ).toLocaleString("pt-BR")}{" "}
@@ -4043,14 +4158,14 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             </span>
                           </div>
                         </div>
-                      </div>
+                      </section>
 
-                      {/* BARRA DE BUSCA RÁPIDA */}
-                      <div className="bg-white px-4 py-2.5 rounded-sm border border-[#E0E0E0] flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-                          <span className="material-symbols-outlined text-[18px] text-[#757575]">
-                            search
-                          </span>
+                      {/* BARRA DE BUSCA RÁPIDA E RIBBON */}
+                      <div className="bg-white border border-[#E8E8E8] rounded-xs p-4 space-y-3 shadow-lider">
+                        <div className="relative">
+                          <svg className="w-4 h-4 text-[#8C8C8C] absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
+                          </svg>
                           <input
                             type="text"
                             value={matrizBuscaItem}
@@ -4061,7 +4176,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                               }
                             }}
                             placeholder="Buscar código ou descrição do componente..."
-                            className="flex-1 px-2.5 py-1 text-xs bg-[#FAFAFA] border border-[#D5D5D5] rounded-sm focus:outline-none focus:bg-white focus:border-[#0D47A1]"
+                            className="w-full text-xs pl-10 pr-4 py-2 bg-[#F8F8F8] border border-[#E8E8E8] rounded-xs focus:border-[#1A1A1A] focus:bg-white focus:ring-0 transition"
                           />
                           {matrizBuscaItem && (
                             <button
@@ -4070,7 +4185,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 setMatrizBuscaItem("");
                                 carregarMatrizFaltantes({ busca: "" });
                               }}
-                              className="text-xs text-[#C62828] hover:underline px-1.5"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8B5A2B] hover:underline"
                             >
                               Limpar
                             </button>
@@ -4080,7 +4195,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
 
                       {/* TABELAS AGRUPADAS APENAS POR LOCAL DE PRODUÇÃO DO COMPONENTE */}
                       {gruposPorFabricaComp.length === 0 ? (
-                        <div className="py-12 text-center text-xs text-[#2E7D32] bg-[#E8F5E9]/30 border border-[#C8E6C9] rounded-sm flex flex-col items-center gap-2">
+                        <div className="py-12 text-center text-xs text-[#3B6E4C] bg-[#EBF4EC] border border-[#D5E8D7] rounded-xs flex flex-col items-center gap-2">
                           <span className="material-symbols-outlined text-4xl">check_circle</span>
                           <strong className="text-sm">
                             Nenhum componente produzido (Tipo P) faltante para os locais marcados!
@@ -4099,11 +4214,11 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                             return (
                               <div
                                 key={chaveFab}
-                                className="border border-[#D5D5D5] rounded-sm bg-white overflow-hidden shadow-2xs"
+                                className="border border-[#E8E8E8] rounded-xs bg-white overflow-hidden shadow-lider"
                               >
-                                {/* Cabeçalho da Tabela por Local de Produção do Componente + Botão de Imagem na frente */}
-                                <div className="px-4 py-2.5 bg-[#E3F2FD]/70 border-b border-[#BBDEFB] flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2">
+                                {/* Ribbon do Grupo */}
+                                <div className="px-5 py-3 bg-white border-b border-[#F0F0F0] flex flex-wrap items-center justify-between gap-3">
+                                  <div className="flex flex-wrap items-center gap-2.5">
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -4115,45 +4230,44 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                           nomeArquivoBase: `fabrica_${fabComp}`,
                                         })
                                       }
-                                      className="px-2.5 py-1 rounded-sm bg-[#0D47A1] text-white text-xs font-bold hover:bg-[#093170] transition-colors inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#D4D4D4] rounded-xs text-[#1A1A1A] hover:bg-[#F8F8F8] transition cursor-pointer"
                                       title={`Gerar imagem (.png) da tabela da fábrica ${fabComp}`}
                                     >
-                                      <span className="material-symbols-outlined text-[15px]">
-                                        photo_camera
-                                      </span>
+                                      <svg className="w-3.5 h-3.5 text-[#757575]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"></path>
+                                      </svg>
                                       <span>Gerar Imagem (.png)</span>
                                     </button>
 
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#FFF8E1] text-[#5D4037] border border-[#FFE082] text-xs font-bold">
-                                      <span className="material-symbols-outlined text-[14px]">
-                                        precision_manufacturing
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#FBF7F4] border border-[#8B5A2B]/30 rounded-xs">
+                                      <span className="text-xs text-[#8B5A2B] font-medium flex items-center gap-1">
+                                        <span>🏭</span> Local de Produção do Componente: <strong>{fabComp}</strong>
                                       </span>
-                                      Local de Produção do Componente: {fabComp}
-                                    </span>
-
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white border border-[#90CAF9] text-[#0D47A1]">
-                                      {itensFab.length} componente(s)
-                                    </span>
+                                      <span className="text-[10px] bg-white text-[#8B5A2B] px-1.5 py-0.5 rounded-xs border border-[#8B5A2B]/20 font-mono">
+                                        {itensFab.length} componente(s)
+                                      </span>
+                                    </div>
                                   </div>
 
-                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                  <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
                                     {prazosCols.map((colP) => {
                                       const subP = grp.somas_por_prazo?.[colP.key] || 0;
                                       return (
                                         <span
                                           key={colP.key}
-                                          className="px-2 py-0.5 rounded bg-white border border-[#90CAF9] text-[#0D47A1] font-mono"
+                                          className="px-2 py-1 bg-[#F8F8F8] text-[#555] rounded-xs border border-[#E8E8E8]"
                                         >
-                                          {colP.label}: <strong>{formatarQtd(subP)}</strong>
+                                          {colP.label}: <strong className="text-[#1A1A1A]">{formatarQtd(subP)}</strong>
                                         </span>
                                       );
                                     })}
-                                    <span className="px-2.5 py-0.5 rounded bg-[#FFEBEE] border border-[#EF9A9A] text-[#C62828] font-mono font-bold">
-                                      Total: {formatarQtd(grp.falta_total_grupo)}
+                                    <span className="px-2 py-1 bg-[#FBF7F4] text-[#8B5A2B] rounded-xs border border-[#8B5A2B]/30 font-medium">
+                                      Total: <strong>{formatarQtd(grp.falta_total_grupo)}</strong>
                                     </span>
                                   </div>
                                 </div>
 
+                                {/* Pivot table */}
                                 <div
                                   tabIndex={0}
                                   role="region"
@@ -4161,73 +4275,72 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                   className="overflow-auto max-h-[min(480px,62vh)] relative focus:outline-none"
                                 >
                                   <table className="w-full text-left text-xs border-collapse">
-                                    <thead className="sticky top-0 z-10 bg-[#FAFAFA] text-[#424242] font-semibold text-[11px] shadow-2xs">
-                                      {/* LINHA 1: TÍTULOS DAS COLUNAS */}
-                                      <tr className="border-b border-[#E0E0E0]">
+                                    <thead className="sticky top-0 z-10 bg-[#F8F8F8] text-[#757575] font-medium tracking-wide">
+                                      <tr className="border-b border-[#E8E8E8]">
                                         <th
                                           scope="col"
-                                          className="p-2.5 bg-[#FAFAFA] sticky left-0 z-20 min-w-[150px]"
+                                          className="py-3 px-4 w-44 font-normal bg-[#F8F8F8] sticky left-0 z-20"
                                         >
                                           Componente
                                         </th>
-                                        <th scope="col" className="p-2.5 bg-[#FAFAFA] min-w-[260px]">
+                                        <th scope="col" className="py-3 px-4 font-normal bg-[#F8F8F8]">
                                           Descrição
                                         </th>
                                         {prazosCols.map((colP) => (
                                           <th
                                             key={colP.key}
                                             scope="col"
-                                            className="p-2.5 bg-[#E3F2FD] text-[#0D47A1] text-right font-bold whitespace-nowrap border-l border-[#BBDEFB] min-w-[130px]"
+                                            className="py-3 px-4 text-right font-normal w-40 whitespace-nowrap border-l border-[#E8E8E8]"
                                           >
                                             {colP.label}
                                           </th>
                                         ))}
                                         <th
                                           scope="col"
-                                          className="p-2.5 bg-[#FFEBEE] text-[#C62828] text-right font-bold whitespace-nowrap border-l border-[#FFCDD2] min-w-[130px]"
+                                          className="py-3 px-4 text-right font-normal w-40 text-[#8B5A2B] bg-[#FBF7F4]/60 whitespace-nowrap border-l border-[#E8DFD5]"
                                         >
                                           Total Faltante
                                         </th>
                                       </tr>
 
-                                      {/* LINHA 2: SUBTOTAL DA FÁBRICA NO TOPO */}
-                                      <tr className="bg-[#ECEFF1] border-b-2 border-[#B0BEC5] font-bold text-xs tabular-nums shadow-xs">
+                                      {/* Subtotal Row */}
+                                      <tr className="bg-[#F4F4F4] border-b-2 border-[#E0E0E0] font-medium text-[#1A1A1A] font-mono text-xs">
                                         <th
                                           scope="row"
-                                          className="p-2.5 text-left font-bold text-[#1A1A1A] uppercase tracking-wider text-[11px] bg-[#ECEFF1] sticky left-0 z-20 whitespace-nowrap"
+                                          className="py-2.5 px-4 font-semibold text-[11px] tracking-wider uppercase bg-[#F4F4F4] sticky left-0 z-20"
                                         >
                                           SUBTOTAL
                                         </th>
-                                        <td className="p-2.5 text-right text-[#1A1A1A] uppercase tracking-wider text-[11px] bg-[#ECEFF1]">
-                                          Subtotal por Prazo de Entrega ({itensFab.length} itens):
+                                        <td className="py-2.5 px-4 text-[11px] text-[#666]">
+                                          SUBTOTAL POR PRAZO DE ENTREGA ({itensFab.length} ITENS)
                                         </td>
                                         {prazosCols.map((colP) => (
                                           <td
                                             key={colP.key}
-                                            className="p-2.5 text-right font-mono font-bold text-[#0D47A1] bg-[#E3F2FD] border-l border-[#90CAF9]"
+                                            className="py-2.5 px-4 text-right border-l border-[#E0E0E0]"
                                           >
                                             {formatarQtd(grp.somas_por_prazo?.[colP.key] || 0)}
                                           </td>
                                         ))}
-                                        <td className="p-2.5 text-right font-mono font-bold text-[#B71C1C] bg-[#FFCDD2] border-l border-[#EF9A9A]">
+                                        <td className="py-2.5 px-4 text-right font-semibold text-[#8B5A2B] bg-[#FBF7F4] border-l border-[#E8DFD5]">
                                           {formatarQtd(grp.falta_total_grupo)}
                                         </td>
                                       </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[#EEEEEE] tabular-nums">
+                                    <tbody className="divide-y divide-[#EFEFEF] font-mono text-[11px]">
                                       {itensVisiveisFab.map((comp, cIdx) => (
                                         <tr
                                           key={`${comp.item}_${cIdx}`}
-                                          className="hover:bg-[#F5F9FF]"
+                                          className="hover:bg-[#FAFAFA] transition"
                                         >
                                           <th
                                             scope="row"
-                                            className="p-2.5 font-mono font-bold text-[#1A1A1A] bg-white sticky left-0 z-10 whitespace-nowrap"
+                                            className="py-3 px-4 font-medium text-[#1A1A1A] bg-white sticky left-0 z-10 whitespace-nowrap text-left"
                                           >
                                             {comp.item}
                                           </th>
                                           <td
-                                            className="p-2.5 text-[#424242] max-w-[360px] truncate"
+                                            className="py-3 px-4 font-sans text-xs text-[#555] max-w-[360px] truncate"
                                             title={comp.descricao}
                                           >
                                             {comp.descricao || "-"}
@@ -4237,17 +4350,17 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                             return (
                                               <td
                                                 key={colP.key}
-                                                className={`p-2.5 text-right font-mono border-l border-[#EEEEEE] ${
+                                                className={`py-3 px-4 text-right border-l border-[#EFEFEF] ${
                                                   valPrazo > 0
-                                                    ? "font-bold text-[#0D47A1] bg-[#E3F2FD]/25"
-                                                    : "text-[#BDBDBD]"
+                                                    ? "text-[#1A1A1A] font-medium"
+                                                    : "text-[#A0A0A0]"
                                                 }`}
                                               >
                                                 {valPrazo > 0 ? formatarQtd(valPrazo) : "-"}
                                               </td>
                                             );
                                           })}
-                                          <td className="p-2.5 text-right font-mono font-bold text-[#C62828] bg-[#FFEBEE]/35 border-l border-[#FFCDD2]">
+                                          <td className="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40 border-l border-[#E8DFD5]">
                                             {formatarQtd(comp.falta_total)}
                                           </td>
                                         </tr>
@@ -4257,7 +4370,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                 </div>
 
                                 {itensFab.length > limiteFab && (
-                                  <div className="p-2 bg-[#FAFAFA] border-t border-[#EEEEEE] text-center">
+                                  <div className="p-2.5 bg-[#FAFAFA] border-t border-[#E8E8E8] text-center">
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -4266,7 +4379,7 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
                                           [chaveFab]: true,
                                         }))
                                       }
-                                      className="text-xs font-semibold text-[#0D47A1] hover:underline"
+                                      className="text-xs font-semibold text-[#8B5A2B] hover:underline cursor-pointer"
                                     >
                                       Ver todos os {itensFab.length} componentes desta fábrica
                                     </button>
@@ -4285,20 +4398,20 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
           </div>
 
           {/* Rodapé da Matriz Pivot */}
-          <div className="px-5 py-3 border-t border-[#E0E0E0] bg-[#FAFAFA] flex items-center justify-between">
+          <footer className="px-8 py-4 border-t border-[#E8E8E8] bg-white flex items-center justify-between">
             <span className="text-[11px] text-[#757575]">
               {matrizDados
-                ? `${matrizDados.totais_gerais?.total_componentes_distintos || 0} componente(s) único(s) • Agrupado por Local de Produção do Componente`
+                ? `${(matrizDados.totais_gerais?.total_componentes_distintos || 0).toLocaleString("pt-BR")} componente(s) único(s) • Agrupado por Local de Produção do Componente`
                 : ""}
             </span>
             <button
               type="button"
               onClick={fecharMatrizFaltantes}
-              className="px-4 py-1.5 rounded-sm bg-[#222222] text-white text-xs font-medium hover:bg-black transition-colors"
+              className="px-5 py-2 rounded-xs bg-[#1A1A1A] text-white text-xs font-medium hover:bg-black transition-colors cursor-pointer"
             >
               Fechar Matriz
             </button>
-          </div>
+          </footer>
         </div>
       </dialog>
     </div>
