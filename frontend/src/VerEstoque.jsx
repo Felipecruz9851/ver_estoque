@@ -1802,8 +1802,10 @@ export default function VerEstoque({ onVoltar, isStandalone = false }) {
             title="Recalcular estrutura BFS e atualizar dados"
             type="button"
           >
-            <span className={`material-symbols-outlined text-[16px] ${loading ? "animate-spin" : ""}`}>
-              sync
+            <span className={`inline-flex items-center justify-center ${loading ? "animate-spin" : ""}`}>
+              <span className="material-symbols-outlined text-[16px] -scale-x-100 inline-block">
+                sync
+              </span>
             </span>
             <span>Recarregar Dados</span>
           </button>
