@@ -92,6 +92,57 @@ def carregar_divisao_fabricas() -> Dict[str, Any]:
         return _cache_divisao_fabricas or {"metadados_fabricas": {}, "dados": []}
 
 
+# Cache das famílias dos componentes iniciados em '3'
+_cache_familias_3: Optional[List[Dict[str, Any]]] = None
+
+
+def obter_familias_componentes_3(session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Retorna a lista de todas as famílias distintas associadas aos componentes que começam com '3',
+    incluindo o grupo predominante e a quantidade de itens únicos.
+    """
+    global _cache_familias_3
+    if _cache_familias_3 is not None:
+        return _cache_familias_3
+
+    df = obter_cons_efetivo(recarregar=False, session_id=session_id)
+    if df.empty or "Item" not in df.columns or "Familia" not in df.columns:
+        return []
+
+    # Componentes iniciados em 3
+    mask_3 = df["Item"].astype(str).str.startswith("3")
+    df_3 = df[mask_3].copy()
+    if df_3.empty:
+        return []
+
+    # Garante que família CST esteja devidamente mapeada para tecidos CST
+    itens_cst = _enriquecimento.get("itens_cst", set()) if _enriquecimento else set()
+    if itens_cst:
+        mask_cst = df_3["Item"].isin(itens_cst)
+        df_3.loc[mask_cst, "Familia"] = "CST"
+
+    tem_grupo = "Grupo" in df_3.columns
+    familias_list = []
+    for fam_val, grp_df in df_3.groupby("Familia"):
+        fam_str = str(fam_val or "").strip().upper()
+        if not fam_str or fam_str in ("NONE", "NAN", ""):
+            continue
+        grupo_str = ""
+        if tem_grupo:
+            val_counts = grp_df["Grupo"].dropna().astype(str).str.strip().value_counts()
+            if not val_counts.empty:
+                grupo_str = val_counts.index[0]
+        familias_list.append({
+            "familia": fam_str,
+            "grupo": grupo_str,
+            "total_itens": int(grp_df["Item"].nunique()),
+        })
+
+    familias_list.sort(key=lambda x: x["familia"])
+    _cache_familias_3 = familias_list
+    return familias_list
+
+
 # ==============================================================================
 # Gestão de Sessões Isoladas por Usuário / Navegador (Cookies)
 # ==============================================================================
@@ -672,9 +723,10 @@ def gerar_dataframe_cons(
         print(f"Salvando DataFrame completo sem filtros em {dest_excel}...")
         df_consumo.to_excel(dest_excel, index=False)
 
-    global _cache_cons, _cache_timestamp, _cache_data_calculo, _cache_snapshot_nome, _cache_data_snapshot, _enriquecimento
+    global _cache_cons, _cache_timestamp, _cache_data_calculo, _cache_snapshot_nome, _cache_data_snapshot, _enriquecimento, _cache_familias_3
     _enriquecimento = _construir_mapas_enriquecimento(dfs, df_consumo, forcar_oc=forcar_oc)
     _cache_cons = df_consumo
+    _cache_familias_3 = None
     _cache_timestamp = time.time()
     _cache_data_calculo = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     _cache_snapshot_nome = caminho.name
@@ -1321,6 +1373,7 @@ def obter_cons_efetivo(recarregar: bool = False, session_id: Optional[str] = Non
 def _obter_fila_calculada(
     baixa_filtro: str = "TODOS",
     tipo_filtro: str = "TODOS",
+    familias_filtro: Optional[Any] = None,
     recarregar: bool = False,
     forcar_oc: bool = False,
     session_id: Optional[str] = None,
@@ -1335,7 +1388,22 @@ def _obter_fila_calculada(
     sess = obter_sessao(session_id)
     b_norm = baixa_filtro if baixa_filtro in ("S", "N") else "TODOS"
     t_norm = tipo_filtro if tipo_filtro in ("C", "P") else "TODOS"
-    cache_key = (_cache_timestamp, sess.simulacao_versao, b_norm, t_norm)
+
+    fam_set: Set[str] = set()
+    if familias_filtro:
+        if isinstance(familias_filtro, (list, tuple, set)):
+            fam_set = {str(x).strip().upper() for x in familias_filtro if str(x).strip()}
+        elif isinstance(familias_filtro, str):
+            fam_set = {str(x).strip().upper() for x in familias_filtro.split(",") if str(x).strip()}
+        if "TODOS" in fam_set:
+            fam_set = set()
+
+    todas_fam_3 = {f["familia"] for f in obter_familias_componentes_3(session_id=session_id)}
+    if fam_set and todas_fam_3 and fam_set >= todas_fam_3:
+        fam_set = set()
+
+    fam_tuple = tuple(sorted(fam_set)) if fam_set else ()
+    cache_key = (_cache_timestamp, sess.simulacao_versao, b_norm, t_norm, fam_tuple)
 
     with sess.lock:
         if cache_key in sess.cache_filas:
@@ -1429,7 +1497,30 @@ def _obter_fila_calculada(
                     if consumo_efetivo <= 0:
                         continue
 
+                    eh_item_3 = item_cod.startswith("3")
                     eh_cst = item_cod in itens_cst or str(comp.get("Familia") or "").strip().upper() == "CST"
+
+                    if fam_set:
+                        if eh_item_3:
+                            fam_comp = "CST" if eh_cst else str(comp.get("Familia") or "").strip().upper()
+                            if fam_comp not in fam_set:
+                                continue
+                        else:
+                            # Itens que NÃO começam com 3 (ex: peças produzidas tipo P iniciadas em 2, 4, etc.):
+                            # Desconsiderados na avaliação de consumo e falta do produto final.
+                            # Mas se for tipo P e faltar saldo, propaga a necessidade para seus filhos (que podem conter itens 3).
+                            if comp.get("Tipo") == "P":
+                                saldo_est = estoque_atual.get(item_cod, 0.0)
+                                if (saldo_est + 1e-6) >= consumo_efetivo:
+                                    estoque_atual[item_cod] = round(saldo_est - consumo_efetivo, 2)
+                                    fator_filho = 0.0
+                                else:
+                                    estoque_atual[item_cod] = 0.0
+                                    falta = round(max(0.0, consumo_efetivo - saldo_est), 2)
+                                    fator_filho = round(falta / consumo_efetivo, 4) if consumo_efetivo > 0 else 0.0
+                                if fator_filho > 0:
+                                    proximos_pais.append((item_cod, fator_filho))
+                            continue
 
                     if eh_cst:
                         # Exclusivo CST: disponibilidade NÃO é verificada no estoque.
@@ -1614,6 +1705,7 @@ def analisar_itens_finais(
     status_filtro = str(filtros.get("status", "todos") or "todos").strip().lower()
     baixa_filtro = str(filtros.get("baixa", "todos") or "todos").strip().upper()
     tipo_filtro = str(filtros.get("tipo", "todos") or "todos").strip().upper()
+    familias_filtro = filtros.get("familias")
     apenas_simulados = bool(filtros.get("apenas_simulados", False))
     col_filtros = filtros.get("col_filtros") or {}
     data_inicio_raw = filtros.get("data_inicio")
@@ -1623,6 +1715,7 @@ def analisar_itens_finais(
     itens_full, _, locais_producao = _obter_fila_calculada(
         baixa_filtro=baixa_filtro,
         tipo_filtro=tipo_filtro,
+        familias_filtro=familias_filtro,
         recarregar=recarregar,
         forcar_oc=forcar_oc,
         session_id=session_id,
@@ -1647,6 +1740,7 @@ def analisar_itens_finais(
             "pedidos_simulados_ativos": pedidos_ativos,
             "locais_producao": locais_producao,
             "divisao_fabricas": carregar_divisao_fabricas(),
+            "familias_componentes_3": obter_familias_componentes_3(session_id=session_id),
             "data_carga": info_carga["data_carga"],
             "data_carregamento": info_carga["data_carregamento"],
             "snapshot": info_carga["snapshot"],
@@ -1810,6 +1904,7 @@ def analisar_itens_finais(
         "pedidos_simulados_ativos": pedidos_ativos,
         "locais_producao": locais_producao,
         "divisao_fabricas": carregar_divisao_fabricas(),
+        "familias_componentes_3": obter_familias_componentes_3(session_id=session_id),
         "data_carga": info_carga["data_carga"],
         "data_carregamento": info_carga["data_carregamento"],
         "snapshot": info_carga["snapshot"],
@@ -2137,6 +2232,7 @@ def obter_detalhes_item_final(
     raiz_fabrica: Optional[str] = None,
     baixa: Optional[str] = None,
     tipo: Optional[str] = None,
+    familias: Optional[Any] = None,
     session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -2151,6 +2247,7 @@ def obter_detalhes_item_final(
     itens_full, comp_agg_full, _ = _obter_fila_calculada(
         baixa_filtro=b_norm,
         tipo_filtro=t_norm,
+        familias_filtro=familias,
         session_id=session_id,
     )
     if itens_full.empty or comp_agg_full.empty:
@@ -2254,6 +2351,7 @@ def obter_resumo_pedido(
     fabrica: Optional[str] = None,
     baixa: Optional[str] = None,
     tipo: Optional[str] = None,
+    familias: Optional[Any] = None,
     session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -2285,6 +2383,7 @@ def obter_resumo_pedido(
     itens_full, comp_agg_full, _ = _obter_fila_calculada(
         baixa_filtro=b_norm,
         tipo_filtro=t_norm,
+        familias_filtro=familias,
         session_id=session_id,
     )
     if itens_full.empty or comp_agg_full.empty:

@@ -3,6 +3,7 @@ import { apiCall } from "./api";
 import Sidebar from "./components/Sidebar";
 import SimuladorModal from "./components/SimuladorModal";
 import ModalFiltroFabricaLocal from "./components/ModalFiltroFabricaLocal";
+import ModalFiltroFamiliaComponente from "./components/ModalFiltroFamiliaComponente";
 import DisponibilidadeEstoque from "./screens/DisponibilidadeEstoque";
 import MatrizFaltasProduzidos from "./screens/MatrizFaltasProduzidos";
 import ResumoPedido from "./screens/ResumoPedido";
@@ -46,6 +47,8 @@ export default function VerEstoque() {
   const [locaisProducao, setLocaisProducao] = useState([]);
   const [divisaoFabricas, setDivisaoFabricas] = useState(null);
   const [modalFiltroLocalAberto, setModalFiltroLocalAberto] = useState(false);
+  const [modalFiltroFamiliaAberto, setModalFiltroFamiliaAberto] = useState(false);
+  const [familiasComponentes3, setFamiliasComponentes3] = useState([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
   const [snapshotNome, setSnapshotNome] = useState("");
@@ -67,6 +70,7 @@ export default function VerEstoque() {
   const [filtroStatus, setFiltroStatus] = useState("todos"); // 'todos' | 'disponivel' | 'falta'
   const [filtroBaixa, setFiltroBaixa] = useState("todos"); // 'todos' | 'S' | 'N'
   const [filtroTipo, setFiltroTipo] = useState("todos"); // 'todos' | 'C' | 'P'
+  const [filtroFamilias, setFiltroFamilias] = useState([]);
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [filtroTipoData, setFiltroTipoData] = useState("abertura_op"); // 'abertura_op' | 'entrega_pedido'
@@ -177,6 +181,7 @@ export default function VerEstoque() {
             status: filtroStatus,
             baixa: filtroBaixa,
             tipo: filtroTipo,
+            familias: filtroFamilias,
             apenas_simulados: filtroApenasSimulados,
             col_filtros: colFiltros,
             data_inicio: filtroDataInicio,
@@ -216,6 +221,7 @@ export default function VerEstoque() {
         }
         if (res.locais_producao) setLocaisProducao(res.locais_producao);
         if (res.divisao_fabricas) setDivisaoFabricas(res.divisao_fabricas);
+        if (Array.isArray(res.familias_componentes_3)) setFamiliasComponentes3(res.familias_componentes_3);
         if (res.data_carga) setDataCarga(res.data_carga);
         if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
@@ -233,6 +239,7 @@ export default function VerEstoque() {
       filtroStatus,
       filtroBaixa,
       filtroTipo,
+      filtroFamilias,
       filtroApenasSimulados,
       filtroDataInicio,
       filtroDataFim,
@@ -252,6 +259,7 @@ export default function VerEstoque() {
     filtroStatus,
     filtroBaixa,
     filtroTipo,
+    filtroFamilias,
     filtroApenasSimulados,
     filtroDataInicio,
     filtroDataFim,
@@ -427,6 +435,7 @@ export default function VerEstoque() {
           status: filtroStatus,
           baixa: filtroBaixa,
           tipo: filtroTipo,
+          familias: filtroFamilias,
           apenas_simulados: filtroApenasSimulados,
           col_filtros: colFiltros,
           data_inicio: filtroDataInicio,
@@ -460,6 +469,7 @@ export default function VerEstoque() {
         fabrica: it.fabrica,
         baixa: bFiltro,
         tipo: tFiltro,
+        familias: filtroFamilias,
       });
       if (res && res.erro) throw new Error(res.erro);
       setDetalhesItem(res);
@@ -530,6 +540,7 @@ export default function VerEstoque() {
         fabrica: fabFiltro,
         baixa: bFiltro,
         tipo: tFiltro,
+        familias: filtroFamilias,
       });
       if (res && res.erro) throw new Error(res.erro);
       setResumoDados(res);
@@ -694,6 +705,7 @@ export default function VerEstoque() {
   // Limpeza de Filtros
   const limparFiltros = () => {
     setFiltroLocal([]);
+    setFiltroFamilias([]);
     setFiltroPedido("");
     setFiltroCodigo("");
     setFiltroStatus("todos");
@@ -707,6 +719,7 @@ export default function VerEstoque() {
 
   const temFiltrosAtivos =
     Boolean(Array.isArray(filtroLocal) ? filtroLocal.length > 0 : filtroLocal) ||
+    Boolean(Array.isArray(filtroFamilias) ? filtroFamilias.length > 0 : filtroFamilias) ||
     Boolean(filtroPedido) ||
     Boolean(filtroCodigo) ||
     filtroStatus !== "todos" ||
@@ -716,6 +729,20 @@ export default function VerEstoque() {
     Boolean(filtroDataInicio) ||
     Boolean(filtroDataFim) ||
     Object.values(colFiltros).some((v) => Boolean(v && v.trim()));
+
+  const handleAbrirModalFiltroFamilia = async () => {
+    if (!familiasComponentes3 || familiasComponentes3.length === 0) {
+      try {
+        const res = await apiCall("obter_familias_componentes_3", {});
+        if (res && res.familias) {
+          setFamiliasComponentes3(res.familias);
+        }
+      } catch (err) {
+        console.warn("Erro ao buscar famílias de componentes:", err);
+      }
+    }
+    setModalFiltroFamiliaAberto(true);
+  };
 
   // Aplica filtro digitado no título da coluna no Backend
   const aplicarFiltroColuna = (colKey) => {
@@ -820,6 +847,10 @@ export default function VerEstoque() {
           onAbrirResumoPedido={abrirResumoPedido}
           onAbrirSimulador={abrirModalSimulador}
           onAbrirModalFiltroLocal={() => setModalFiltroLocalAberto(true)}
+          filtroFamilias={filtroFamilias}
+          setFiltroFamilias={setFiltroFamilias}
+          familiasDisponiveis={familiasComponentes3}
+          onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
         />
       )}
 
@@ -938,6 +969,15 @@ export default function VerEstoque() {
         divisaoFabricas={divisaoFabricas}
         locaisSelecionados={filtroLocal}
         onAplicar={(novosLocais) => setFiltroLocal(novosLocais)}
+      />
+
+      {/* MODAL DE FILTRO DE FAMÍLIAS DE COMPONENTES (ITENS INICIADOS EM 3) */}
+      <ModalFiltroFamiliaComponente
+        aberto={modalFiltroFamiliaAberto}
+        onFechar={() => setModalFiltroFamiliaAberto(false)}
+        familiasDisponiveis={familiasComponentes3}
+        familiasSelecionadas={filtroFamilias}
+        onAplicar={(novasFamilias) => setFiltroFamilias(novasFamilias)}
       />
     </div>
   );

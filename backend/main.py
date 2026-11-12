@@ -85,6 +85,7 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             raiz_fabrica=payload.get("fabrica"),
             baixa=payload.get("baixa"),
             tipo=payload.get("tipo"),
+            familias=payload.get("familias"),
             session_id=session_id,
         )
     if method == "obter_resumo_pedido":
@@ -94,12 +95,15 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             fabrica=payload.get("fabrica"),
             baixa=payload.get("baixa"),
             tipo=payload.get("tipo"),
+            familias=payload.get("familias"),
             session_id=session_id,
         )
     if method == "obter_opcoes_filtros_faltantes":
         return service.obter_opcoes_filtros_faltantes(session_id=session_id)
     if method == "obter_divisao_fabricas":
         return service.carregar_divisao_fabricas()
+    if method == "obter_familias_componentes_3":
+        return {"familias": service.obter_familias_componentes_3(session_id=session_id)}
     if method == "obter_matriz_faltantes_producao":
         return service.obter_matriz_faltantes_producao(
             filtros=payload.get("filtros"),

@@ -62,10 +62,19 @@ export default function DisponibilidadeEstoque({
   onAbrirResumoPedido,
   onAbrirSimulador,
   onAbrirModalFiltroLocal = () => {},
+  filtroFamilias = [],
+  setFiltroFamilias = () => {},
+  familiasDisponiveis = [],
+  onAbrirModalFiltroFamilia = () => {},
 }) {
   const qtdLocaisFiltrados = Array.isArray(filtroLocal)
     ? filtroLocal.length
     : filtroLocal && String(filtroLocal).trim() && String(filtroLocal).toUpperCase() !== "TODOS"
+    ? 1
+    : 0;
+  const qtdFamiliasFiltradas = Array.isArray(filtroFamilias)
+    ? filtroFamilias.length
+    : filtroFamilias && String(filtroFamilias).trim()
     ? 1
     : 0;
   /**
@@ -553,6 +562,54 @@ export default function DisponibilidadeEstoque({
                     Produzido (P)
                   </button>
                 </div>
+              </div>
+
+              {/* Família (Itens 3) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
+                  Família (Itens 3):
+                </span>
+                <button
+                  type="button"
+                  onClick={onAbrirModalFiltroFamilia}
+                  className={`h-7 px-2.5 rounded-xs text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+                    qtdFamiliasFiltradas > 0
+                      ? "bg-[#FCFAF7] border-[#8B5A2B] text-[#1A1A1A] font-semibold shadow-xs"
+                      : "bg-[#F8F8F8] border-[#E0E0E0] text-[#757575] hover:text-[#1A1A1A] hover:border-[#1A1A1A]"
+                  }`}
+                  title="Clique para filtrar e recalcular o consumo pelas famílias dos componentes (itens 3)"
+                >
+                  <span
+                    className={`material-symbols-outlined text-[15px] ${
+                      qtdFamiliasFiltradas > 0 ? "text-[#8B5A2B]" : "text-[#757575]"
+                    }`}
+                  >
+                    category
+                  </span>
+                  {qtdFamiliasFiltradas > 0 ? (
+                    <span className="truncate font-mono">
+                      {qtdFamiliasFiltradas}{" "}
+                      {qtdFamiliasFiltradas === 1 ? "família" : "famílias"}
+                    </span>
+                  ) : (
+                    <span>Todas</span>
+                  )}
+                  {qtdFamiliasFiltradas > 0 && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFiltroFamilias([]);
+                      }}
+                      className="text-[#B84A39] hover:bg-[#FFEBEE] rounded-full p-0.5 text-[11px] font-bold leading-none cursor-pointer ml-0.5"
+                      title="Limpar filtro de famílias"
+                    >
+                      ✕
+                    </span>
+                  )}
+                  <span className="material-symbols-outlined text-[14px] text-[#9E9E9E]">
+                    tune
+                  </span>
+                </button>
               </div>
 
               {/* Status */}

@@ -122,18 +122,19 @@ def calc_data(dfs):
     consumo = sanitizar_dataframe(raw_cons)
 
     consumo["Item"] = consumo["Item"].str.split("-").str[0].str.strip()
-    consumo = consumo[
-        [
-            "Tipo",
-            "Item",
-            "Baixa",
-            "Consumo",
-            "Local Prod.",
-            "OP",
-            "Familia",
-            "Den. Item",
-        ]
+    cols_cons = [
+        "Tipo",
+        "Item",
+        "Baixa",
+        "Consumo",
+        "Local Prod.",
+        "OP",
+        "Familia",
+        "Den. Item",
     ]
+    if "Grupo" in consumo.columns:
+        cols_cons.append("Grupo")
+    consumo = consumo[cols_cons]
     consumo = consumo.rename(columns={"OP": "Ordem Cons"})
     consumo["Consumo"] = (
         pd.to_numeric(consumo["Consumo"], errors="coerce")
@@ -191,28 +192,29 @@ def calc_data(dfs):
     consumo = pd.concat([consumo_com_pedido, consumo_sem_pedido]).sort_index()
 
     ######## Ordena as colunas ##########
-    consumo = consumo[
-        [
-            "Tipo",
-            "Ordem Prod",
-            "Item",
-            "Consumo",
-            "Ordem Cons",
-            "item_pai",
-            "Saldo",
-            "Pedido",
-            "Representante",
-            "Entrega Pedido",
-            "Local Prod.",
-            "Familia",
-            "Cliente",
-            "Fábrica",
-            "Ordem",
-            "Data Abertura",
-            "Baixa",
-            "Den. Item",
-        ]
+    cols_finais = [
+        "Tipo",
+        "Ordem Prod",
+        "Item",
+        "Consumo",
+        "Ordem Cons",
+        "item_pai",
+        "Saldo",
+        "Pedido",
+        "Representante",
+        "Entrega Pedido",
+        "Local Prod.",
+        "Familia",
+        "Cliente",
+        "Fábrica",
+        "Ordem",
+        "Data Abertura",
+        "Baixa",
+        "Den. Item",
     ]
+    if "Grupo" in consumo.columns:
+        cols_finais.append("Grupo")
+    consumo = consumo[cols_finais]
 
     ######## Calculos Baseados em estoque ##########
     raw_estoque = dfs.get("estoque")

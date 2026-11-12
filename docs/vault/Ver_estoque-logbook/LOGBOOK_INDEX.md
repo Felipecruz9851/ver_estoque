@@ -2,6 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
+| 2026-11-12 | Filtro avançado e recálculo do consumo por famílias de componentes iniciados em 3 (Líder Design) | CONCLUIDO | [[2026-11-12]] |
 | 2026-11-11 | Aplicação da identidade visual Líder Design, desacoplamento modular do frontend e conversão de modais para telas principais | CONCLUIDO | [[2026-11-11]] |
 | 2026-11-10 | Linha de subtotal no topo das tabelas de componentes faltantes por fábrica e ajuste correspondente na imagem PNG | CONCLUIDO | [[2026-11-10]] |
 | 2026-11-09 | Padronização para 2 casas decimais, KPI Total de Itens Avaliados e Tela de Matriz Pivot de Componentes Produzidos Faltantes (Local Pai × Local Comp × Prazo Expedição) | CONCLUIDO | [[2026-11-09]] |

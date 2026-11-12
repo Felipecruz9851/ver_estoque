@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 
 /**
  * Modal de Seleção de Fábricas e Locais de Produção (Líder Design)
- * 
+ *
  * Suporta:
  * 1. Visão 1: Grade de Fábricas Industriais com checkbox tristate ("Todos") e drill-down.
  * 2. Visão 2: Drill-down nos locais individuais da fábrica ativa com ações rápidas e retorno.
@@ -259,9 +259,7 @@ export default function ModalFiltroFabricaLocal({
               </div>
               <h1 className="text-xl sm:text-2xl font-semibold text-[#141414] tracking-tight flex items-center gap-2.5 flex-wrap">
                 Fábricas e Locais de Produção
-                <span className="text-[11px] font-normal px-2.5 py-0.5 rounded bg-[#F5ECE3] text-[#8B5A2B] border border-[#8B5A2B]/20">
-                  Ambiente Integrado Sankhya
-                </span>
+
               </h1>
             </div>
 
