@@ -109,6 +109,16 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             filtros=payload.get("filtros"),
             session_id=session_id,
         )
+    if method == "obter_resumo_faltantes":
+        return service.obter_resumo_faltantes(
+            filtros=payload.get("filtros"),
+            session_id=session_id,
+        )
+    if method == "exportar_resumo_faltantes_excel":
+        return service.exportar_resumo_faltantes_excel(
+            filtros=payload.get("filtros"),
+            session_id=session_id,
+        )
     if method == "exportar_matriz_faltantes_excel":
         return service.exportar_matriz_faltantes_excel(
             filtros=payload.get("filtros"),

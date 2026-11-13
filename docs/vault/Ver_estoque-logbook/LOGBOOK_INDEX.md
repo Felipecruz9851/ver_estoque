@@ -2,6 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
+| 2026-11-13 | Nova tela Itens Faltantes (resumo por local de produção e tipo P/C com filtros espelhados) | CONCLUIDO | [[2026-11-13]] |
 | 2026-11-12 | Filtro avançado e recálculo do consumo por famílias de componentes iniciados em 3 (Líder Design) | CONCLUIDO | [[2026-11-12]] |
 | 2026-11-11 | Aplicação da identidade visual Líder Design, desacoplamento modular do frontend e conversão de modais para telas principais | CONCLUIDO | [[2026-11-11]] |
 | 2026-11-10 | Linha de subtotal no topo das tabelas de componentes faltantes por fábrica e ajuste correspondente na imagem PNG | CONCLUIDO | [[2026-11-10]] |

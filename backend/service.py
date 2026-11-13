@@ -1684,6 +1684,100 @@ def _obter_fila_calculada(
     return itens_resumo, comp_agg_escopo, locais_producao
 
 
+def _filtrar_itens_finais_base(itens_full: pd.DataFrame, filtros: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    """Aplica sobre a fila calculada os filtros de visualização dos itens finais (exceto status e colunas)."""
+    filtros = filtros or {}
+    local_filtro = filtros.get("local_producao")
+    pedido_filtro = str(filtros.get("pedido", "") or "").strip()
+    codigo_filtro = str(filtros.get("codigo", "") or "").strip().upper()
+    apenas_simulados = bool(filtros.get("apenas_simulados", False))
+    data_inicio_raw = filtros.get("data_inicio")
+    data_fim_raw = filtros.get("data_fim")
+    tipo_data_filtro = str(filtros.get("tipo_data", "abertura_op") or "abertura_op").strip().lower()
+
+    mask = pd.Series(True, index=itens_full.index)
+
+    if apenas_simulados:
+        mask &= itens_full["simulado"] == True  # noqa: E712
+
+    if local_filtro:
+        if isinstance(local_filtro, (list, tuple, set)):
+            locais_set = {str(x).strip().upper() for x in local_filtro if str(x).strip()}
+            if locais_set and "TODOS" not in locais_set:
+                mask &= itens_full["raiz_Fábrica"].astype(str).str.upper().isin(locais_set)
+        elif isinstance(local_filtro, str):
+            s_limpo = local_filtro.strip()
+            if s_limpo and s_limpo.upper() != "TODOS":
+                locais_set = {x.strip().upper() for x in s_limpo.split(",") if x.strip()}
+                if len(locais_set) == 1:
+                    mask &= itens_full["raiz_Fábrica"].astype(str).str.upper() == list(locais_set)[0]
+                elif len(locais_set) > 1:
+                    mask &= itens_full["raiz_Fábrica"].astype(str).str.upper().isin(locais_set)
+
+    if pedido_filtro:
+        mask &= itens_full["raiz_Pedido_Str"].str.contains(pedido_filtro, case=False, na=False)
+
+    if codigo_filtro:
+        mask_cod = itens_full["raiz_Item Final"].astype(str).str.upper().str.contains(codigo_filtro, na=False)
+        mask_desc = itens_full["raiz_Descricao"].astype(str).str.upper().str.contains(codigo_filtro, na=False)
+        mask &= mask_cod | mask_desc
+
+    col_data_sort = (
+        "_dt_entrega_sort"
+        if tipo_data_filtro in ("entrega_pedido", "entrega") and "_dt_entrega_sort" in itens_full.columns
+        else "_dt_abertura_sort"
+    )
+
+    if data_inicio_raw and str(data_inicio_raw).strip():
+        dt_in_str = str(data_inicio_raw).strip()
+        dt_in = pd.to_datetime(dt_in_str, errors="coerce", dayfirst="/" in dt_in_str)
+        if pd.notna(dt_in) and col_data_sort in itens_full.columns:
+            mask &= itens_full[col_data_sort].dt.floor("D") >= dt_in.floor("D")
+
+    if data_fim_raw and str(data_fim_raw).strip():
+        dt_fi_str = str(data_fim_raw).strip()
+        dt_fi = pd.to_datetime(dt_fi_str, errors="coerce", dayfirst="/" in dt_fi_str)
+        if pd.notna(dt_fi) and col_data_sort in itens_full.columns:
+            mask &= itens_full[col_data_sort].dt.floor("D") <= dt_fi.floor("D")
+
+    return itens_full[mask]
+
+
+def _aplicar_col_filtros(itens_resumo: pd.DataFrame, col_filtros: Any) -> pd.DataFrame:
+    """Aplica filtros individuais por título de coluna da tabela de itens finais."""
+    if col_filtros and isinstance(col_filtros, dict) and not itens_resumo.empty:
+        mask_cols = pd.Series(True, index=itens_resumo.index)
+        for col_key, col_val in col_filtros.items():
+            if not col_val or not str(col_val).strip():
+                continue
+            val_clean = str(col_val).strip().upper()
+            if col_key == "item_final":
+                mask_cols &= itens_resumo["raiz_Item Final"].astype(str).str.upper().str.contains(val_clean, na=False)
+            elif col_key == "descricao":
+                mask_cols &= itens_resumo["raiz_Descricao"].astype(str).str.upper().str.contains(val_clean, na=False)
+            elif col_key == "pedido":
+                mask_cols &= itens_resumo["raiz_Pedido_Str"].astype(str).str.upper().str.contains(val_clean, na=False)
+            elif col_key == "fabrica":
+                mask_cols &= itens_resumo["raiz_Fábrica"].astype(str).str.upper().str.contains(val_clean, na=False)
+            elif col_key == "data_abertura":
+                m1 = itens_resumo["_dt_abertura_br"].str.upper().str.contains(val_clean, na=False)
+                m2 = itens_resumo["raiz_Data_Abertura"].astype(str).str.upper().str.contains(val_clean, na=False)
+                mask_cols &= m1 | m2
+            elif col_key == "entrega":
+                m1 = itens_resumo["_dt_entrega_br"].str.upper().str.contains(val_clean, na=False)
+                m2 = itens_resumo["raiz_Entrega_Pedido"].astype(str).str.upper().str.contains(val_clean, na=False)
+                mask_cols &= m1 | m2
+            elif col_key == "saldo":
+                mask_cols &= itens_resumo["_saldo_str"].str.contains(val_clean, na=False)
+            elif col_key == "status":
+                m1 = itens_resumo["status"].astype(str).str.upper().str.contains(val_clean, na=False)
+                m2 = itens_resumo["componentes_faltando"].astype(str).str.contains(val_clean, na=False)
+                mask_cols &= m1 | m2
+
+        itens_resumo = itens_resumo[mask_cols]
+    return itens_resumo
+
+
 def analisar_itens_finais(
     filtros: Optional[Dict[str, Any]] = None,
     page: int = 0,
@@ -1749,53 +1843,7 @@ def analisar_itens_finais(
 
     total_simulados_global = int(itens_full["simulado"].sum())
 
-    # Filtros globais sobre a fila já calculada (preserva disponibilidade real da posição na fila)
-    mask = pd.Series(True, index=itens_full.index)
-
-    if apenas_simulados:
-        mask &= itens_full["simulado"] == True  # noqa: E712
-
-    if local_filtro:
-        if isinstance(local_filtro, (list, tuple, set)):
-            locais_set = {str(x).strip().upper() for x in local_filtro if str(x).strip()}
-            if locais_set and "TODOS" not in locais_set:
-                mask &= itens_full["raiz_Fábrica"].astype(str).str.upper().isin(locais_set)
-        elif isinstance(local_filtro, str):
-            s_limpo = local_filtro.strip()
-            if s_limpo and s_limpo.upper() != "TODOS":
-                locais_set = {x.strip().upper() for x in s_limpo.split(",") if x.strip()}
-                if len(locais_set) == 1:
-                    mask &= itens_full["raiz_Fábrica"].astype(str).str.upper() == list(locais_set)[0]
-                elif len(locais_set) > 1:
-                    mask &= itens_full["raiz_Fábrica"].astype(str).str.upper().isin(locais_set)
-
-    if pedido_filtro:
-        mask &= itens_full["raiz_Pedido_Str"].str.contains(pedido_filtro, case=False, na=False)
-
-    if codigo_filtro:
-        mask_cod = itens_full["raiz_Item Final"].astype(str).str.upper().str.contains(codigo_filtro, na=False)
-        mask_desc = itens_full["raiz_Descricao"].astype(str).str.upper().str.contains(codigo_filtro, na=False)
-        mask &= mask_cod | mask_desc
-
-    col_data_sort = (
-        "_dt_entrega_sort"
-        if tipo_data_filtro in ("entrega_pedido", "entrega") and "_dt_entrega_sort" in itens_full.columns
-        else "_dt_abertura_sort"
-    )
-
-    if data_inicio_raw and str(data_inicio_raw).strip():
-        dt_in_str = str(data_inicio_raw).strip()
-        dt_in = pd.to_datetime(dt_in_str, errors="coerce", dayfirst="/" in dt_in_str)
-        if pd.notna(dt_in) and col_data_sort in itens_full.columns:
-            mask &= itens_full[col_data_sort].dt.floor("D") >= dt_in.floor("D")
-
-    if data_fim_raw and str(data_fim_raw).strip():
-        dt_fi_str = str(data_fim_raw).strip()
-        dt_fi = pd.to_datetime(dt_fi_str, errors="coerce", dayfirst="/" in dt_fi_str)
-        if pd.notna(dt_fi) and col_data_sort in itens_full.columns:
-            mask &= itens_full[col_data_sort].dt.floor("D") <= dt_fi.floor("D")
-
-    itens_resumo = itens_full[mask]
+    itens_resumo = _filtrar_itens_finais_base(itens_full, filtros)
 
     # Métricas consolidadas antes dos filtros de status e coluna
     total_itens_finais = len(itens_resumo)
@@ -1818,37 +1866,7 @@ def analisar_itens_finais(
     elif status_filtro == "falta":
         itens_resumo = itens_resumo[itens_resumo["status"] == "Com Falta"]
 
-    # Filtros individuais por título de coluna
-    if col_filtros and isinstance(col_filtros, dict) and not itens_resumo.empty:
-        mask_cols = pd.Series(True, index=itens_resumo.index)
-        for col_key, col_val in col_filtros.items():
-            if not col_val or not str(col_val).strip():
-                continue
-            val_clean = str(col_val).strip().upper()
-            if col_key == "item_final":
-                mask_cols &= itens_resumo["raiz_Item Final"].astype(str).str.upper().str.contains(val_clean, na=False)
-            elif col_key == "descricao":
-                mask_cols &= itens_resumo["raiz_Descricao"].astype(str).str.upper().str.contains(val_clean, na=False)
-            elif col_key == "pedido":
-                mask_cols &= itens_resumo["raiz_Pedido_Str"].astype(str).str.upper().str.contains(val_clean, na=False)
-            elif col_key == "fabrica":
-                mask_cols &= itens_resumo["raiz_Fábrica"].astype(str).str.upper().str.contains(val_clean, na=False)
-            elif col_key == "data_abertura":
-                m1 = itens_resumo["_dt_abertura_br"].str.upper().str.contains(val_clean, na=False)
-                m2 = itens_resumo["raiz_Data_Abertura"].astype(str).str.upper().str.contains(val_clean, na=False)
-                mask_cols &= m1 | m2
-            elif col_key == "entrega":
-                m1 = itens_resumo["_dt_entrega_br"].str.upper().str.contains(val_clean, na=False)
-                m2 = itens_resumo["raiz_Entrega_Pedido"].astype(str).str.upper().str.contains(val_clean, na=False)
-                mask_cols &= m1 | m2
-            elif col_key == "saldo":
-                mask_cols &= itens_resumo["_saldo_str"].str.contains(val_clean, na=False)
-            elif col_key == "status":
-                m1 = itens_resumo["status"].astype(str).str.upper().str.contains(val_clean, na=False)
-                m2 = itens_resumo["componentes_faltando"].astype(str).str.contains(val_clean, na=False)
-                mask_cols &= m1 | m2
-
-        itens_resumo = itens_resumo[mask_cols]
+    itens_resumo = _aplicar_col_filtros(itens_resumo, col_filtros)
 
     total_filtrados = len(itens_resumo)
     total_paginas = (total_filtrados + page_size - 1) // page_size if page_size > 0 else 1
@@ -3191,6 +3209,239 @@ def exportar_matriz_faltantes_excel(
         "session_id": str(session_id or "default"),
     }
 
+def _resumo_faltantes_vazio(session_id: Optional[str] = None) -> Dict[str, Any]:
+    return {
+        "grupos_produzidos": [],
+        "grupos_comprados": [],
+        "totais": {
+            "itens_finais_com_falta": 0,
+            "pedidos_afetados": 0,
+            "p_itens": 0,
+            "p_falta_total": 0.0,
+            "p_com_op": 0,
+            "p_locais": 0,
+            "c_itens": 0,
+            "c_falta_total": 0.0,
+            "c_com_oc": 0,
+            "c_locais": 0,
+        },
+        "session_id": str(session_id or "default"),
+    }
+
+
+_CAMPOS_ENRIQUECIMENTO_RESUMO = (
+    "ordem_prod",
+    "op_data_abertura",
+    "op_data_entrega",
+    "op_saldo",
+    "op_vinculo",
+    "oc_numero",
+    "oc_previsao",
+    "oc_saldo",
+    "oc_saldo_ate_abertura",
+    "oc_fornecedor",
+    "oc_sit",
+    "oc_vinculo",
+    "oc_vinculada_pedido",
+    "eh_cst",
+    "cst_situacao",
+    "cst_chegou",
+)
+
+
+def obter_resumo_faltantes(
+    filtros: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Resumo consolidado de TUDO o que falta (insumos com Falta > 0) para os itens finais que
+    atendem aos mesmos filtros da tela principal (local, famílias, datas, pedido, código, baixa, tipo...).
+    O filtro de status do item final é ignorado de propósito: aqui o foco é o que falta.
+
+    - Componentes produzidos (Tipo P): agrupados pelo local de produção do componente.
+    - Itens comprados (Tipo C): agrupados pela fábrica consumidora (local do item final).
+    """
+    filtros = filtros or {}
+    baixa = str(filtros.get("baixa", "todos") or "todos").strip().upper()
+    tipo = str(filtros.get("tipo", "todos") or "todos").strip().upper()
+
+    itens_full, comp_agg, _ = _obter_fila_calculada(
+        baixa_filtro=baixa,
+        tipo_filtro=tipo,
+        familias_filtro=filtros.get("familias"),
+        session_id=session_id,
+    )
+    if itens_full.empty or comp_agg.empty:
+        return _resumo_faltantes_vazio(session_id)
+
+    col_f = {
+        k: v for k, v in (filtros.get("col_filtros") or {}).items() if k not in ("status", "saldo")
+    }
+    itens_sel = _aplicar_col_filtros(_filtrar_itens_finais_base(itens_full, filtros), col_f)
+    if itens_sel.empty:
+        return _resumo_faltantes_vazio(session_id)
+
+    mapa_abertura = dict(zip(itens_sel["_ordem_fila"], itens_sel["_dt_abertura_br"]))
+    comp = comp_agg[
+        comp_agg["_ordem_fila"].isin(set(itens_sel["_ordem_fila"]))
+        & (comp_agg["Falta"] > 1e-6)
+        & comp_agg["Tipo"].astype(str).str.upper().isin(["P", "C"])
+    ].copy()
+    if comp.empty:
+        return _resumo_faltantes_vazio(session_id)
+
+    comp = comp.sort_values("_ordem_fila", kind="stable")
+    comp["Tipo"] = comp["Tipo"].astype(str).str.upper()
+    comp["_dt_abertura_br"] = comp["_ordem_fila"].map(mapa_abertura).fillna("")
+
+    pares = comp.loc[comp["Tipo"] == "P", ["Item", "Local_Prod"]].drop_duplicates().to_dict("records")
+    mapa_local_p = {
+        (r["Item"], r["Local_Prod"]): _resolver_local_prod_componente(r["Item"], r["Local_Prod"])
+        for r in pares
+    }
+
+    def _grupo(r_tipo, r_item, r_lp, r_fab) -> str:
+        if r_tipo == "P":
+            g = mapa_local_p.get((r_item, r_lp), "")
+        else:
+            g = str(r_fab or "")
+        g = str(g or "").strip()
+        return g if g and g != "0" else "NÃO INFORMADO"
+
+    comp["_grupo"] = [
+        _grupo(t, i, lp, fb)
+        for t, i, lp, fb in zip(comp["Tipo"], comp["Item"], comp["Local_Prod"], comp["raiz_Fábrica"])
+    ]
+
+    grupos_p: Dict[str, List[Dict[str, Any]]] = {}
+    grupos_c: Dict[str, List[Dict[str, Any]]] = {}
+
+    for (tp, grupo, item), grp in comp.groupby(["Tipo", "_grupo", "Item"], sort=False):
+        r0 = grp.iloc[0]
+        pedidos = [p for p in grp["raiz_Pedido_Str"].astype(str).unique().tolist() if p]
+        info = _enriquecer_insumo_gerencial(
+            comp_item=str(item),
+            tipo_comp=tp,
+            local_prod_raw=r0.get("Local_Prod"),
+            op_prod_raw=r0.get("Ordem_Prod"),
+            raiz_pedido_str=str(r0.get("raiz_Pedido_Str") or ""),
+            raiz_item_final=str(r0.get("raiz_Item Final") or ""),
+            raiz_data_abertura=r0.get("_dt_abertura_br"),
+            ordem_cons_raw=r0.get("Ordem_Cons"),
+        )
+        reg = {
+            "item": str(item),
+            "descricao": str(r0.get("Den_Item") or ""),
+            "tipo": tp,
+            "baixa": str(r0.get("Baixa") or "").upper(),
+            "local": grupo,
+            "estoque_total": round(float(r0["estoque"]), 2),
+            "saldo_fila": round(float(r0["estoque_disp_fila"]), 2),
+            "consumo": round(float(grp["Consumo"].sum()), 2),
+            "falta": round(float(grp["Falta"].sum()), 2),
+            "qtd_pedidos": len(pedidos),
+            "pedidos": pedidos[:20],
+            "qtd_itens_finais": int(grp["_ordem_fila"].nunique()),
+            "prazos": sorted({int(x) for x in grp["prazo_expedicao"].dropna().tolist()}),
+            "setor_origem": info["fabrica_componente"] if tp == "C" else "",
+        }
+        for campo in _CAMPOS_ENRIQUECIMENTO_RESUMO:
+            reg[campo] = info.get(campo)
+        (grupos_p if tp == "P" else grupos_c).setdefault(grupo, []).append(reg)
+
+    def _montar(grupos: Dict[str, List[Dict[str, Any]]], chave_enriq: str) -> List[Dict[str, Any]]:
+        saida = []
+        for nome, itens in grupos.items():
+            itens.sort(key=lambda x: (-x["falta"], x["item"]))
+            saida.append(
+                {
+                    "local": nome,
+                    "total_itens": len(itens),
+                    "total_falta": round(sum(x["falta"] for x in itens), 2),
+                    "total_com_enriquecimento": sum(1 for x in itens if x.get(chave_enriq)),
+                    "itens": itens,
+                }
+            )
+        saida.sort(key=lambda g: (-g["total_itens"], g["local"]))
+        return saida
+
+    gp = _montar(grupos_p, "ordem_prod")
+    gc = _montar(grupos_c, "oc_numero")
+
+    return {
+        "grupos_produzidos": gp,
+        "grupos_comprados": gc,
+        "totais": {
+            "itens_finais_com_falta": int(comp["_ordem_fila"].nunique()),
+            "pedidos_afetados": int(comp["raiz_Pedido_Str"].astype(str).replace("", np.nan).dropna().nunique()),
+            "p_itens": sum(g["total_itens"] for g in gp),
+            "p_falta_total": round(sum(g["total_falta"] for g in gp), 2),
+            "p_com_op": sum(g["total_com_enriquecimento"] for g in gp),
+            "p_locais": len(gp),
+            "c_itens": sum(g["total_itens"] for g in gc),
+            "c_falta_total": round(sum(g["total_falta"] for g in gc), 2),
+            "c_com_oc": sum(g["total_com_enriquecimento"] for g in gc),
+            "c_locais": len(gc),
+        },
+        "session_id": str(session_id or "default"),
+    }
+
+
+def exportar_resumo_faltantes_excel(
+    filtros: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Exporta o resumo de itens faltantes em .xlsx (abas: Produzidos e Comprados)."""
+    res = obter_resumo_faltantes(filtros=filtros, session_id=session_id)
+
+    def _linhas(grupos, rotulo_local):
+        out = []
+        for g in grupos:
+            for it in g["itens"]:
+                out.append(
+                    {
+                        rotulo_local: g["local"],
+                        "Código": it["item"],
+                        "Descrição": it["descricao"],
+                        "Baixa": it["baixa"],
+                        "Estoque Total": it["estoque_total"],
+                        "Saldo na Fila": it["saldo_fila"],
+                        "Consumo": it["consumo"],
+                        "Falta": it["falta"],
+                        "Qtd Pedidos": it["qtd_pedidos"],
+                        "Pedidos (até 20)": ", ".join(it["pedidos"]),
+                        "OP": it.get("ordem_prod") or "",
+                        "Abertura OP": it.get("op_data_abertura") or "",
+                        "Entrega OP": it.get("op_data_entrega") or "",
+                        "OC": it.get("oc_numero") or "",
+                        "Previsão OC": it.get("oc_previsao") or "",
+                        "Fornecedor": it.get("oc_fornecedor") or "",
+                    }
+                )
+        return out
+
+    lin_p = _linhas(res["grupos_produzidos"], "Local de Produção")
+    lin_c = _linhas(res["grupos_comprados"], "Fábrica Consumidora")
+    if not lin_p and not lin_c:
+        return {"erro": "Nenhum item faltante encontrado para os filtros selecionados."}
+
+    sess_tag = session_id[:8] if session_id and session_id != "default" else "export"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nome_arquivo = f"resumo_faltantes_{sess_tag}_{timestamp}.xlsx"
+    with pd.ExcelWriter(settings.EXPORTS_DIR / nome_arquivo) as xw:
+        pd.DataFrame(lin_p or [{"Aviso": "Sem itens produzidos faltantes"}]).to_excel(
+            xw, sheet_name="Produzidos (P)", index=False
+        )
+        pd.DataFrame(lin_c or [{"Aviso": "Sem itens comprados faltantes"}]).to_excel(
+            xw, sheet_name="Comprados (C)", index=False
+        )
+    return {
+        "status": "ok",
+        "url": f"/ver_estoque/exports/{nome_arquivo}",
+        "nome": nome_arquivo,
+        "total": len(lin_p) + len(lin_c),
+        "session_id": str(session_id or "default"),
+    }
 
 
 if __name__ == "__main__":

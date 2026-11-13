@@ -66,6 +66,7 @@ export default function DisponibilidadeEstoque({
   setFiltroFamilias = () => {},
   familiasDisponiveis = [],
   onAbrirModalFiltroFamilia = () => {},
+  onAbrirFaltantes = () => {},
 }) {
   const qtdLocaisFiltrados = Array.isArray(filtroLocal)
     ? filtroLocal.length
@@ -310,6 +311,14 @@ export default function DisponibilidadeEstoque({
                 }}
               />
             </div>
+            <button
+              type="button"
+              onClick={onAbrirFaltantes}
+              className="mt-2 text-left text-[11px] font-medium text-[#8B5A2B] hover:underline cursor-pointer"
+              title="Ver tudo o que falta, por local de produção e tipo, com os filtros atuais"
+            >
+              Ver resumo de itens faltantes →
+            </button>
           </div>
 
           {/* Card 5 */}

@@ -7,6 +7,7 @@ import ModalFiltroFamiliaComponente from "./components/ModalFiltroFamiliaCompone
 import DisponibilidadeEstoque from "./screens/DisponibilidadeEstoque";
 import MatrizFaltasProduzidos from "./screens/MatrizFaltasProduzidos";
 import ResumoPedido from "./screens/ResumoPedido";
+import ResumoFaltantes from "./screens/ResumoFaltantes";
 import DetalhamentoInsumos from "./screens/DetalhamentoInsumos";
 import {
   SESSION_USER_KEY,
@@ -30,7 +31,7 @@ export default function VerEstoque() {
   const simDialogRef = useRef(null);
 
   // Navegação da Área Principal
-  // 'disponibilidade' | 'matriz' | 'resumo' | 'detalhes'
+  // 'disponibilidade' | 'matriz' | 'resumo' | 'detalhes' | 'faltantes'
   const [telaAtiva, setTelaAtiva] = useState("disponibilidade");
 
   // Estados de dados da Disponibilidade de Estoque
@@ -119,6 +120,14 @@ export default function VerEstoque() {
   const [resumoBaixa, setResumoBaixa] = useState("todos"); // 'todos' | 'S' | 'N'
   const [resumoTipo, setResumoTipo] = useState("todos"); // 'todos' | 'C' | 'P'
   const [resumoItemEscopo, setResumoItemEscopo] = useState("TODOS");
+
+  // Tela de Itens Faltantes (resumo por local de produção e tipo) — filtros espelhados com a tela principal
+  const [faltantesDados, setFaltantesDados] = useState(null);
+  const [carregandoFaltantes, setCarregandoFaltantes] = useState(false);
+  const [erroFaltantes, setErroFaltantes] = useState("");
+  const [abaFaltantes, setAbaFaltantes] = useState("todos"); // 'todos' | 'P' | 'C'
+  const [exportandoFaltantes, setExportandoFaltantes] = useState(false);
+  const faltantesReqRef = useRef(0);
 
   // Tela de Matriz Pivot de Componentes Produzidos Faltantes
   const [opcoesMatriz, setOpcoesMatriz] = useState({
@@ -583,6 +592,77 @@ export default function VerEstoque() {
     }
   };
 
+  // --- Ações da Tela de Itens Faltantes ---
+  const montarFiltrosFaltantes = () => ({
+    local_producao: filtroLocal,
+    pedido: filtroPedido,
+    codigo: filtroCodigo,
+    baixa: filtroBaixa,
+    tipo: filtroTipo,
+    familias: filtroFamilias,
+    apenas_simulados: filtroApenasSimulados,
+    col_filtros: colFiltros,
+    data_inicio: filtroDataInicio,
+    data_fim: filtroDataFim,
+    tipo_data: filtroTipoData,
+  });
+
+  const carregarFaltantes = async () => {
+    const req = ++faltantesReqRef.current;
+    setCarregandoFaltantes(true);
+    setErroFaltantes("");
+    try {
+      const res = await apiCall("obter_resumo_faltantes", { filtros: montarFiltrosFaltantes() });
+      if (req !== faltantesReqRef.current) return;
+      if (res && res.erro) throw new Error(res.erro);
+      setFaltantesDados(res);
+    } catch (e) {
+      if (req !== faltantesReqRef.current) return;
+      setErroFaltantes(e.message || "Não foi possível carregar os itens faltantes.");
+    } finally {
+      if (req === faltantesReqRef.current) setCarregandoFaltantes(false);
+    }
+  };
+
+  // Recarrega o resumo ao entrar na tela ou quando qualquer filtro compartilhado mudar
+  useEffect(() => {
+    if (telaAtiva === "faltantes") carregarFaltantes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    telaAtiva,
+    filtroLocal,
+    filtroPedido,
+    filtroCodigo,
+    filtroBaixa,
+    filtroTipo,
+    filtroFamilias,
+    filtroApenasSimulados,
+    filtroDataInicio,
+    filtroDataFim,
+    filtroTipoData,
+    colFiltros,
+  ]);
+
+  const handleExportarFaltantes = async () => {
+    try {
+      setExportandoFaltantes(true);
+      const res = await apiCall("exportar_resumo_faltantes_excel", { filtros: montarFiltrosFaltantes() });
+      if (res && res.erro) throw new Error(res.erro);
+      if (res.url) {
+        const a = document.createElement("a");
+        a.href = res.url;
+        a.download = res.nome || "resumo_faltantes.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (e) {
+      alert("Erro ao exportar itens faltantes: " + e.message);
+    } finally {
+      setExportandoFaltantes(false);
+    }
+  };
+
   // --- Ações da Tela de Matriz Pivot de Componentes Produzidos Faltantes ---
   const carregarMatrizFaltantes = async (overrideParams = {}) => {
     const locaisPai = overrideParams.locais_item_final ?? matrizLocaisPaiSel;
@@ -851,6 +931,41 @@ export default function VerEstoque() {
           setFiltroFamilias={setFiltroFamilias}
           familiasDisponiveis={familiasComponentes3}
           onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
+          onAbrirFaltantes={() => setTelaAtiva("faltantes")}
+        />
+      )}
+
+      {telaAtiva === "faltantes" && (
+        <ResumoFaltantes
+          dados={faltantesDados}
+          carregando={carregandoFaltantes}
+          erro={erroFaltantes}
+          exportando={exportandoFaltantes}
+          aba={abaFaltantes}
+          setAba={setAbaFaltantes}
+          onRecarregar={carregarFaltantes}
+          onExportar={handleExportarFaltantes}
+          onVoltar={() => setTelaAtiva("disponibilidade")}
+          filtroLocal={filtroLocal}
+          setFiltroLocal={setFiltroLocal}
+          filtroFamilias={filtroFamilias}
+          setFiltroFamilias={setFiltroFamilias}
+          filtroPedido={filtroPedido}
+          setFiltroPedido={setFiltroPedido}
+          filtroCodigo={filtroCodigo}
+          setFiltroCodigo={setFiltroCodigo}
+          filtroBaixa={filtroBaixa}
+          setFiltroBaixa={setFiltroBaixa}
+          filtroTipoData={filtroTipoData}
+          setFiltroTipoData={setFiltroTipoData}
+          filtroDataInicio={filtroDataInicio}
+          setFiltroDataInicio={setFiltroDataInicio}
+          filtroDataFim={filtroDataFim}
+          setFiltroDataFim={setFiltroDataFim}
+          onAbrirModalFiltroLocal={() => setModalFiltroLocalAberto(true)}
+          onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
+          limparFiltros={limparFiltros}
+          temFiltrosAtivos={temFiltrosAtivos}
         />
       )}
 

@@ -86,6 +86,26 @@ export default function Sidebar({
             <span className="tracking-tight text-xs">Faltas Produzidos (Matriz)</span>
           </button>
 
+          {/* 2b. Itens Faltantes (resumo por local de produção e tipo) */}
+          <button
+            type="button"
+            onClick={() => onNavegar("faltantes")}
+            className={`w-full flex items-center px-3 py-2.5 rounded-xs transition-all text-left cursor-pointer ${
+              telaAtiva === "faltantes"
+                ? "bg-[#1A1A1A] text-white font-medium shadow-[0_1px_8px_rgba(0,0,0,0.06)]"
+                : "text-[#555] hover:bg-[#EAEAEA]/70 hover:text-[#1A1A1A]"
+            }`}
+          >
+            <span
+              className={`material-symbols-outlined text-[18px] mr-3 ${
+                telaAtiva === "faltantes" ? "text-neutral-300" : "text-[#757575]"
+              }`}
+            >
+              playlist_remove
+            </span>
+            <span className="tracking-tight text-xs">Itens Faltantes</span>
+          </button>
+
           {/* 3. Resumo do Pedido */}
           <button
             type="button"
