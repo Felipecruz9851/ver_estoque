@@ -1,52 +1,46 @@
 {
   "metadados_fabricas": {
-    "PLANEJADOS": {
-      "nome": "Planejados",
-      "codigo": "PLANEJ",
-      "icone": "countertops",
+    "UNILIDER ACABADOS": {
+      "nome": "Unildier Acabados",
+      "codigo": "unilid_acab",
+      "icone": "shelves",
       "ordem": 1
     },
-    "UNILIDER": {
-      "nome": "Unilíder",
-      "codigo": "UNILID",
-      "icone": "precision_manufacturing",
+    "UNILIDER COMPONENTES": {
+      "nome": "Unilíder Componentes",
+      "codigo": "unilid_comp",
+      "icone": "inventory_2",
       "ordem": 2
+    },
+    "ESTOFADOS ACABADOS": {
+      "nome": "Estofados Acabados",
+      "codigo": "estof_acab",
+      "icone": "weekend",
+      "ordem": 3
+    },
+    "ESTOFADOS COMPONENTES": {
+      "nome": "Estofados Componentes",
+      "codigo": "estof_comp",
+      "icone": "living",
+      "ordem": 4
     },
     "SALA DE JANTAR": {
       "nome": "Sala de Jantar",
       "codigo": "JANTAR",
-      "icone": "chair",
-      "ordem": 3
-    },
-    "LIDER ESTOFADOS": {
-      "nome": "Líder Estofados",
-      "codigo": "ESTOF",
-      "icone": "weekend",
-      "ordem": 4
+      "icone": "chair_alt",
+      "ordem": 5
     },
     "ATELIE": {
       "nome": "Ateliê",
       "codigo": "ATEL",
       "icone": "content_cut",
-      "ordem": 5
-    },
-    "COMPONENTES UNILIDER": {
-      "nome": "Componentes Unilíder",
-      "codigo": "COMP_UL",
-      "icone": "handyman",
       "ordem": 6
-    },
-    "ITENS ACABADOS": {
-      "nome": "Itens Acabados",
-      "codigo": "ACAB",
-      "icone": "inventory_2",
-      "ordem": 7
     },
     "OUTROS": {
       "nome": "Outros Centros",
       "codigo": "OUTROS",
       "icone": "category",
-      "ordem": 8
+      "ordem": 7
     }
   },
   "dados": [
@@ -60,51 +54,51 @@
     },
     {
       "Local": "ESTOF UL",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "UNILIDER ACABADOS"
     },
     {
       "Local": "CC ACABA01",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "UNILIDER ACABADOS"
     },
     {
       "Local": "ARMARIO UL",
-      "Fabrica": "UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "UL ACABA01",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "UNILIDER ACABADOS"
     },
     {
       "Local": "COZINHA",
-      "Fabrica": "UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "PES ACABA",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "VIDRACARIA",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "PORTAS",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "LAMINAD UL",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "TAMPOS UL",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "UL FABRI01",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "CORTE",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "CADEIRAS",
@@ -128,23 +122,23 @@
     },
     {
       "Local": "PLANEJADOS",
-      "Fabrica": "PLANEJADOS"
+      "Fabrica": "UNILIDER ACABADOS"
     },
     {
       "Local": "LE FABRI02",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "ESTOFADOS ACABADOS"
     },
     {
       "Local": "LE FABRI03",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "ESTOFADOS ACABADOS"
     },
     {
       "Local": "LE FABRI06",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "ESTOFADOS ACABADOS"
     },
     {
       "Local": "FIBRA",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "ESTOFADOS ACABADOS"
     },
     {
       "Local": "ALMOFADAS",
@@ -152,23 +146,23 @@
     },
     {
       "Local": "CAPAS LE",
-      "Fabrica": "LIDER ESTOFADOS"
+      "Fabrica": "ESTOFADOS COMPONENTES"
     },
     {
       "Local": "METALURGIA",
-      "Fabrica": "LIDER ESTOFADOS"
+      "Fabrica": "ESTOFADOS COMPONENTES"
     },
     {
       "Local": "ALUMINIO",
-      "Fabrica": "LIDER ESTOFADOS"
+      "Fabrica": "ESTOFADOS COMPONENTES"
     },
     {
       "Local": "INOX",
-      "Fabrica": "LIDER ESTOFADOS"
+      "Fabrica": "ESTOFADOS COMPONENTES"
     },
     {
       "Local": "PLASMA",
-      "Fabrica": "LIDER ESTOFADOS"
+      "Fabrica": "ESTOFADOS COMPONENTES"
     },
     {
       "Local": "ATELIE",
@@ -188,39 +182,39 @@
     },
     {
       "Local": "AT INSUMO",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "AT SOFA",
-      "Fabrica": "LIDER ESTOFADOS"
+      "Fabrica": "ESTOFADOS COMPONENTES"
     },
     {
       "Local": "AT MOVEIS",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "AT KIT",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "AT VIDRO",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "KIT",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "TAPA FURO",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "ACESSORIOS",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "COLMEIAS",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "C PILOTO",
@@ -232,15 +226,15 @@
     },
     {
       "Local": "LAMINACAO1",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "EMBALAGEM",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "OSSOPAINEL",
-      "Fabrica": "COMPONENTES UNILIDER"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "TAPETES",
@@ -248,11 +242,11 @@
     },
     {
       "Local": "LE FABRI01",
-      "Fabrica": "ITENS ACABADOS"
+      "Fabrica": "UNILIDER COMPONENTES"
     },
     {
       "Local": "PLAN_ESP",
-      "Fabrica": "PLANEJADOS"
+      "Fabrica": "UNILIDER ACABADOS"
     }
   ]
 }
