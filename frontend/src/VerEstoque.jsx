@@ -9,6 +9,7 @@ import MatrizFaltasProduzidos from "./screens/MatrizFaltasProduzidos";
 import ResumoPedido from "./screens/ResumoPedido";
 import ResumoFaltantes from "./screens/ResumoFaltantes";
 import DetalhamentoInsumos from "./screens/DetalhamentoInsumos";
+import { useDebounce } from "./utils/useDebounce";
 import {
   SESSION_USER_KEY,
   SESSION_PASS_KEY,
@@ -29,6 +30,7 @@ export default function VerEstoque() {
   const sentinelRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const simDialogRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   // Navegação da Área Principal
   // 'disponibilidade' | 'matriz' | 'resumo' | 'detalhes' | 'faltantes'
@@ -81,6 +83,11 @@ export default function VerEstoque() {
   const [colFiltros, setColFiltros] = useState({});
   const [activeColMenu, setActiveColMenu] = useState(null);
   const [localColInput, setLocalColInput] = useState("");
+
+  // Debounce automático para evitar requisições a cada tecla digitada
+  const debouncedFiltroPedido = useDebounce(filtroPedido, 350);
+  const debouncedFiltroCodigo = useDebounce(filtroCodigo, 350);
+  const debouncedColFiltros = useDebounce(colFiltros, 350);
 
   // Modal do Simulador de Pedidos (Intranet)
   const [intranetUsuario, setIntranetUsuario] = useState(() => {
@@ -170,10 +177,17 @@ export default function VerEstoque() {
   // Função centralizada para carregar dados (reset ou append)
   const carregarDados = useCallback(
     async (isReset = true, paginaDestino = 0, recarregarCache = false) => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      let stepTimer = null;
       if (isReset) {
         setLoading(true);
         if (recarregarCache) {
-          setLoadingMsg("Sincronizando snapshots de 366n, atualizando OCs e recalculando fila...");
+          setLoadingMsg("1/2 Sincronizando Intranet (OCs e Tecidos em paralelo) e snapshots...");
+          stepTimer = setTimeout(() => {
+            setLoadingMsg("2/2 Recalculando fila de estoque e disponibilidades...");
+          }, 5500);
         } else {
           setLoadingMsg("Calculando fila de estoque...");
         }
@@ -185,14 +199,14 @@ export default function VerEstoque() {
         const payload = {
           filtros: {
             local_producao: filtroLocal,
-            pedido: filtroPedido,
-            codigo: filtroCodigo,
+            pedido: recarregarCache ? filtroPedido : debouncedFiltroPedido,
+            codigo: recarregarCache ? filtroCodigo : debouncedFiltroCodigo,
             status: filtroStatus,
             baixa: filtroBaixa,
             tipo: filtroTipo,
             familias: filtroFamilias,
             apenas_simulados: filtroApenasSimulados,
-            col_filtros: colFiltros,
+            col_filtros: recarregarCache ? colFiltros : debouncedColFiltros,
             data_inicio: filtroDataInicio,
             data_fim: filtroDataFim,
             tipo_data: filtroTipoData,
@@ -229,22 +243,28 @@ export default function VerEstoque() {
           setPedidosSimuladosAtivos(res.pedidos_simulados_ativos);
         }
         if (res.locais_producao) setLocaisProducao(res.locais_producao);
-        if (res.divisao_fabricas) setDivisaoFabricas(res.divisao_fabricas);
-        if (Array.isArray(res.familias_componentes_3)) setFamiliasComponentes3(res.familias_componentes_3);
+        if (res.divisao_fabricas && isReset) setDivisaoFabricas(res.divisao_fabricas);
+        if (Array.isArray(res.familias_componentes_3) && isReset) setFamiliasComponentes3(res.familias_componentes_3);
         if (res.data_carga) setDataCarga(res.data_carga);
         if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
       } catch (e) {
         alert("Erro ao carregar análise de estoque: " + e.message);
       } finally {
+        if (stepTimer) clearTimeout(stepTimer);
+        isFetchingRef.current = false;
         setLoading(false);
         setLoadingMore(false);
       }
     },
     [
       filtroLocal,
+      debouncedFiltroPedido,
+      debouncedFiltroCodigo,
+      debouncedColFiltros,
       filtroPedido,
       filtroCodigo,
+      colFiltros,
       filtroStatus,
       filtroBaixa,
       filtroTipo,
@@ -253,18 +273,18 @@ export default function VerEstoque() {
       filtroDataInicio,
       filtroDataFim,
       filtroTipoData,
-      colFiltros,
       pageSize,
     ]
   );
 
-  // Recarrega do início sempre que qualquer filtro mudar
+  // Recarrega do início sempre que qualquer filtro mudar (com debounce aplicado)
   useEffect(() => {
     carregarDados(true, 0);
   }, [
     filtroLocal,
-    filtroPedido,
-    filtroCodigo,
+    debouncedFiltroPedido,
+    debouncedFiltroCodigo,
+    debouncedColFiltros,
     filtroStatus,
     filtroBaixa,
     filtroTipo,
@@ -273,7 +293,6 @@ export default function VerEstoque() {
     filtroDataInicio,
     filtroDataFim,
     filtroTipoData,
-    colFiltros,
   ]);
 
   // Infinite Scroll via IntersectionObserver (30 linhas antes do fim)
@@ -595,13 +614,13 @@ export default function VerEstoque() {
   // --- Ações da Tela de Itens Faltantes ---
   const montarFiltrosFaltantes = () => ({
     local_producao: filtroLocal,
-    pedido: filtroPedido,
-    codigo: filtroCodigo,
+    pedido: debouncedFiltroPedido,
+    codigo: debouncedFiltroCodigo,
     baixa: filtroBaixa,
     tipo: filtroTipo,
     familias: filtroFamilias,
     apenas_simulados: filtroApenasSimulados,
-    col_filtros: colFiltros,
+    col_filtros: debouncedColFiltros,
     data_inicio: filtroDataInicio,
     data_fim: filtroDataFim,
     tipo_data: filtroTipoData,
@@ -631,8 +650,8 @@ export default function VerEstoque() {
   }, [
     telaAtiva,
     filtroLocal,
-    filtroPedido,
-    filtroCodigo,
+    debouncedFiltroPedido,
+    debouncedFiltroCodigo,
     filtroBaixa,
     filtroTipo,
     filtroFamilias,
@@ -640,7 +659,7 @@ export default function VerEstoque() {
     filtroDataInicio,
     filtroDataFim,
     filtroTipoData,
-    colFiltros,
+    debouncedColFiltros,
   ]);
 
   const handleExportarFaltantes = async () => {

@@ -8,6 +8,30 @@ import pandas as pd
 import polars as pl
 
 
+def parse_numero_br_series(serie: pd.Series) -> pd.Series:
+    """Converte série textual ou numérica no formato brasileiro para float arredondado a 2 casas."""
+    if serie is None or serie.empty:
+        return pd.Series(dtype=float)
+    if pd.api.types.is_numeric_dtype(serie):
+        return serie.fillna(0.0).round(2)
+    s = serie.astype(str).str.strip().str.replace(r"\.+$", "", regex=True)
+    has_comma = s.str.contains(",", regex=False)
+    has_dot = s.str.contains(r"\.", regex=True)
+    s_num = s.copy()
+    if has_comma.any():
+        s_num[has_comma] = (
+            s[has_comma]
+            .str.replace(".", "", regex=False)
+            .str.replace(",", ".", regex=False)
+        )
+    only_dot = (~has_comma) & has_dot
+    if only_dot.any():
+        is_milhar = only_dot & s.str.match(r"^[1-9]\d{0,2}(\.\d{3})+$")
+        if is_milhar.any():
+            s_num[is_milhar] = s[is_milhar].str.replace(".", "", regex=False)
+    return pd.to_numeric(s_num, errors="coerce").fillna(0.0).round(2)
+
+
 def sanitizar_dataframe(df, limite=0.8):
     """
     Sanitiza DataFrame tratando dados brasileiros e formatos numéricos/datas.
@@ -37,37 +61,7 @@ def sanitizar_dataframe(df, limite=0.8):
             df_pd[col] = tentativa_data
             continue
 
-        # Tratamento rigoroso para números no padrão brasileiro:
-        # Ponto (.) é separador de milhar e vírgula (,) é separador decimal.
-        # Remove pontos residuais no final da string (ex: '180,90.' -> '180,90', '0.' -> '0')
-        serie_limpa = serie.str.replace(r"\.+$", "", regex=True).str.strip()
-        has_comma = serie_limpa.str.contains(",", regex=False)
-        has_dot = serie_limpa.str.contains(r"\.", regex=True)
-
-        serie_num = serie_limpa.copy()
-
-        # Onde tem vírgula: a vírgula é o separador decimal. Todo ponto é milhar e é removido.
-        if has_comma.any():
-            serie_num[has_comma] = (
-                serie_limpa[has_comma]
-                .str.replace(".", "", regex=False)
-                .str.replace(",", ".", regex=False)
-            )
-
-        # Onde tem apenas ponto (sem vírgula):
-        # Se for milhar brasileiro puro (ex: '1.000', '10.000', '1.250.000') com blocos de 3 dígitos:
-        only_dot = (~has_comma) & has_dot
-        if only_dot.any():
-            is_milhar = only_dot & serie_limpa.str.match(r"^[1-9]\d{0,2}(\.\d{3})+$")
-            if is_milhar.any():
-                serie_num[is_milhar] = serie_limpa[is_milhar].str.replace(".", "", regex=False)
-
-        tentativa_num = pd.to_numeric(serie_num, errors="coerce")
-        if tentativa_num.notna().mean() > limite:
-            df_pd[col] = tentativa_num.round(2)
-            continue
-
-        df_pd[col] = serie.replace({"": None})
+        df_pd[col] = parse_numero_br_series(serie)
 
     return df_pd
 
@@ -79,49 +73,47 @@ def calc_data(dfs):
     raw_ordens = dfs.get("ordens")
     if isinstance(raw_ordens, pl.DataFrame):
         raw_ordens = raw_ordens.to_pandas()
-    ordens = sanitizar_dataframe(raw_ordens)
 
-    ordens = ordens[
-        [
-            "Cliente",
-            "Fábrica",
-            "Ordem",
-            "Pedido",
-            "Item",
-            "Saldo",
-            "Representante",
-            "Entrega Pedido",
-            "Data Abertura",
-        ]
+    cols_ord = [
+        "Cliente",
+        "Fábrica",
+        "Ordem",
+        "Pedido",
+        "Item",
+        "Saldo",
+        "Representante",
+        "Entrega Pedido",
+        "Data Abertura",
     ]
+    ordens = raw_ordens[[c for c in cols_ord if c in raw_ordens.columns]].copy()
     ordens = ordens.rename(
         columns={"Ordem": "Ordem Prod", "Saldo": "Saldo Prod"}
     )
-    ordens["Saldo Prod"] = (
-        pd.to_numeric(ordens["Saldo Prod"], errors="coerce")
-        .fillna(0.0)
-        .round(2)
-    )
+    ordens["Saldo Prod"] = parse_numero_br_series(ordens.get("Saldo Prod", pd.Series()))
+    ordens["Pedido"] = pd.to_numeric(ordens.get("Pedido", pd.Series()), errors="coerce").fillna(0).astype(int)
+    if "Ordem Prod" in ordens.columns:
+        ordens["Ordem Prod"] = ordens["Ordem Prod"].astype(str).str.strip().str.removesuffix(".0")
+    if "Item" in ordens.columns:
+        ordens["Item"] = ordens["Item"].astype(str).str.strip()
 
     colunas = ["Entrega Pedido", "Data Abertura"]
     for col in colunas:
-        ordens[col] = (
-            ordens[col]
-            .astype(str)
-            .str.strip()
-            .str.replace(r"[^\d]", "", regex=True)
-            .pipe(
-                lambda s: pd.to_datetime(s, format="%d%m%Y", errors="coerce")
+        if col in ordens.columns:
+            ordens[col] = (
+                ordens[col]
+                .astype(str)
+                .str.strip()
+                .str.replace(r"[^\d]", "", regex=True)
+                .pipe(
+                    lambda s: pd.to_datetime(s, format="%d%m%Y", errors="coerce")
+                )
             )
-        )
 
     ## Ajuste Consumo ##
     raw_cons = dfs.get("cons")
     if isinstance(raw_cons, pl.DataFrame):
         raw_cons = raw_cons.to_pandas()
-    consumo = sanitizar_dataframe(raw_cons)
 
-    consumo["Item"] = consumo["Item"].str.split("-").str[0].str.strip()
     cols_cons = [
         "Tipo",
         "Item",
@@ -132,15 +124,14 @@ def calc_data(dfs):
         "Familia",
         "Den. Item",
     ]
-    if "Grupo" in consumo.columns:
+    if "Grupo" in raw_cons.columns:
         cols_cons.append("Grupo")
-    consumo = consumo[cols_cons]
+
+    consumo = raw_cons[[c for c in cols_cons if c in raw_cons.columns]].copy()
+    consumo["Item"] = consumo["Item"].astype(str).str.split("-").str[0].str.strip()
     consumo = consumo.rename(columns={"OP": "Ordem Cons"})
-    consumo["Consumo"] = (
-        pd.to_numeric(consumo["Consumo"], errors="coerce")
-        .fillna(0.0)
-        .round(2)
-    )
+    consumo["Ordem Cons"] = consumo["Ordem Cons"].astype(str).str.strip().str.removesuffix(".0")
+    consumo["Consumo"] = parse_numero_br_series(consumo.get("Consumo", pd.Series()))
 
     ######## Item Pai ##########
     consumo["item_pai"] = consumo["Ordem Cons"].map(
@@ -220,16 +211,12 @@ def calc_data(dfs):
     raw_estoque = dfs.get("estoque")
     if isinstance(raw_estoque, pl.DataFrame):
         raw_estoque = raw_estoque.to_pandas()
-    estoque = sanitizar_dataframe(raw_estoque)
-    if "Qtde." in estoque.columns:
-        estoque["Qtde."] = (
-            pd.to_numeric(estoque["Qtde."], errors="coerce")
-            .fillna(0.0)
-            .round(2)
-        )
-    consumo["estoque"] = (
-        consumo["Item"].map(estoque.groupby("Item")["Qtde."].sum()).fillna(0.0)
-    ).round(2)
+    if raw_estoque is not None and "Item" in raw_estoque.columns:
+        qt_clean = parse_numero_br_series(raw_estoque.get("Qtde.", pd.Series()))
+        soma_estoque = qt_clean.groupby(raw_estoque["Item"]).sum().round(2)
+        consumo["estoque"] = consumo["Item"].map(soma_estoque).fillna(0.0).round(2)
+    else:
+        consumo["estoque"] = 0.0
 
     ######## Propagação dos atributos da raiz ##########
 

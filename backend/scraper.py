@@ -1024,3 +1024,47 @@ def carregar_ou_atualizar_tecidos_customizados(
 
     return []
 
+
+def carregar_ou_atualizar_intranet_concorrente(
+    forcar_intranet: bool = False,
+    usuario: Optional[str] = None,
+    senha: Optional[str] = None,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Carrega simultaneamente OCs abertas e Tecidos Customizados utilizando ThreadPoolExecutor
+    quando forcar_intranet=True, paralelizando as conexões à Intranet (192.168.0.6)
+    e reduzindo o tempo de espera de ~24s para ~11s.
+    Retorna (ocs_raw, tecidos_cust_raw).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    if not forcar_intranet:
+        ocs = carregar_ou_atualizar_oc_abertas(forcar_intranet=False, usuario=usuario, senha=senha)
+        tec = carregar_ou_atualizar_tecidos_customizados(forcar_intranet=False, usuario=usuario, senha=senha)
+        return ocs, tec
+
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Sincronizando OCs e Tecidos CST da Intranet em paralelo...")
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        fut_oc = executor.submit(carregar_ou_atualizar_oc_abertas, forcar_intranet=True, usuario=usuario, senha=senha)
+        fut_tec = executor.submit(
+            carregar_ou_atualizar_tecidos_customizados, forcar_intranet=True, usuario=usuario, senha=senha
+        )
+        try:
+            ocs = fut_oc.result()
+        except Exception as exc_oc:
+            print(f"[Intranet Concorrente] Falha nas OCs: {exc_oc}")
+            ocs = carregar_ou_atualizar_oc_abertas(forcar_intranet=False)
+
+        try:
+            tec = fut_tec.result()
+        except Exception as exc_tec:
+            print(f"[Intranet Concorrente] Falha nos Tecidos CST: {exc_tec}")
+            tec = carregar_ou_atualizar_tecidos_customizados(forcar_intranet=False)
+
+    print(
+        f"[{datetime.now().strftime('%H:%M:%S')}] Sincronização paralela concluída: "
+        f"{len(ocs)} OCs e {len(tec)} Tecidos CST carregados."
+    )
+    return ocs, tec
+
+

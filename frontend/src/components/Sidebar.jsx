@@ -183,8 +183,11 @@ export default function Sidebar({
                 </span>
               </div>
               {dtSnapshot && (
-                <div className="font-mono text-[9px] text-[#777]">
-                  {dtSnapshot}
+                <div
+                  className="font-mono text-[9px] text-[#777]"
+                  title="Data e hora dos metadados do snapshot coletado"
+                >
+                  {dtSnapshot.startsWith("Atualiz") ? dtSnapshot : `Atualização: ${dtSnapshot}`}
                 </div>
               )}
             </div>

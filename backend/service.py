@@ -20,8 +20,8 @@ import polars as pl
 
 if __package__:
     from . import scraper, settings
-    from .calculo import calc_data, sanitizar_dataframe
-    from .snapshots import carregar_snapshot, data_snapshot, sincronizar_snapshots_remotos
+    from .calculo import calc_data, parse_numero_br_series, sanitizar_dataframe
+    from .snapshots import carregar_snapshot, data_snapshot, obter_metadados_snapshot, sincronizar_snapshots_remotos
 else:
     import sys
     from pathlib import Path
@@ -31,8 +31,8 @@ else:
         sys.path.insert(0, _backend_dir)
     import scraper
     import settings
-    from calculo import calc_data, sanitizar_dataframe
-    from snapshots import carregar_snapshot, data_snapshot, sincronizar_snapshots_remotos
+    from calculo import calc_data, parse_numero_br_series, sanitizar_dataframe
+    from snapshots import carregar_snapshot, data_snapshot, obter_metadados_snapshot, sincronizar_snapshots_remotos
 
 # Cache em memória do snapshot base (imutável após carga)
 _cache_cons: Optional[pd.DataFrame] = None
@@ -162,6 +162,9 @@ class SessionState:
         self.simulacao_versao: int = 0
         # Cache do cálculo cumulativo de fila da sessão por (cache_ts, sim_ver, baixa, tipo)
         self.cache_filas: Dict[Tuple[Any, ...], Tuple[pd.DataFrame, pd.DataFrame, List[str]]] = {}
+        # Caches em memória de telas pesadas por hash de filtros
+        self.cache_resumo_faltantes: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+        self.cache_matriz: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
         self.created_at: float = time.time()
         self.last_accessed: float = time.time()
         self.lock = threading.Lock()
@@ -169,6 +172,8 @@ class SessionState:
     def invalidar_cache_fila(self) -> None:
         self.simulacao_versao += 1
         self.cache_filas.clear()
+        self.cache_resumo_faltantes.clear()
+        self.cache_matriz.clear()
         self.last_accessed = time.time()
 
     def tocar(self) -> None:
@@ -375,12 +380,12 @@ def _construir_mapas_enriquecimento(
     # 2. Estoque Situação L
     raw_estoque = dfs.get("estoque")
     if raw_estoque is not None:
-        df_est = sanitizar_dataframe(raw_estoque)
+        df_est = raw_estoque.to_pandas() if isinstance(raw_estoque, pl.DataFrame) else raw_estoque.copy()
         if df_est is not None and "Item" in df_est.columns:
             df_est_clean = df_est.copy()
             df_est_clean["_item_norm"] = df_est_clean["Item"].apply(scraper.normalizar_cod_item)
             if "Qtde." in df_est_clean.columns:
-                qt_num = pd.to_numeric(df_est_clean["Qtde."], errors="coerce").fillna(0.0).round(2)
+                qt_num = parse_numero_br_series(df_est_clean["Qtde."])
                 soma_est = qt_num.groupby(df_est_clean["_item_norm"]).sum().round(2)
                 estoque_map = {str(k): round(float(v), 2) for k, v in soma_est.to_dict().items() if k}
 
@@ -476,12 +481,12 @@ def _construir_mapas_enriquecimento(
             if lp and lp not in ("0", ".", "None", "nan"):
                 local_prod_map[it] = lp
 
-    # 5. Ordens de Compra abertas (OC) para Matérias-Primas (ordenadas pela previsão mais antiga)
+    # 5. Ordens de Compra (OCs) e Tecidos CST da Intranet (concorrente quando forcar_oc=True)
     try:
-        ocs_raw = scraper.carregar_ou_atualizar_oc_abertas(forcar_intranet=forcar_oc)
+        ocs_raw, tecidos_cust_raw = scraper.carregar_ou_atualizar_intranet_concorrente(forcar_intranet=forcar_oc)
     except Exception as exc:
-        print(f"[Enriquecimento OC] Aviso: {exc}")
-        ocs_raw = []
+        print(f"[Enriquecimento Intranet] Aviso na carga concorrente: {exc}")
+        ocs_raw, tecidos_cust_raw = [], []
 
     if ocs_raw:
         ocs_temp: List[Tuple[Tuple[int, str, str, int], str, Dict[str, Any]]] = []
@@ -538,8 +543,7 @@ def _construir_mapas_enriquecimento(
                     oc_por_item_it_sem_ped.setdefault((it, it_vinc), []).append(oc_info)
                 oc_por_item_geral.setdefault(it, []).append(oc_info)
 
-    # 5. Tecidos Customizados da Família CST (/pcp/tecidos_customizados3.php)
-    tecidos_cust_raw = scraper.carregar_ou_atualizar_tecidos_customizados(forcar_intranet=forcar_oc)
+    # 6. Mapeamento de Tecidos Customizados da Família CST (/pcp/tecidos_customizados3.php)
     tc_map_4: Dict[Tuple[str, str, str, str], Dict[str, Any]] = {}
     tc_map_3_ped: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
     tc_map_3_ord: Dict[Tuple[str, str], Dict[str, Any]] = {}
@@ -659,64 +663,84 @@ def gerar_dataframe_cons(
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando snapshot...")
     dfs, caminho = carregar_snapshot()
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Snapshot '{caminho.name}' carregado. Executando calc_data...")
-    df_consumo = calc_data(dfs)
+    cache_pqt = caminho / "_cons_calculado.parquet"
+    source_mtime = max(
+        [f.stat().st_mtime for f in caminho.glob("*.parquet") if not f.name.startswith("_")],
+        default=0.0,
+    )
+    df_consumo = None
+    if not sincronizar_snapshot and cache_pqt.exists() and cache_pqt.stat().st_mtime >= source_mtime:
+        try:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando base pré-calculada '{cache_pqt.name}'...")
+            df_consumo = pl.read_parquet(cache_pqt).to_pandas()
+        except Exception as e_read:
+            print(f"[CACHE] Aviso ao ler cache persistente: {e_read}. Recalculando...")
+            df_consumo = None
 
-    if isinstance(df_consumo, pl.DataFrame):
-        df_consumo = df_consumo.to_pandas()
+    if df_consumo is None:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Snapshot '{caminho.name}' carregado. Executando calc_data...")
+        df_consumo = calc_data(dfs)
 
-    # Mapeia descrição do Item Final a partir de ordens
-    raw_ordens = dfs.get("ordens")
-    if raw_ordens is not None and "Item" in raw_ordens.columns and "Descrição do Item" in raw_ordens.columns:
-        desc_map = (
-            raw_ordens.dropna(subset=["Item"])
-            .drop_duplicates("Item")
-            .set_index("Item")["Descrição do Item"]
-            .to_dict()
-        )
-        df_consumo["raiz_Descricao"] = df_consumo["raiz_Item Final"].map(desc_map).fillna("")
-    else:
-        df_consumo["raiz_Descricao"] = ""
+        if isinstance(df_consumo, pl.DataFrame):
+            df_consumo = df_consumo.to_pandas()
 
-    # Normalizações seguras
-    if "raiz_Pedido" in df_consumo.columns:
-        df_consumo["raiz_Pedido_Str"] = (
-            pd.to_numeric(df_consumo["raiz_Pedido"], errors="coerce")
-            .fillna(0)
-            .astype(int)
-            .astype(str)
-            .replace("0", "")
-        )
-    else:
-        df_consumo["raiz_Pedido_Str"] = ""
+        # Mapeia descrição do Item Final a partir de ordens
+        raw_ordens = dfs.get("ordens")
+        if raw_ordens is not None and "Item" in raw_ordens.columns and "Descrição do Item" in raw_ordens.columns:
+            desc_map = (
+                raw_ordens.dropna(subset=["Item"])
+                .drop_duplicates("Item")
+                .set_index("Item")["Descrição do Item"]
+                .to_dict()
+            )
+            df_consumo["raiz_Descricao"] = df_consumo["raiz_Item Final"].map(desc_map).fillna("")
+        else:
+            df_consumo["raiz_Descricao"] = ""
 
-    if "raiz_Fábrica" in df_consumo.columns:
-        df_consumo["raiz_Fábrica"] = (
-            df_consumo["raiz_Fábrica"].fillna("NÃO INFORMADO").astype(str).str.strip()
-        )
+        # Normalizações seguras
+        if "raiz_Pedido" in df_consumo.columns:
+            df_consumo["raiz_Pedido_Str"] = (
+                pd.to_numeric(df_consumo["raiz_Pedido"], errors="coerce")
+                .fillna(0)
+                .astype(int)
+                .astype(str)
+                .replace("0", "")
+            )
+        else:
+            df_consumo["raiz_Pedido_Str"] = ""
 
-    if "Consumo" in df_consumo.columns:
-        df_consumo["Consumo"] = (
-            pd.to_numeric(df_consumo["Consumo"], errors="coerce").fillna(0.0).round(2)
-        )
+        if "raiz_Fábrica" in df_consumo.columns:
+            df_consumo["raiz_Fábrica"] = (
+                df_consumo["raiz_Fábrica"].fillna("NÃO INFORMADO").astype(str).str.strip()
+            )
 
-    if "estoque" in df_consumo.columns:
-        df_consumo["estoque"] = (
-            pd.to_numeric(df_consumo["estoque"], errors="coerce").fillna(0.0).round(2)
-        )
+        if "Consumo" in df_consumo.columns:
+            df_consumo["Consumo"] = (
+                pd.to_numeric(df_consumo["Consumo"], errors="coerce").fillna(0.0).round(2)
+            )
 
-    if "Saldo" in df_consumo.columns:
-        df_consumo["Saldo"] = (
-            pd.to_numeric(df_consumo["Saldo"], errors="coerce").fillna(0.0).round(2)
-        )
+        if "estoque" in df_consumo.columns:
+            df_consumo["estoque"] = (
+                pd.to_numeric(df_consumo["estoque"], errors="coerce").fillna(0.0).round(2)
+            )
 
-    if "raiz_Saldo" in df_consumo.columns:
-        df_consumo["raiz_Saldo"] = (
-            pd.to_numeric(df_consumo["raiz_Saldo"], errors="coerce").fillna(0.0).round(2)
-        )
+        if "Saldo" in df_consumo.columns:
+            df_consumo["Saldo"] = (
+                pd.to_numeric(df_consumo["Saldo"], errors="coerce").fillna(0.0).round(2)
+            )
 
-    df_consumo["simulado"] = False
-    df_consumo["origem_simulacao"] = ""
+        if "raiz_Saldo" in df_consumo.columns:
+            df_consumo["raiz_Saldo"] = (
+                pd.to_numeric(df_consumo["raiz_Saldo"], errors="coerce").fillna(0.0).round(2)
+            )
+
+        df_consumo["simulado"] = False
+        df_consumo["origem_simulacao"] = ""
+
+        try:
+            pl.from_pandas(df_consumo).write_parquet(cache_pqt)
+        except Exception as e_write:
+            print(f"[CACHE] Aviso ao persistir {cache_pqt.name}: {e_write}")
 
     if salvar_excel:
         dest_excel = settings.EXPORTS_DIR / "consumo_completo.xlsx"
@@ -1455,9 +1479,13 @@ def _obter_fila_calculada(
     ]
     cols_iter = [c for c in candidatos_cols if c in df_ord.columns]
     por_ordem: Dict[int, List[Dict[str, Any]]] = {}
-    for r in df_ord[cols_iter].to_dict("records"):
-        ord_idx = int(r["_ordem_fila"])
-        por_ordem.setdefault(ord_idx, []).append(r)
+    arrays = {c: df_ord[c].to_numpy() for c in cols_iter}
+    ord_arr = arrays["_ordem_fila"]
+    n_rows = len(df_ord)
+    keys = list(cols_iter)
+    for i in range(n_rows):
+        oid = int(ord_arr[i])
+        por_ordem.setdefault(oid, []).append({k: arrays[k][i] for k in keys})
 
     componentes_ativos: List[Dict[str, Any]] = []
     itens_cst = _enriquecimento.get("itens_cst", set())
@@ -2767,6 +2795,12 @@ def obter_matriz_faltantes_producao(
       - busca: filtro textual por código/descrição de componente, item final ou pedido
     """
     filtros = filtros or {}
+    sess = obter_sessao(session_id)
+    filtros_json = json.dumps(filtros, sort_keys=True, default=str)
+    cache_key = (_cache_timestamp, sess.simulacao_versao, filtros_json)
+    with sess.lock:
+        if cache_key in sess.cache_matriz:
+            return sess.cache_matriz[cache_key]
 
     raw_locais_pai = filtros.get("locais_item_final") or []
     if isinstance(raw_locais_pai, str):
@@ -3135,7 +3169,7 @@ def obter_matriz_faltantes_producao(
 
     soma_falta_geral = round(sum(somas_gerais_por_prazo.values()), 2)
 
-    return {
+    resultado = {
         "grupos": grupos_lista,
         "linhas_planas": linhas_planas,
         "prazos_colunas": prazos_colunas,
@@ -3150,6 +3184,13 @@ def obter_matriz_faltantes_producao(
         "opcoes_filtros": opcoes_base,
         "session_id": str(session_id or "default"),
     }
+
+    with sess.lock:
+        if len(sess.cache_matriz) >= 20:
+            sess.cache_matriz.clear()
+        sess.cache_matriz[cache_key] = resultado
+
+    return resultado
 
 
 def exportar_matriz_faltantes_excel(
@@ -3262,6 +3303,13 @@ def obter_resumo_faltantes(
     - Itens comprados (Tipo C): agrupados pela fábrica consumidora (local do item final).
     """
     filtros = filtros or {}
+    sess = obter_sessao(session_id)
+    filtros_json = json.dumps(filtros, sort_keys=True, default=str)
+    cache_key = (_cache_timestamp, sess.simulacao_versao, filtros_json)
+    with sess.lock:
+        if cache_key in sess.cache_resumo_faltantes:
+            return sess.cache_resumo_faltantes[cache_key]
+
     baixa = str(filtros.get("baixa", "todos") or "todos").strip().upper()
     tipo = str(filtros.get("tipo", "todos") or "todos").strip().upper()
 
@@ -3308,42 +3356,62 @@ def obter_resumo_faltantes(
         g = str(g or "").strip()
         return g if g and g != "0" else "NÃO INFORMADO"
 
-    comp["_grupo"] = [
+    comp["grupo_local"] = [
         _grupo(t, i, lp, fb)
         for t, i, lp, fb in zip(comp["Tipo"], comp["Item"], comp["Local_Prod"], comp["raiz_Fábrica"])
     ]
 
+    agg_df = comp.groupby(["Tipo", "grupo_local", "Item"], sort=False, as_index=False).agg(
+        Den_Item=("Den_Item", "first"),
+        Baixa=("Baixa", "first"),
+        Local_Prod=("Local_Prod", "first"),
+        Ordem_Prod=("Ordem_Prod", "first"),
+        raiz_Pedido_Str=("raiz_Pedido_Str", "first"),
+        raiz_Item_Final=("raiz_Item Final", "first"),
+        dt_abertura_br=("_dt_abertura_br", "first"),
+        Ordem_Cons=("Ordem_Cons", "first"),
+        estoque=("estoque", "first"),
+        estoque_disp_fila=("estoque_disp_fila", "first"),
+        Consumo=("Consumo", "sum"),
+        Falta=("Falta", "sum"),
+        pedidos_list=("raiz_Pedido_Str", lambda s: [str(p) for p in set(s.dropna()) if str(p).strip()][:20]),
+        qtd_itens_finais=("_ordem_fila", "nunique"),
+        prazos_list=("prazo_expedicao", lambda s: sorted({int(x) for x in s.dropna().tolist()})),
+    )
+
     grupos_p: Dict[str, List[Dict[str, Any]]] = {}
     grupos_c: Dict[str, List[Dict[str, Any]]] = {}
 
-    for (tp, grupo, item), grp in comp.groupby(["Tipo", "_grupo", "Item"], sort=False):
-        r0 = grp.iloc[0]
-        pedidos = [p for p in grp["raiz_Pedido_Str"].astype(str).unique().tolist() if p]
+    for row in agg_df.itertuples(index=False):
+        tp = str(row.Tipo)
+        grupo = str(row.grupo_local)
+        item = str(row.Item)
+        pedidos = row.pedidos_list
         info = _enriquecer_insumo_gerencial(
-            comp_item=str(item),
+            comp_item=item,
             tipo_comp=tp,
-            local_prod_raw=r0.get("Local_Prod"),
-            op_prod_raw=r0.get("Ordem_Prod"),
-            raiz_pedido_str=str(r0.get("raiz_Pedido_Str") or ""),
-            raiz_item_final=str(r0.get("raiz_Item Final") or ""),
-            raiz_data_abertura=r0.get("_dt_abertura_br"),
-            ordem_cons_raw=r0.get("Ordem_Cons"),
+            local_prod_raw=row.Local_Prod,
+            op_prod_raw=row.Ordem_Prod,
+            raiz_pedido_str=str(row.raiz_Pedido_Str or ""),
+            raiz_item_final=str(row.raiz_Item_Final or ""),
+            raiz_data_abertura=row.dt_abertura_br,
+            ordem_cons_raw=row.Ordem_Cons,
         )
         reg = {
-            "item": str(item),
-            "descricao": str(r0.get("Den_Item") or ""),
+            "item": item,
+            "descricao": str(row.Den_Item or ""),
             "tipo": tp,
-            "baixa": str(r0.get("Baixa") or "").upper(),
+            "baixa": str(row.Baixa or "").upper(),
             "local": grupo,
-            "estoque_total": round(float(r0["estoque"]), 2),
-            "saldo_fila": round(float(r0["estoque_disp_fila"]), 2),
-            "consumo": round(float(grp["Consumo"].sum()), 2),
-            "falta": round(float(grp["Falta"].sum()), 2),
+            "estoque_total": round(float(row.estoque or 0.0), 2),
+            "saldo_fila": round(float(row.estoque_disp_fila or 0.0), 2),
+            "consumo": round(float(row.Consumo or 0.0), 2),
+            "falta": round(float(row.Falta or 0.0), 2),
             "qtd_pedidos": len(pedidos),
-            "pedidos": pedidos[:20],
-            "qtd_itens_finais": int(grp["_ordem_fila"].nunique()),
-            "prazos": sorted({int(x) for x in grp["prazo_expedicao"].dropna().tolist()}),
-            "setor_origem": info["fabrica_componente"] if tp == "C" else "",
+            "pedidos": pedidos,
+            "qtd_itens_finais": int(row.qtd_itens_finais or 0),
+            "prazos": row.prazos_list,
+            "setor_origem": info.get("fabrica_componente", "") if tp == "C" else "",
         }
         for campo in _CAMPOS_ENRIQUECIMENTO_RESUMO:
             reg[campo] = info.get(campo)
@@ -3368,7 +3436,7 @@ def obter_resumo_faltantes(
     gp = _montar(grupos_p, "ordem_prod")
     gc = _montar(grupos_c, "oc_numero")
 
-    return {
+    resultado = {
         "grupos_produzidos": gp,
         "grupos_comprados": gc,
         "totais": {
@@ -3385,6 +3453,13 @@ def obter_resumo_faltantes(
         },
         "session_id": str(session_id or "default"),
     }
+
+    with sess.lock:
+        if len(sess.cache_resumo_faltantes) >= 20:
+            sess.cache_resumo_faltantes.clear()
+        sess.cache_resumo_faltantes[cache_key] = resultado
+
+    return resultado
 
 
 def exportar_resumo_faltantes_excel(

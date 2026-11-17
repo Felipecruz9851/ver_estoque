@@ -2,6 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
+| 2026-11-17 | Otimização completa de desempenho (Scraping concorrente, calc_data vetorizado, parquet cache, numpy e debounces) | CONCLUIDO | [[2026-11-17]] |
 | 2026-11-13 | Nova tela Itens Faltantes (resumo por local de produção e tipo P/C com filtros espelhados) | CONCLUIDO | [[2026-11-13]] |
 | 2026-11-12 | Filtro avançado e recálculo do consumo por famílias de componentes iniciados em 3 (Líder Design) | CONCLUIDO | [[2026-11-12]] |
 | 2026-11-11 | Aplicação da identidade visual Líder Design, desacoplamento modular do frontend e conversão de modais para telas principais | CONCLUIDO | [[2026-11-11]] |

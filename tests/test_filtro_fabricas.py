@@ -24,12 +24,12 @@ def test_carregar_divisao_fabricas():
 
     meta = div["metadados_fabricas"]
     # Valida principais fábricas e ícones Material Symbols
-    assert "PLANEJADOS" in meta
-    assert meta["PLANEJADOS"]["icone"] == "countertops"
-    assert "LIDER ESTOFADOS" in meta
-    assert meta["LIDER ESTOFADOS"]["icone"] == "weekend"
+    assert "UNILIDER ACABADOS" in meta
+    assert meta["UNILIDER ACABADOS"]["icone"] == "shelves"
+    assert "ESTOFADOS ACABADOS" in meta
+    assert meta["ESTOFADOS ACABADOS"]["icone"] == "weekend"
     assert "SALA DE JANTAR" in meta
-    assert meta["SALA DE JANTAR"]["icone"] == "chair"
+    assert meta["SALA DE JANTAR"]["icone"] == "chair_alt"
 
 
 def test_analisar_itens_finais_multiplos_locais():

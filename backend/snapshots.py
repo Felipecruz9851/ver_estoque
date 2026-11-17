@@ -41,9 +41,10 @@ ARQUIVOS_SINCRONIZAR: Tuple[str, ...] = tuple(f"{t}.parquet" for t in TABELAS_SI
 
 
 def _mtime(p: Path) -> float:
-    """Retorna o timestamp da modificação mais recente entre os arquivos Parquet de uma pasta ou arquivo."""
+    """Retorna o timestamp da modificação mais recente entre os arquivos Parquet coletados de uma pasta ou arquivo."""
     if p.is_dir():
-        arquivos = [f.stat().st_mtime for f in p.glob("*.parquet")]
+        # Filtra estritamente as tabelas coletadas do snapshot (ignora caches internos iniciados por '_')
+        arquivos = [f.stat().st_mtime for f in p.glob("*.parquet") if not f.name.startswith("_")]
         return max(arquivos) if arquivos else p.stat().st_mtime
     return p.stat().st_mtime
 
@@ -74,7 +75,7 @@ def limpar_arquivos_desnecessarios(snapshot_dir: Optional[Path] = None) -> List[
         if not pasta.is_dir():
             continue
         for arq in list(pasta.iterdir()):
-            if arq.is_file() and arq.name not in ARQUIVOS_SINCRONIZAR:
+            if arq.is_file() and arq.name not in ARQUIVOS_SINCRONIZAR and not arq.name.startswith("_cons_"):
                 try:
                     arq.unlink()
                     removidos.append(f"{pasta.name}/{arq.name}")
@@ -174,8 +175,12 @@ def sincronizar_snapshots_remotos(
         for pasta_nome in pastas_candidatas:
             local_pasta = settings.SNAPSHOTS_DIR / pasta_nome
             local_pasta.mkdir(parents=True, exist_ok=True)
+            tabelas_meta: Dict[str, Any] = {}
+            mtimes_remotos: List[float] = []
 
             for nome_arquivo in ARQUIVOS_SINCRONIZAR:
+                if nome_arquivo.startswith("_"):
+                    continue
                 local_path = local_pasta / nome_arquivo
                 eh_obrigatorio = nome_arquivo.replace(".parquet", "") in TABELAS_NECESSARIAS
 
@@ -194,6 +199,14 @@ def sincronizar_snapshots_remotos(
                         remote_dt = parsedate_to_datetime(raw_lm) if raw_lm else None
                         remote_mtime = remote_dt.timestamp() if remote_dt else None
 
+                        if remote_mtime is not None:
+                            mtimes_remotos.append(remote_mtime)
+                            tabelas_meta[nome_arquivo] = {
+                                "tamanho": remote_size,
+                                "mtime": remote_mtime,
+                                "data": datetime.fromtimestamp(remote_mtime).strftime("%d/%m/%Y %H:%M:%S"),
+                            }
+
                         precisa_baixar = False
                         if not local_path.exists() or forcar:
                             precisa_baixar = True
@@ -207,6 +220,14 @@ def sincronizar_snapshots_remotos(
 
                         if not precisa_baixar:
                             resultado["ja_atualizados"].append(f"{pasta_nome}/{nome_arquivo}")
+                            if remote_mtime is None and local_path.exists():
+                                loc_mtime = local_path.stat().st_mtime
+                                mtimes_remotos.append(loc_mtime)
+                                tabelas_meta[nome_arquivo] = {
+                                    "tamanho": local_path.stat().st_size,
+                                    "mtime": loc_mtime,
+                                    "data": datetime.fromtimestamp(loc_mtime).strftime("%d/%m/%Y %H:%M:%S"),
+                                }
                             continue
 
                         # Download atômico com verificação de integridade
@@ -250,6 +271,30 @@ def sincronizar_snapshots_remotos(
                 except Exception as e_file:
                     resultado["erros"].append({"arquivo": f"{pasta_nome}/{nome_arquivo}", "erro": str(e_file)})
                     print(f"[SNAPSHOT SYNC] Erro ao sincronizar '{pasta_nome}/{nome_arquivo}': {e_file}")
+
+            # Grava/atualiza metadados consolidados da coleta em _sync_meta.json
+            if not mtimes_remotos:
+                mtimes_remotos = [f.stat().st_mtime for f in local_pasta.glob("*.parquet") if not f.name.startswith("_")]
+            if mtimes_remotos:
+                ts_max = max(mtimes_remotos)
+                dt_max_str = datetime.fromtimestamp(ts_max).strftime("%d/%m/%Y %H:%M:%S")
+                meta_content = {
+                    "snapshot_nome": pasta_nome,
+                    "data_snapshot": dt_max_str,
+                    "timestamp_snapshot": ts_max,
+                    "data_coleta": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "timestamp_coleta": time.time(),
+                    "pkl_mtime": ts_max,
+                    "mtime": ts_max,
+                    "tabelas": tabelas_meta,
+                }
+                meta_file = local_pasta / "_sync_meta.json"
+                try:
+                    with open(meta_file, "w", encoding="utf-8") as f_meta:
+                        json.dump(meta_content, f_meta, indent=2, ensure_ascii=False)
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Metadados do snapshot '{pasta_nome}' atualizados: {dt_max_str}")
+                except Exception as e_meta:
+                    print(f"[SNAPSHOT] Aviso ao gravar metadados em '{meta_file}': {e_meta}")
 
         # Limpeza de arquivos desnecessários se requisitado
         if limpar_desnecessarios:
@@ -320,10 +365,70 @@ def localizar_snapshot(nome: Optional[str] = None, tentar_sync: bool = True) -> 
     return cands[0]
 
 
-def data_snapshot(path: Optional[Path] = None) -> str:
-    """Retorna a data e hora formatada do snapshot."""
+def obter_metadados_snapshot(path: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Recupera os metadados do snapshot coletado a partir de `_sync_meta.json` ou dos arquivos Parquet essenciais.
+    Retorna um dicionário contendo:
+      - data_snapshot: str formatada ("DD/MM/YYYY HH:MM:SS")
+      - timestamp_snapshot: float
+      - data_coleta: str formatada ("DD/MM/YYYY HH:MM:SS")
+      - snapshot_nome: str
+      - tabelas: dict
+    """
     path = path or localizar_snapshot()
-    return datetime.fromtimestamp(_mtime(path)).strftime("%d/%m/%Y %H:%M:%S")
+    meta_file = path / "_sync_meta.json"
+    meta: Dict[str, Any] = {}
+
+    if meta_file.exists():
+        try:
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+        except Exception as e:
+            print(f"[SNAPSHOT] Aviso ao ler '{meta_file.name}': {e}")
+            meta = {}
+
+    # Timestamp dos arquivos Parquet oficiais coletados no disco (exclui caches internos '_')
+    mtime_arquivos = _mtime(path)
+
+    data_str = meta.get("data_snapshot") or meta.get("data_hora") or meta.get("data_atualizacao")
+    ts_snapshot = meta.get("timestamp_snapshot") or meta.get("mtime")
+
+    # Se o _sync_meta.json não possuir data_snapshot explícita ou estiver com timestamp defasado em relação aos parquets coletados
+    if mtime_arquivos > 0 and (not data_str or not ts_snapshot or mtime_arquivos > (float(ts_snapshot) + 10.0)):
+        ts_snapshot = mtime_arquivos
+        data_str = datetime.fromtimestamp(ts_snapshot).strftime("%d/%m/%Y %H:%M:%S")
+        try:
+            meta["snapshot_nome"] = path.name
+            meta["data_snapshot"] = data_str
+            meta["timestamp_snapshot"] = ts_snapshot
+            meta["pkl_mtime"] = ts_snapshot
+            meta["mtime"] = ts_snapshot
+            if "data_coleta" not in meta:
+                meta["data_coleta"] = datetime.fromtimestamp(path.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+            with open(meta_file, "w", encoding="utf-8") as f_out:
+                json.dump(meta, f_out, indent=2, ensure_ascii=False)
+        except Exception as e_w:
+            print(f"[SNAPSHOT] Aviso ao atualizar '{meta_file.name}': {e_w}")
+
+    if not data_str and ts_snapshot:
+        data_str = datetime.fromtimestamp(ts_snapshot).strftime("%d/%m/%Y %H:%M:%S")
+
+    if not data_str:
+        data_str = datetime.fromtimestamp(mtime_arquivos).strftime("%d/%m/%Y %H:%M:%S")
+
+    return {
+        "snapshot_nome": meta.get("snapshot_nome", path.name),
+        "data_snapshot": data_str,
+        "timestamp_snapshot": ts_snapshot or mtime_arquivos,
+        "data_coleta": meta.get("data_coleta") or data_str,
+        "tabelas": meta.get("tabelas", {}),
+    }
+
+
+def data_snapshot(path: Optional[Path] = None) -> str:
+    """Retorna a data e hora formatada dos metadados do snapshot coletado."""
+    meta = obter_metadados_snapshot(path)
+    return meta["data_snapshot"]
 
 
 def carregar_snapshot(path: Optional[Path] = None) -> Tuple[Dict[str, pd.DataFrame], Path]:
