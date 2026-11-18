@@ -75,7 +75,7 @@ def test_matriz_faltantes_retorna_saldos_ops_abertura_d1():
             if s <= 0:
                 continue
             dt_sort = str(op.get("data_abertura_sort") or "")
-            if dt_sort and dt_sort != "9999-12-31" and dt_sort <= corte:
+            if dt_sort and dt_sort != "9999-12-31" and (dt_sort <= corte or dt_sort.startswith("2030-")):
                 esp_ate += s
             else:
                 esp_apos += s
@@ -101,3 +101,34 @@ def test_exportar_matriz_excel_inclui_colunas_saldo_ops():
     idx_tot = cols.index("Total Faltante")
     assert cols.index(col_ate) == idx_tot + 1
     assert cols.index(col_apos) == idx_tot + 2
+
+
+def test_prioridade_2030_fila_e_filtro_abertura():
+    itens_full, _, _ = service._obter_fila_calculada(session_id="t_prio_2030")
+    mask_2030 = itens_full["_dt_abertura_sort"].dt.year == 2030
+    qtd_2030 = int(mask_2030.sum())
+    assert qtd_2030 > 0, "snapshot sem OPs em 2030 para validar prioridade"
+
+    # Todos os itens com abertura em 2030 devem ocupar as primeiras posições da fila
+    assert bool(mask_2030.iloc[:qtd_2030].all())
+    assert not bool(mask_2030.iloc[qtd_2030:].any())
+
+    # Filtro por abertura_op com data_fim anterior a 2030 deve incluir os itens 2030 (atraso),
+    # mantendo a exibicao da pagina ordenada cronologicamente por Data de Abertura
+    res_filt = service.analisar_itens_finais(
+        filtros={"tipo_data": "abertura_op", "data_fim": "2026-12-31"},
+        page=0,
+        page_size=20000,
+        session_id="t_prio_2030",
+    )
+    assert res_filt["metricas"]["total_itens_finais"] >= qtd_2030
+    itens_exib = res_filt["itens"]
+    assert sum(1 for it in itens_exib if str(it.get("data_abertura") or "").endswith("2030")) == qtd_2030
+
+    datas_exib = [
+        datetime.strptime(it["data_abertura"], "%d/%m/%Y")
+        for it in itens_exib
+        if it.get("data_abertura")
+    ]
+    assert datas_exib == sorted(datas_exib)
+    assert datas_exib[0].year < 2030

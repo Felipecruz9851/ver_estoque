@@ -158,7 +158,16 @@ def calc_data(dfs):
     )
 
     ######## Merge 2: Ordem Prod do componente ##########
-    ordens_op = ordens[["Item", "Ordem Prod", "Pedido"]].copy()
+    ordens_op = ordens[["Item", "Ordem Prod", "Pedido", "Data Abertura"]].copy()
+    ordens_op["_prio_2030"] = np.where(ordens_op["Data Abertura"].dt.year == 2030, 0, 1)
+    ordens_op = (
+        ordens_op.sort_values(
+            by=["_prio_2030", "Data Abertura"],
+            ascending=[True, True],
+            na_position="last",
+        )[["Item", "Ordem Prod", "Pedido"]]
+        .copy()
+    )
 
     consumo_com_pedido = consumo[consumo["Pedido"] > 0]
     consumo_sem_pedido = consumo[consumo["Pedido"] == 0]

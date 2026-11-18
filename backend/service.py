@@ -305,6 +305,11 @@ def _parse_data_br_flex(valor: Any) -> Tuple[str, str]:
     return "", "9999-12-31"
 
 
+def _eh_data_prioridade_2030(dt_sort: Any) -> bool:
+    """Identifica datas no ano 2030, tratadas pelo ERP como itens em atraso / prioridade máxima."""
+    return str(dt_sort or "").strip().startswith("2030-")
+
+
 def _construir_mapas_enriquecimento(
     dfs: Dict[str, pd.DataFrame], df_consumo: pd.DataFrame, forcar_oc: bool = False
 ) -> Dict[str, Any]:
@@ -451,7 +456,13 @@ def _construir_mapas_enriquecimento(
                     "fabrica": fab,
                     "pedido_op": ped_norm,
                 }
-                sort_key = (dt_ent_sort, dt_ab_sort, int(op_digits) if op_digits else 999999999)
+                eh_prio_2030 = _eh_data_prioridade_2030(dt_ab_sort) or _eh_data_prioridade_2030(dt_ent_sort)
+                sort_key = (
+                    0 if eh_prio_2030 else 1,
+                    dt_ent_sort,
+                    dt_ab_sort,
+                    int(op_digits) if op_digits else 999999999,
+                )
                 ops_temp.append((sort_key, it, op_info))
 
             ops_temp.sort(key=lambda x: x[0])
@@ -1459,9 +1470,10 @@ def _obter_fila_calculada(
     filas["prazo_expedicao"] = filas["raiz_Representante"].apply(settings.prazo_por_representante)
     filas["_dt_abertura_sort"] = pd.to_datetime(filas["raiz_Data_Abertura"], errors="coerce")
     filas["_dt_entrega_sort"] = pd.to_datetime(filas["raiz_Entrega_Pedido"], errors="coerce")
+    filas["_prioridade_2030"] = np.where(filas["_dt_abertura_sort"].dt.year == 2030, 0, 1)
     filas = filas.sort_values(
-        by=["_dt_abertura_sort", "raiz_Pedido_Str", "raiz_Item Final", "raiz_Fábrica"],
-        ascending=[True, True, True, True],
+        by=["_prioridade_2030", "_dt_abertura_sort", "raiz_Pedido_Str", "raiz_Item Final", "raiz_Fábrica"],
+        ascending=[True, True, True, True, True],
         na_position="last",
     ).reset_index(drop=True)
     filas["_ordem_fila"] = filas.index
@@ -1756,18 +1768,23 @@ def _filtrar_itens_finais_base(itens_full: pd.DataFrame, filtros: Optional[Dict[
         if tipo_data_filtro in ("entrega_pedido", "entrega") and "_dt_entrega_sort" in itens_full.columns
         else "_dt_abertura_sort"
     )
+    mask_2030 = (
+        itens_full["_dt_abertura_sort"].dt.year == 2030
+        if col_data_sort == "_dt_abertura_sort" and "_dt_abertura_sort" in itens_full.columns
+        else pd.Series(False, index=itens_full.index)
+    )
 
     if data_inicio_raw and str(data_inicio_raw).strip():
         dt_in_str = str(data_inicio_raw).strip()
         dt_in = pd.to_datetime(dt_in_str, errors="coerce", dayfirst="/" in dt_in_str)
         if pd.notna(dt_in) and col_data_sort in itens_full.columns:
-            mask &= itens_full[col_data_sort].dt.floor("D") >= dt_in.floor("D")
+            mask &= (itens_full[col_data_sort].dt.floor("D") >= dt_in.floor("D")) | mask_2030
 
     if data_fim_raw and str(data_fim_raw).strip():
         dt_fi_str = str(data_fim_raw).strip()
         dt_fi = pd.to_datetime(dt_fi_str, errors="coerce", dayfirst="/" in dt_fi_str)
         if pd.notna(dt_fi) and col_data_sort in itens_full.columns:
-            mask &= itens_full[col_data_sort].dt.floor("D") <= dt_fi.floor("D")
+            mask &= (itens_full[col_data_sort].dt.floor("D") <= dt_fi.floor("D")) | mask_2030
 
     return itens_full[mask]
 
@@ -1900,7 +1917,14 @@ def analisar_itens_finais(
     total_filtrados = len(itens_resumo)
     total_paginas = (total_filtrados + page_size - 1) // page_size if page_size > 0 else 1
 
-    # A ordenação por `_ordem_fila` já respeita estritamente Data de Abertura (NaT por último)
+    # Exibição na tela principal organizada cronologicamente por Data de Abertura (mantendo `_ordem_fila` para cálculo)
+    if not itens_resumo.empty:
+        itens_resumo = itens_resumo.sort_values(
+            by=["_dt_abertura_sort", "raiz_Pedido_Str", "raiz_Item Final", "raiz_Fábrica"],
+            ascending=[True, True, True, True],
+            na_position="last",
+        )
+
     start = page * page_size
     end = start + page_size
     slice_df = itens_resumo.iloc[start:end]
@@ -1965,8 +1989,8 @@ def _calcular_saldos_ops_abertura_d1(
 ) -> Tuple[float, float]:
     """
     Calcula para um componente (Tipo P) os saldos somados de OPs abertas divididos pelo corte hoje + 1:
-    - saldo_ate_d1: OPs com data de abertura <= hoje + 1
-    - saldo_apos_d1: OPs com data de abertura > hoje + 1
+    - saldo_ate_d1: OPs com data de abertura <= hoje + 1 ou no ano 2030 (itens em atraso/prioridade)
+    - saldo_apos_d1: OPs com data de abertura > hoje + 1 (exceto 2030)
     """
     it = scraper.normalizar_cod_item(comp_item)
     if not it:
@@ -1984,7 +2008,7 @@ def _calcular_saldos_ops_abertura_d1(
         dt_ab_sort = str(op.get("data_abertura_sort") or "").strip()
         if not dt_ab_sort or dt_ab_sort == "9999-12-31":
             _, dt_ab_sort = _parse_data_br_flex(op.get("data_abertura"))
-        if dt_ab_sort and dt_ab_sort != "9999-12-31" and dt_ab_sort <= corte:
+        if dt_ab_sort and dt_ab_sort != "9999-12-31" and (dt_ab_sort <= corte or _eh_data_prioridade_2030(dt_ab_sort)):
             saldo_ate_d1 += saldo_op
         else:
             saldo_apos_d1 += saldo_op

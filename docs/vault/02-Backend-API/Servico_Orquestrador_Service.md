@@ -12,9 +12,10 @@ tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 
 ## Principais Funções / Métodos
 * `gerar_dataframe_cons(recarregar, forcar_oc, sincronizar_snapshot)`: Carrega tabelas do snapshot (pedidos, saldos, estoque, ordens, estruturas), dispara sincronização remota e compõe a base unificada de consumo.
-* `_construir_mapas_enriquecimento(ordens_df, oc_df)`: Indexa dados de ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) e ordens de compra de matérias-primas (vínculo por pedido/item ou previsão mais antiga).
-* `_calcular_saldos_ops_abertura_d1(comp_item, data_corte_iso)`: Soma o saldo das OPs abertas do componente (`Tipo == 'P'`) segmentado pelo corte `hoje + 1` (`op_saldo_ate_d1` para abertura `<= hoje+1` e `op_saldo_apos_d1` para abertura `> hoje+1`).
-* `_obter_fila_calculada(cons_efetivo, session_id, ...)`: Executa o abatimento cumulativo FIFO de estoque físico (Situação L), com tratamento de tolerância a arredondamentos.
+* `_construir_mapas_enriquecimento(ordens_df, oc_df)`: Indexa dados de ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) priorizando OPs no ano `2030` (itens em atraso) e ordens de compra de matérias-primas (vínculo por pedido/item ou previsão mais antiga).
+* `_calcular_saldos_ops_abertura_d1(comp_item, data_corte_iso)`: Soma o saldo das OPs abertas do componente (`Tipo == 'P'`) segmentado pelo corte `hoje + 1` (`op_saldo_ate_d1` para abertura `<= hoje+1` ou ano `2030`, e `op_saldo_apos_d1` para abertura `> hoje+1`).
+* `_obter_fila_calculada(cons_efetivo, session_id, ...)`: Executa o abatimento cumulativo FIFO de estoque físico (Situação L), posicionando OPs com abertura em `2030` no topo da fila (`_prioridade_2030 = 0`), com tratamento de tolerância a arredondamentos.
+* `_filtrar_itens_finais_base(itens_full, filtros)`: Aplica filtros de local, pedido, código, simulados e janela de datas, incluindo sempre itens com `Data Abertura` em `2030` ao filtrar por `Abertura da OP`.
 * `analisar_itens_finais(filtros, page, page_size, session_id, ...)`: Aplica paginação e filtros sobre os itens finais calculados, computando o percentual de atendimento do pedido.
 * `_enriquecer_insumo_gerencial(insumo_dict, mapas, ...)`: Enriquece itens filhos com datas e saldos de OPs de componentes (`Tipo == 'P'`, incluindo `op_saldo_ate_d1` e `op_saldo_apos_d1`) e previsão de OCs de matérias-primas (`Tipo == 'C'`).
 * `obter_detalhes_item_final(...)`: Retorna insumos e componentes detalhados de um item final com divisão em Matéria-Prima e Componentes por Fábrica.

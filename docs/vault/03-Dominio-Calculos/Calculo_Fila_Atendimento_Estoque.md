@@ -1,7 +1,7 @@
 ---
 modulo: "Calculo_Fila_Atendimento_Estoque"
 tipo: "dominio"
-data_atualizacao: 2026-11-11
+data_atualizacao: 2026-11-18
 tags: [regras-negocio, calculo, parametros, estoque, fifo, atendimento, multinivel, mrp]
 ---
 
@@ -16,6 +16,11 @@ tags: [regras-negocio, calculo, parametros, estoque, fifo, atendimento, multiniv
   - `consumo`: Float (quantidade requerida do insumo pela engenharia/árvore do produto).
   - `ordem_fila`: Lista ordenada cronologicamente por data de abertura/entrega e número do pedido.
 - **Condicionais Críticas:**
+  - **Prioridade Máxima para OPs com Data em `2030` (Itens em Atraso):**
+    - Ordens de produção com `Data de Abertura` no ano `2030` representam itens em atraso / prioridade máxima no ERP e devem ser atendidas primeiro.
+    - Na ordenação global de `_obter_fila_calculada`, recebem chave prioritária (`_prioridade_2030 = 0` vs. `1`), posicionando-se no **topo da fila** antes das datas regulares (`2025/2026/2027`) para abaterem o estoque físico primeiro.
+    - Nos filtros de período por `Abertura da OP (De / Até)` (`_filtrar_itens_finais_base`), itens com abertura em `2030` são sempre preservados.
+    - Na agregação de saldo de OPs de componentes (`_calcular_saldos_ops_abertura_d1`), OPs de `2030` são somadas na coluna `<= hoje+1` (`op_saldo_ate_d1`) e priorizadas na escolha da OP principal do componente.
   - **Padronização Pré-Cálculo (2 Casas Decimais):** Todos os dados de entrada de estoque, ordens, saldo e consumo da estrutura são estritamente padronizados e arredondados com 2 casas decimais (`round(2)`) antes de qualquer cálculo ou merge.
   - **Avaliação Hierárquica Top-Down (Corte de Ramo por Saldo):**
     - A avaliação inicia no **Nível 1** (filhos diretos da raiz `raiz_Item Final`).
