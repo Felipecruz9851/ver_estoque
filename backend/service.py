@@ -6,7 +6,7 @@ itens finais (`raiz_Item Final`) com abatimento cumulativo de estoque (Situaçã
 da fila ordenada por Data de Abertura, e gerencia a simulação/destaque de pedidos.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import re
 import threading
@@ -445,6 +445,7 @@ def _construir_mapas_enriquecimento(
                 op_info = {
                     "ordem_prod": op_str,
                     "data_abertura": dt_ab_br,
+                    "data_abertura_sort": dt_ab_sort,
                     "data_entrega": dt_ent_br,
                     "saldo_op": saldo_op,
                     "fabrica": fab,
@@ -1958,6 +1959,39 @@ def analisar_itens_finais(
     }
 
 
+def _calcular_saldos_ops_abertura_d1(
+    comp_item: str,
+    data_corte_iso: Optional[str] = None,
+) -> Tuple[float, float]:
+    """
+    Calcula para um componente (Tipo P) os saldos somados de OPs abertas divididos pelo corte hoje + 1:
+    - saldo_ate_d1: OPs com data de abertura <= hoje + 1
+    - saldo_apos_d1: OPs com data de abertura > hoje + 1
+    """
+    it = scraper.normalizar_cod_item(comp_item)
+    if not it:
+        return 0.0, 0.0
+
+    corte = data_corte_iso or (datetime.now().date() + timedelta(days=1)).isoformat()
+    ops_todas = _enriquecimento.get("op_por_item_todos", {}).get(it, [])
+
+    saldo_ate_d1 = 0.0
+    saldo_apos_d1 = 0.0
+    for op in ops_todas:
+        saldo_op = float(op.get("saldo_op") or 0.0)
+        if saldo_op <= 0:
+            continue
+        dt_ab_sort = str(op.get("data_abertura_sort") or "").strip()
+        if not dt_ab_sort or dt_ab_sort == "9999-12-31":
+            _, dt_ab_sort = _parse_data_br_flex(op.get("data_abertura"))
+        if dt_ab_sort and dt_ab_sort != "9999-12-31" and dt_ab_sort <= corte:
+            saldo_ate_d1 += saldo_op
+        else:
+            saldo_apos_d1 += saldo_op
+
+    return round(saldo_ate_d1, 2), round(saldo_apos_d1, 2)
+
+
 def _enriquecer_insumo_gerencial(
     comp_item: str,
     tipo_comp: str,
@@ -2003,10 +2037,13 @@ def _enriquecer_insumo_gerencial(
     op_data_abertura = ""
     op_data_entrega = ""
     op_saldo = 0.0
+    op_saldo_ate_d1 = 0.0
+    op_saldo_apos_d1 = 0.0
     op_vinculo = ""
     ops_abertas: List[Dict[str, Any]] = []
 
     if tipo_comp == "P":
+        op_saldo_ate_d1, op_saldo_apos_d1 = _calcular_saldos_ops_abertura_d1(it)
         op_por_item_pedido = _enriquecimento.get("op_por_item_pedido", {})
         op_por_numero = _enriquecimento.get("op_por_numero", {})
         op_por_item_lote = _enriquecimento.get("op_por_item_lote", {})
@@ -2181,6 +2218,8 @@ def _enriquecer_insumo_gerencial(
         "op_data_abertura": op_data_abertura,
         "op_data_entrega": op_data_entrega,
         "op_saldo": round(op_saldo, 2),
+        "op_saldo_ate_d1": round(op_saldo_ate_d1, 2),
+        "op_saldo_apos_d1": round(op_saldo_apos_d1, 2),
         "op_vinculo": op_vinculo,
         "ops_abertas": ops_abertas,
         "oc_numero": oc_numero,
@@ -2797,7 +2836,8 @@ def obter_matriz_faltantes_producao(
     filtros = filtros or {}
     sess = obter_sessao(session_id)
     filtros_json = json.dumps(filtros, sort_keys=True, default=str)
-    cache_key = (_cache_timestamp, sess.simulacao_versao, filtros_json)
+    hoje_d1_iso = (datetime.now().date() + timedelta(days=1)).isoformat()
+    cache_key = (_cache_timestamp, sess.simulacao_versao, hoje_d1_iso, filtros_json)
     with sess.lock:
         if cache_key in sess.cache_matriz:
             return sess.cache_matriz[cache_key]
@@ -3121,6 +3161,8 @@ def obter_matriz_faltantes_producao(
             "op_data_abertura": info_ger["op_data_abertura"],
             "op_data_entrega": info_ger["op_data_entrega"],
             "op_saldo": info_ger["op_saldo"],
+            "op_saldo_ate_d1": info_ger["op_saldo_ate_d1"],
+            "op_saldo_apos_d1": info_ger["op_saldo_apos_d1"],
             "op_vinculo": info_ger["op_vinculo"],
             "ops_abertas": info_ger["ops_abertas"],
         }
@@ -3226,6 +3268,8 @@ def exportar_matriz_faltantes_excel(
             reg[lbl] = row["falta_por_prazo"].get(k, 0.0)
 
         reg["Total Faltante"] = row["falta_total"]
+        reg["Saldo da ops do item com abertura menor ou igual a hoje+1"] = row.get("op_saldo_ate_d1", 0.0)
+        reg["Saldo das OPs com abertura maior que hoje+1"] = row.get("op_saldo_apos_d1", 0.0)
         reg["OP Aberta"] = row["ordem_prod"] or ""
         reg["Vínculo OP"] = row["op_vinculo"] or ""
         reg["Saldo OP"] = row["op_saldo"]
@@ -3305,7 +3349,8 @@ def obter_resumo_faltantes(
     filtros = filtros or {}
     sess = obter_sessao(session_id)
     filtros_json = json.dumps(filtros, sort_keys=True, default=str)
-    cache_key = (_cache_timestamp, sess.simulacao_versao, filtros_json)
+    hoje_d1_iso = (datetime.now().date() + timedelta(days=1)).isoformat()
+    cache_key = (_cache_timestamp, sess.simulacao_versao, hoje_d1_iso, filtros_json)
     with sess.lock:
         if cache_key in sess.cache_resumo_faltantes:
             return sess.cache_resumo_faltantes[cache_key]

@@ -45,12 +45,28 @@ export const exportarTabelaMatrizComoImagem = ({
         mono: true,
         isTotal: true,
       },
+      {
+        key: "op_saldo_ate_d1",
+        label: "Saldo da ops do item com abertura menor ou igual a hoje+1",
+        width: 210,
+        align: "right",
+        mono: true,
+        isOpAteD1: true,
+      },
+      {
+        key: "op_saldo_apos_d1",
+        label: "Saldo das OPs com abertura maior que hoje+1",
+        width: 200,
+        align: "right",
+        mono: true,
+        isOpAposD1: true,
+      },
     ];
 
     const padX = 24;
     const padY = 20;
     const headerBannerH = 66;
-    const tableHeaderH = 38;
+    const tableHeaderH = 46;
     const rowH = 30;
     const footerH = 38;
 
@@ -112,7 +128,31 @@ export const exportarTabelaMatrizComoImagem = ({
           : col.align === "center"
           ? curX + col.width / 2
           : curX + 10;
-      ctx.fillText(truncar(col.label, 24), textX, yHead + tableHeaderH / 2);
+
+      if (col.label.length > 26) {
+        const maxW = col.width - 18;
+        const palavras = col.label.split(/\s+/);
+        let linha1 = "";
+        let idxPalavra = 0;
+        while (idxPalavra < palavras.length) {
+          const cand = linha1 ? `${linha1} ${palavras[idxPalavra]}` : palavras[idxPalavra];
+          if (ctx.measureText(cand).width <= maxW || !linha1) {
+            linha1 = cand;
+            idxPalavra += 1;
+          } else {
+            break;
+          }
+        }
+        const linha2 = palavras.slice(idxPalavra).join(" ");
+        if (linha2) {
+          ctx.fillText(linha1, textX, yHead + tableHeaderH / 2 - 7, maxW);
+          ctx.fillText(linha2, textX, yHead + tableHeaderH / 2 + 7, maxW);
+        } else {
+          ctx.fillText(linha1, textX, yHead + tableHeaderH / 2, maxW);
+        }
+      } else {
+        ctx.fillText(truncar(col.label, 26), textX, yHead + tableHeaderH / 2);
+      }
       curX += col.width;
     });
 
@@ -122,10 +162,14 @@ export const exportarTabelaMatrizComoImagem = ({
       subtotaisPrazo[colP.key] = 0;
     });
     let subtotalFaltaGeral = 0;
+    let subtotalOpAteD1 = 0;
+    let subtotalOpAposD1 = 0;
 
     // Pré-cálculo dos subtotais para exibição na linha de topo
     itens.forEach((row) => {
       subtotalFaltaGeral += Number(row.falta_total || 0);
+      subtotalOpAteD1 += Number(row.op_saldo_ate_d1 || 0);
+      subtotalOpAposD1 += Number(row.op_saldo_apos_d1 || 0);
       colsPrazoEfetivas.forEach((colP) => {
         subtotaisPrazo[colP.key] =
           (subtotaisPrazo[colP.key] || 0) + Number(row.falta_por_prazo?.[colP.key] || 0);
@@ -172,6 +216,11 @@ export const exportarTabelaMatrizComoImagem = ({
         cellBg = "#FBF7F4";
         txtColor = "#8B5A2B";
         textoSub = formatarQtd(subtotalFaltaGeral);
+      } else if (col.isOpAteD1 || col.isOpAposD1) {
+        const somaOp = col.isOpAteD1 ? subtotalOpAteD1 : subtotalOpAposD1;
+        cellBg = "#F4F4F4";
+        txtColor = "#1A1A1A";
+        textoSub = formatarQtd(somaOp);
       }
 
       ctx.fillStyle = cellBg;
@@ -221,6 +270,11 @@ export const exportarTabelaMatrizComoImagem = ({
           cellBg = "#FBF7F4";
           txtColor = "#8B5A2B";
           isBold = true;
+        } else if (col.isOpAteD1 || col.isOpAposD1) {
+          const v = Number(row[col.key] || 0);
+          valTexto = v > 0 ? formatarQtd(v) : "-";
+          txtColor = v > 0 ? "#1A1A1A" : "#BDBDBD";
+          isBold = v > 0;
         }
 
         ctx.fillStyle = cellBg;

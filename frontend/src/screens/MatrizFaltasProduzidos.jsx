@@ -400,6 +400,8 @@ export default function MatrizFaltasProduzidos({
                       "10": Math.round(f10 * 100) / 100,
                     },
                     falta_total: Math.round(Number(row.falta_total || 0) * 100) / 100,
+                    op_saldo_ate_d1: Math.round(Number(row.op_saldo_ate_d1 || 0) * 100) / 100,
+                    op_saldo_apos_d1: Math.round(Number(row.op_saldo_apos_d1 || 0) * 100) / 100,
                   };
                 } else {
                   const acc = mapaFabricaItens[fc][codItem];
@@ -431,11 +433,21 @@ export default function MatrizFaltasProduzidos({
                     "10": itensLista.reduce((acc, r) => acc + (r.falta_por_prazo["10"] || 0), 0),
                   };
                   const faltaTotalFab = itensLista.reduce((acc, r) => acc + r.falta_total, 0);
+                  const somaOpAteD1 =
+                    Math.round(
+                      itensLista.reduce((acc, r) => acc + (r.op_saldo_ate_d1 || 0), 0) * 100
+                    ) / 100;
+                  const somaOpAposD1 =
+                    Math.round(
+                      itensLista.reduce((acc, r) => acc + (r.op_saldo_apos_d1 || 0), 0) * 100
+                    ) / 100;
                   return {
                     fabrica_componente: fc,
                     itens: itensLista,
                     somas_por_prazo: somasPrazo,
                     falta_total_grupo: faltaTotalFab,
+                    soma_op_ate_d1: somaOpAteD1,
+                    soma_op_apos_d1: somaOpAposD1,
                   };
                 })
                 .filter((g) => g.itens.length > 0)
@@ -655,6 +667,18 @@ export default function MatrizFaltasProduzidos({
                                     >
                                       Total Faltante
                                     </th>
+                                    <th
+                                      scope="col"
+                                      className="py-3 px-4 text-right font-normal min-w-[170px] leading-tight border-l border-[#E8E8E8]"
+                                    >
+                                      Saldo da ops do item com abertura menor ou igual a hoje+1
+                                    </th>
+                                    <th
+                                      scope="col"
+                                      className="py-3 px-4 text-right font-normal min-w-[170px] leading-tight border-l border-[#E8E8E8]"
+                                    >
+                                      Saldo das OPs com abertura maior que hoje+1
+                                    </th>
                                   </tr>
 
                                   {/* Subtotal Row */}
@@ -678,6 +702,12 @@ export default function MatrizFaltasProduzidos({
                                     ))}
                                     <td className="py-2.5 px-4 text-right font-semibold text-[#8B5A2B] bg-[#FBF7F4] border-l border-[#E8DFD5]">
                                       {formatarQtd(grp.falta_total_grupo)}
+                                    </td>
+                                    <td className="py-2.5 px-4 text-right border-l border-[#E0E0E0]">
+                                      {formatarQtd(grp.soma_op_ate_d1 || 0)}
+                                    </td>
+                                    <td className="py-2.5 px-4 text-right border-l border-[#E0E0E0]">
+                                      {formatarQtd(grp.soma_op_apos_d1 || 0)}
                                     </td>
                                   </tr>
                                 </thead>
@@ -716,6 +746,28 @@ export default function MatrizFaltasProduzidos({
                                       })}
                                       <td className="py-3 px-4 text-right font-medium text-[#8B5A2B] bg-[#FBF7F4]/40 border-l border-[#E8DFD5]">
                                         {formatarQtd(comp.falta_total)}
+                                      </td>
+                                      <td
+                                        className={`py-3 px-4 text-right border-l border-[#EFEFEF] ${
+                                          comp.op_saldo_ate_d1 > 0
+                                            ? "text-[#1A1A1A] font-medium"
+                                            : "text-[#A0A0A0]"
+                                        }`}
+                                      >
+                                        {comp.op_saldo_ate_d1 > 0
+                                          ? formatarQtd(comp.op_saldo_ate_d1)
+                                          : "-"}
+                                      </td>
+                                      <td
+                                        className={`py-3 px-4 text-right border-l border-[#EFEFEF] ${
+                                          comp.op_saldo_apos_d1 > 0
+                                            ? "text-[#1A1A1A] font-medium"
+                                            : "text-[#A0A0A0]"
+                                        }`}
+                                      >
+                                        {comp.op_saldo_apos_d1 > 0
+                                          ? formatarQtd(comp.op_saldo_apos_d1)
+                                          : "-"}
                                       </td>
                                     </tr>
                                   ))}
