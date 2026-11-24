@@ -37,6 +37,8 @@ export default function DisponibilidadeEstoque({
   setFiltroStatus,
   filtroApenasSimulados,
   setFiltroApenasSimulados,
+  filtroTodasOps = false,
+  setFiltroTodasOps = () => {},
   temFiltrosAtivos,
   limparFiltros,
   pedidosSimuladosAtivos = [],
@@ -226,6 +228,8 @@ export default function DisponibilidadeEstoque({
               <p className="text-[11px] text-[#757575] mt-0.5">
                 {metricas.total_simulados > 0
                   ? `${metricas.total_simulados} simulado(s)`
+                  : filtroTodasOps
+                  ? "ordens (todas OPs)"
                   : "ordens avaliadas"}
               </p>
             </div>
@@ -665,7 +669,46 @@ export default function DisponibilidadeEstoque({
             </div>
 
             {/* Botões de Ação na Direita */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+              {/* Escopo de Ordens (Itens Finais vs Todas as OPs) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
+                  Escopo:
+                </span>
+                <div
+                  role="group"
+                  aria-label="Escopo de ordens exibidas"
+                  className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={!filtroTodasOps}
+                    onClick={() => setFiltroTodasOps(false)}
+                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                      !filtroTodasOps
+                        ? "bg-white text-[#1A1A1A] border-b-2 border-[#8B5A2B] shadow-xs font-semibold"
+                        : "text-[#757575] hover:text-[#1A1A1A]"
+                    }`}
+                    title="Exibe apenas itens finais raiz (cálculo MRP multinível completo)"
+                  >
+                    Itens Finais
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={Boolean(filtroTodasOps)}
+                    onClick={() => setFiltroTodasOps(true)}
+                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
+                      filtroTodasOps
+                        ? "bg-[#8B5A2B] text-white border-b-2 border-[#1A1A1A] shadow-xs font-semibold"
+                        : "text-[#757575] hover:text-[#1A1A1A]"
+                    }`}
+                    title="Recalcula exibindo todas as OPs abertas (itens com e sem item pai, avaliando insumos diretos em 1 nível sem dupla contagem)"
+                  >
+                    Todas as OPs
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setFiltroApenasSimulados((prev) => !prev)}
@@ -700,7 +743,8 @@ export default function DisponibilidadeEstoque({
             Object.keys(colFiltros).length > 0 ||
             filtroDataInicio ||
             filtroDataFim ||
-            filtroApenasSimulados) && (
+            filtroApenasSimulados ||
+            filtroTodasOps) && (
             <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-[#EEEEEE]">
               {pedidosSimuladosAtivos.length > 0 && (
                 <>
@@ -752,7 +796,8 @@ export default function DisponibilidadeEstoque({
               {(Object.keys(colFiltros).length > 0 ||
                 filtroDataInicio ||
                 filtroDataFim ||
-                filtroApenasSimulados) && (
+                filtroApenasSimulados ||
+                filtroTodasOps) && (
                 <>
                   {pedidosSimuladosAtivos.length > 0 && (
                     <span className="h-3.5 w-px bg-[#E0E0E0] mx-1" />
@@ -760,6 +805,19 @@ export default function DisponibilidadeEstoque({
                   <span className="text-[10px] text-[#757575] font-semibold uppercase tracking-wider">
                     Filtros Ativos:
                   </span>
+                  {filtroTodasOps && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#FBF7F4] text-[#8B5A2B] border border-[#8B5A2B]/30">
+                      <strong>Modo Todas as OPs</strong> (com e sem pai — 1 nível por OP)
+                      <button
+                        type="button"
+                        onClick={() => setFiltroTodasOps(false)}
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                        title="Voltar ao modo padrão (apenas Itens Finais)"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
                   {filtroApenasSimulados && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#FBF7F4] text-[#8B5A2B] border border-[#8B5A2B]/30">
                       <strong>Apenas Simulados</strong>
@@ -826,7 +884,7 @@ export default function DisponibilidadeEstoque({
               </caption>
               <thead className="sticky top-0 z-20 bg-white/95 backdrop-blur-xs text-[#757575] border-b border-[#EAEAEA] text-[11px] uppercase tracking-wider">
                 <tr>
-                  {renderColumnHeader("item_final", "Código (Item Final)", "pl-5 min-w-[170px]")}
+                  {renderColumnHeader("item_final", filtroTodasOps ? "Código / OP" : "Código (Item Final)", "pl-5 min-w-[190px]")}
                   {renderColumnHeader("descricao", "Descrição do Produto", "min-w-[320px]")}
                   {renderColumnHeader("pedido", "Pedido", "min-w-[95px]", "center")}
                   {renderColumnHeader("fabrica", "Local Produção", "min-w-[130px]")}
@@ -873,7 +931,7 @@ export default function DisponibilidadeEstoque({
 
                       return (
                         <tr
-                          key={`${it.item_final}_${it.pedido}_${it.fabrica}_${idx}`}
+                          key={`${it.ordem_op || it.item_final}_${it.pedido}_${it.fabrica}_${idx}`}
                           ref={idx === sentinelIndex ? sentinelRef : null}
                           className={`transition-colors ${
                             isSimuladoCarteira
@@ -898,6 +956,26 @@ export default function DisponibilidadeEstoque({
                           >
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{it.item_final}</span>
+                              {it.ordem_op && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.2 rounded-xs text-[9px] font-mono font-medium bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]"
+                                  title={`Ordem de Produção ${it.ordem_op}`}
+                                >
+                                  OP {it.ordem_op}
+                                </span>
+                              )}
+                              {it.eh_raiz === false && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.2 rounded-xs text-[9px] font-sans font-semibold bg-[#EEF2FF] text-[#3730A3] border border-[#C7D2FE]"
+                                  title={
+                                    it.item_final_pai
+                                      ? `Subcomponente de ${it.item_final_pai}${it.fabrica_pai ? ` (${it.fabrica_pai})` : ""}`
+                                      : "Subcomponente com item pai"
+                                  }
+                                >
+                                  Subcomp.
+                                </span>
+                              )}
                               {isSimuladoCarteira ? (
                                 <span
                                   className="inline-flex items-center px-1.5 py-0.2 rounded-xs text-[9px] font-sans font-medium border border-[#CBD5E1] bg-white text-[#475569]"
@@ -919,6 +997,15 @@ export default function DisponibilidadeEstoque({
                                 )
                               )}
                             </div>
+                            {it.eh_raiz === false && it.item_final_pai && (
+                              <div
+                                className="text-[10px] font-sans font-normal text-[#757575] mt-0.5 truncate max-w-[230px]"
+                                title={`Item pai: ${it.item_final_pai}${it.fabrica_pai ? ` • ${it.fabrica_pai}` : ""}`}
+                              >
+                                Pai: <span className="font-mono">{it.item_final_pai}</span>
+                                {it.fabrica_pai ? ` (${it.fabrica_pai})` : ""}
+                              </div>
+                            )}
                           </th>
                           <td className="py-3 px-4 max-w-[320px] truncate uppercase font-normal text-xs text-[#1A1A1A]" title={it.descricao}>
                             {it.descricao || "-"}
@@ -1069,7 +1156,7 @@ export default function DisponibilidadeEstoque({
                         </span>
                       ) : (
                         <span className="text-[#757575] font-medium text-[11px]">
-                          ✓ Todos os {totalRegistros.toLocaleString("pt-BR")} itens finais carregados.
+                          ✓ Todos os {totalRegistros.toLocaleString("pt-BR")} {filtroTodasOps ? "registros (OPs)" : "itens finais"} carregados.
                         </span>
                       )}
                     </td>
@@ -1087,7 +1174,7 @@ export default function DisponibilidadeEstoque({
                 <span className="font-medium text-[#1A1A1A] font-mono">
                   {totalRegistros.toLocaleString("pt-BR")}
                 </span>{" "}
-                itens finais
+                {filtroTodasOps ? "ordens (OPs)" : "itens finais"}
               </span>
             </div>
 

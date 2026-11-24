@@ -86,6 +86,8 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             baixa=payload.get("baixa"),
             tipo=payload.get("tipo"),
             familias=payload.get("familias"),
+            ordem_op=payload.get("ordem_op"),
+            todas_ops=bool(payload.get("todas_ops", False)),
             session_id=session_id,
         )
     if method == "obter_resumo_pedido":

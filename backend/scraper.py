@@ -8,6 +8,7 @@ Fluxo autenticado via httpx.Client:
 4. GET http://192.168.0.6/JSN001/json-pedido-estrutura.php?pedido=... -> obtém árvore de estrutura
 """
 
+from datetime import datetime
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Sequence, Tuple

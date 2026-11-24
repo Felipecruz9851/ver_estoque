@@ -18,6 +18,7 @@ export default function DetalhamentoInsumos({
   setModalBaixa,
   modalTipo = "todos",
   setModalTipo,
+  filtroTodasOps = false,
   carregarDetalhes,
   onAbrirResumoPedido,
   onVoltar,
@@ -57,6 +58,12 @@ export default function DetalhamentoInsumos({
     ? detalhesItem.total_faltando
     : itemSelecionado.componentes_faltando;
 
+  const ordemOp = detalhesItem?.ordem_op || itemSelecionado.ordem_op || "";
+  const ehRaiz = detalhesItem?.eh_raiz ?? itemSelecionado.eh_raiz ?? true;
+  const itemFinalPai = detalhesItem?.item_final_pai || itemSelecionado.item_final_pai || "";
+  const fabricaPai = detalhesItem?.fabrica_pai || itemSelecionado.fabrica_pai || "";
+  const modoTodasOps = Boolean(detalhesItem?.todas_ops || filtroTodasOps);
+
   return (
     <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#F8F8F8]">
       {/* Header do Detalhamento Líder Design */}
@@ -76,7 +83,7 @@ export default function DetalhamentoInsumos({
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-[17px] font-semibold text-[#1A1A1A] tracking-tight font-serif">
-                Detalhamento de Insumos por Item Final
+                {modoTodasOps ? "Detalhamento de Insumos da OP" : "Detalhamento de Insumos por Item Final"}
               </h2>
 
               {itemSelecionado.simulado && (
@@ -103,7 +110,9 @@ export default function DetalhamentoInsumos({
               )}
             </div>
             <p className="text-[11px] text-[#757575] mt-0.5">
-              Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L
+              {modoTodasOps
+                ? "Insumos diretos (1 nível) da OP na fila cumulativa • Estoque em Situação L"
+                : "Abatimento cumulativo na fila por data de abertura da OP • Estoque em Situação L"}
             </p>
           </div>
         </div>
@@ -130,11 +139,23 @@ export default function DetalhamentoInsumos({
         <section className="bg-white border border-[#E5E5E5] rounded-xs p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-[#F0F0F0] pb-4">
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="font-mono text-xs uppercase tracking-wider text-[#8B5A2B] bg-[#F7F2ED] px-2 py-0.5 rounded-xs font-semibold border border-[#E8DFD5]">
                   Código: {itemSelecionado.item_final}
                 </span>
-                <span className="text-xs text-[#888]">• Item Final Faturável</span>
+                {ordemOp && (
+                  <span className="font-mono text-xs px-2 py-0.5 rounded-xs font-semibold bg-[#F3F4F6] text-[#374151] border border-[#E5E7EB]">
+                    OP: {ordemOp}
+                  </span>
+                )}
+                {!ehRaiz && itemFinalPai ? (
+                  <span className="text-xs text-[#3730A3] bg-[#EEF2FF] px-2 py-0.5 rounded-xs border border-[#C7D2FE]">
+                    • Subcomponente de <span className="font-mono font-semibold">{itemFinalPai}</span>
+                    {fabricaPai ? ` (${fabricaPai})` : ""}
+                  </span>
+                ) : (
+                  <span className="text-xs text-[#888]">• Item Final Faturável</span>
+                )}
               </div>
               <h3 className="text-base font-medium text-[#1A1A1A] tracking-tight font-sans">
                 {itemSelecionado.descricao || "Sem descrição comercial"}

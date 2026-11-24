@@ -78,6 +78,7 @@ export default function VerEstoque() {
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [filtroTipoData, setFiltroTipoData] = useState("abertura_op"); // 'abertura_op' | 'entrega_pedido'
   const [filtroApenasSimulados, setFiltroApenasSimulados] = useState(false);
+  const [filtroTodasOps, setFiltroTodasOps] = useState(false);
 
   // Filtros em Títulos de Colunas (Backend)
   const [colFiltros, setColFiltros] = useState({});
@@ -133,6 +134,7 @@ export default function VerEstoque() {
   const [carregandoFaltantes, setCarregandoFaltantes] = useState(false);
   const [erroFaltantes, setErroFaltantes] = useState("");
   const [abaFaltantes, setAbaFaltantes] = useState("todos"); // 'todos' | 'P' | 'C'
+  const [visaoFaltantes, setVisaoFaltantes] = useState("por_insumo"); // 'por_insumo' | 'por_item_pedido'
   const [exportandoFaltantes, setExportandoFaltantes] = useState(false);
   const faltantesReqRef = useRef(0);
 
@@ -205,6 +207,7 @@ export default function VerEstoque() {
             baixa: filtroBaixa,
             tipo: filtroTipo,
             familias: filtroFamilias,
+            todas_ops: filtroTodasOps,
             apenas_simulados: filtroApenasSimulados,
             col_filtros: recarregarCache ? colFiltros : debouncedColFiltros,
             data_inicio: filtroDataInicio,
@@ -269,6 +272,7 @@ export default function VerEstoque() {
       filtroBaixa,
       filtroTipo,
       filtroFamilias,
+      filtroTodasOps,
       filtroApenasSimulados,
       filtroDataInicio,
       filtroDataFim,
@@ -289,6 +293,7 @@ export default function VerEstoque() {
     filtroBaixa,
     filtroTipo,
     filtroFamilias,
+    filtroTodasOps,
     filtroApenasSimulados,
     filtroDataInicio,
     filtroDataFim,
@@ -464,6 +469,7 @@ export default function VerEstoque() {
           baixa: filtroBaixa,
           tipo: filtroTipo,
           familias: filtroFamilias,
+          todas_ops: filtroTodasOps,
           apenas_simulados: filtroApenasSimulados,
           col_filtros: colFiltros,
           data_inicio: filtroDataInicio,
@@ -498,6 +504,8 @@ export default function VerEstoque() {
         baixa: bFiltro,
         tipo: tFiltro,
         familias: filtroFamilias,
+        ordem_op: it.ordem_op || "",
+        todas_ops: Boolean(filtroTodasOps),
       });
       if (res && res.erro) throw new Error(res.erro);
       setDetalhesItem(res);
@@ -619,6 +627,8 @@ export default function VerEstoque() {
     baixa: filtroBaixa,
     tipo: filtroTipo,
     familias: filtroFamilias,
+    todas_ops: filtroTodasOps,
+    visao: visaoFaltantes,
     apenas_simulados: filtroApenasSimulados,
     col_filtros: debouncedColFiltros,
     data_inicio: filtroDataInicio,
@@ -655,6 +665,8 @@ export default function VerEstoque() {
     filtroBaixa,
     filtroTipo,
     filtroFamilias,
+    filtroTodasOps,
+    visaoFaltantes,
     filtroApenasSimulados,
     filtroDataInicio,
     filtroDataFim,
@@ -921,6 +933,8 @@ export default function VerEstoque() {
           setFiltroStatus={setFiltroStatus}
           filtroApenasSimulados={filtroApenasSimulados}
           setFiltroApenasSimulados={setFiltroApenasSimulados}
+          filtroTodasOps={filtroTodasOps}
+          setFiltroTodasOps={setFiltroTodasOps}
           temFiltrosAtivos={temFiltrosAtivos}
           limparFiltros={limparFiltros}
           pedidosSimuladosAtivos={pedidosSimuladosAtivos}
@@ -962,8 +976,14 @@ export default function VerEstoque() {
           exportando={exportandoFaltantes}
           aba={abaFaltantes}
           setAba={setAbaFaltantes}
+          visao={visaoFaltantes}
+          setVisao={setVisaoFaltantes}
+          filtroTodasOps={filtroTodasOps}
+          setFiltroTodasOps={setFiltroTodasOps}
           onRecarregar={carregarFaltantes}
           onExportar={handleExportarFaltantes}
+          onAbrirDetalhes={abrirDetalhes}
+          onAbrirResumoPedido={abrirResumoPedido}
           onVoltar={() => setTelaAtiva("disponibilidade")}
           filtroLocal={filtroLocal}
           setFiltroLocal={setFiltroLocal}
@@ -1055,6 +1075,7 @@ export default function VerEstoque() {
           setModalBaixa={setModalBaixa}
           modalTipo={modalTipo}
           setModalTipo={setModalTipo}
+          filtroTodasOps={filtroTodasOps}
           carregarDetalhes={carregarDetalhes}
           onAbrirResumoPedido={abrirResumoPedido}
           onVoltar={() => setTelaAtiva("disponibilidade")}

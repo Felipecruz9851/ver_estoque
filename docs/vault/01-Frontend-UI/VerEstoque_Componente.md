@@ -2,16 +2,17 @@
 modulo: "VerEstoque.jsx"
 tipo: "frontend"
 linguagem: "javascript"
-data_atualizacao: 2026-11-18
+data_atualizacao: 2026-11-24
 tags: [codigo, frontend, javascript, react, ui]
 ---
 
 # Módulo: VerEstoque.jsx
 
-**Responsabilidade:** Componente principal da interface em React/Vite do Ver Estoque, apresentando a listagem paginada de itens finais, status de atendimento cumulativo, detalhamento gerencial de insumos por fábrica, modal nativo com resumo executivo de pedidos e Matriz Pivot de Componentes Produzidos Faltantes por fábrica.
+**Responsabilidade:** Componente principal da interface em React/Vite do Ver Estoque, apresentando a listagem paginada de itens finais (ou todas as OPs com e sem item pai via `filtroTodasOps`), status de atendimento cumulativo, tela de Itens Faltantes (com visão consolidada por insumo ou por Local × Item/Pedido), detalhamento gerencial de insumos por fábrica, resumo executivo de pedidos e Matriz Pivot de Componentes Produzidos Faltantes por fábrica.
 
 ## Principais Funções / Métodos
-* `carregarDados(resetar, recarregar, paginaAlvo)`: Dispara busca paginada de itens finais com filtros ativos, recarga fresca ou paginação sob demanda.
+* `carregarDados(resetar, paginaAlvo, recarregarCache)`: Dispara busca paginada com filtros ativos (incluindo `todas_ops` para alternar entre Itens Finais e Todas as OPs em 1 nível), recarga fresca ou paginação sob demanda.
+* `carregarFaltantes()`: Consulta `obter_resumo_faltantes` com os filtros espelhados (incluindo `todas_ops` e `visao` em [[Tela_Itens_Faltantes]]).
 * `abrirModalSimulador()` / `fecharModalSimulador()`: Controla a exibição do diálogo modal `<dialog>` para inserção de pedidos de teste para simulação em fila.
 * `handleConfirmarSimulacao()`: Envia lista de pedidos para simulação temporária na sessão ativa e atualiza a fila de atendimento.
 * `handleRemoverPedidoSimulado(numPedido)`: Remove um pedido simulado individualmente da sessão corrente.

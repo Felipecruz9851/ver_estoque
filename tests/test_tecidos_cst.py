@@ -143,6 +143,50 @@ def test_detalhes_item_final_e_resumo_pedido_cst():
         print(f"Sucesso: Resumo do Pedido #{ped_alvo} consolidou {len(cst_res)} tecidos CST.")
 
 
+def test_carga_concorrente_intranet_forcar_true(monkeypatch):
+    """Garante que a recarga concorrente com forcar_intranet=True não falhe (regressão datetime NameError)."""
+    chamadas = []
+
+    def fake_oc(forcar_intranet=False, usuario=None, senha=None):
+        chamadas.append(("oc", forcar_intranet))
+        return [{"oc_numero": "123", "item": "3TESTE"}]
+
+    def fake_tec(forcar_intranet=False, usuario=None, senha=None):
+        chamadas.append(("tec", forcar_intranet))
+        return [{"pedido": "1", "ordem": "2", "item": "1TESTE", "tecido": "3CST", "situacao": "TECIDO CHEGOU"}]
+
+    monkeypatch.setattr(scraper, "carregar_ou_atualizar_oc_abertas", fake_oc)
+    monkeypatch.setattr(scraper, "carregar_ou_atualizar_tecidos_customizados", fake_tec)
+
+    ocs, tec = scraper.carregar_ou_atualizar_intranet_concorrente(forcar_intranet=True)
+    assert ("oc", True) in chamadas
+    assert ("tec", True) in chamadas
+    assert ocs == [{"oc_numero": "123", "item": "3TESTE"}]
+    assert tec == [{"pedido": "1", "ordem": "2", "item": "1TESTE", "tecido": "3CST", "situacao": "TECIDO CHEGOU"}]
+
+
+def test_enriquecimento_fallback_preserva_cache_em_erro_concorrente(monkeypatch):
+    """Garante que erro na carga concorrente faça fallback aos caches locais sem zerar OCs/Tecidos CST."""
+    def fake_concorrente_erro(*args, **kwargs):
+        raise RuntimeError("falha simulada")
+
+    def fake_oc(forcar_intranet=False, usuario=None, senha=None):
+        assert forcar_intranet is False
+        return [{"oc_numero": "999", "item": "3TESTE", "saldo": 10.0}]
+
+    def fake_tec(forcar_intranet=False, usuario=None, senha=None):
+        assert forcar_intranet is False
+        return [{"pedido": "1", "ordem": "2", "item": "1TESTE", "tecido": "3CST", "situacao": "TECIDO CHEGOU"}]
+
+    monkeypatch.setattr(scraper, "carregar_ou_atualizar_intranet_concorrente", fake_concorrente_erro)
+    monkeypatch.setattr(scraper, "carregar_ou_atualizar_oc_abertas", fake_oc)
+    monkeypatch.setattr(scraper, "carregar_ou_atualizar_tecidos_customizados", fake_tec)
+
+    enriq = service._construir_mapas_enriquecimento({}, pd.DataFrame(), forcar_oc=True)
+    assert "3TESTE" in enriq["oc_por_item_todas"]
+    assert len(enriq["tecidos_cust_raw"]) == 1
+
+
 if __name__ == "__main__":
     try:
         test_identificacao_itens_cst_e_sinalizacao_descricao()

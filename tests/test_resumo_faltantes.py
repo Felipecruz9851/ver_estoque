@@ -132,3 +132,102 @@ def test_prioridade_2030_fila_e_filtro_abertura():
     ]
     assert datas_exib == sorted(datas_exib)
     assert datas_exib[0].year < 2030
+
+
+def test_analisar_todas_ops_inclui_kit_5KITASAH1FEB11_sem_dupla_contagem():
+    res_padrao = service.analisar_itens_finais(
+        filtros={"todas_ops": False, "codigo": "5KITASAH1FEB11"},
+        page=0,
+        page_size=50,
+        session_id="t_todas_ops",
+    )
+    assert res_padrao["total_registros"] == 0
+
+    res_todas = service.analisar_itens_finais(
+        filtros={"todas_ops": True, "codigo": "5KITASAH1FEB11"},
+        page=0,
+        page_size=50,
+        session_id="t_todas_ops",
+    )
+    assert res_todas["todas_ops"] is True
+    assert res_todas["total_registros"] >= 1
+    hit = next((it for it in res_todas["itens"] if it["ordem_op"] == "2003104"), None)
+    assert hit is not None
+    assert hit["item_final"] == "5KITASAH1FEB11"
+    assert hit["fabrica"] == "KIT"
+    assert hit["eh_raiz"] is False
+    assert hit["item_final_pai"] == "1QUCASA187270H"
+    assert hit["total_componentes"] == 66
+
+    res_all_count = service.analisar_itens_finais(
+        filtros={"todas_ops": True},
+        page=0,
+        page_size=10,
+        session_id="t_todas_ops",
+    )
+    assert res_all_count["total_registros"] > 10000
+
+    det = service.obter_detalhes_item_final(
+        raiz_item_final="5KITASAH1FEB11",
+        raiz_pedido="195425",
+        raiz_fabrica="KIT",
+        ordem_op="2003104",
+        todas_ops=True,
+        session_id="t_todas_ops",
+    )
+    assert "erro" not in det
+    assert det["ordem_op"] == "2003104"
+    assert det["total_componentes"] == 66
+    assert det["todas_ops"] is True
+
+    exp = service.exportar_analise_excel(
+        filtros={"todas_ops": True, "local_producao": ["KIT"]},
+        session_id="t_todas_ops",
+    )
+    assert exp.get("status") == "ok"
+    df_xlsx = pd.read_excel(settings.EXPORTS_DIR / exp["nome"])
+    assert "OP" in df_xlsx.columns
+    assert "Tipo Ordem" in df_xlsx.columns
+
+
+def test_resumo_faltantes_visao_por_local_item_pedido():
+    res = service.obter_resumo_faltantes(
+        {"visao": "por_item_pedido", "local_producao": ["PLANEJADOS"]},
+        session_id="t_visao_local",
+    )
+    assert res["visao"] == "por_item_pedido"
+    grupos = res.get("grupos_por_local_item") or []
+    assert grupos
+    assert {g["local"] for g in grupos} == {"PLANEJADOS"}
+    for g in grupos:
+        for it in g["itens"]:
+            assert it["faltantes"]
+            assert all(f["falta"] > 0 for f in it["faltantes"])
+
+    res_kit = service.obter_resumo_faltantes(
+        {
+            "visao": "por_item_pedido",
+            "todas_ops": True,
+            "local_producao": ["KIT"],
+            "codigo": "5KITASAH1FEB11",
+        },
+        session_id="t_visao_local",
+    )
+    grupos_kit = res_kit.get("grupos_por_local_item") or []
+    assert len(grupos_kit) == 1
+    assert grupos_kit[0]["local"] == "KIT"
+    item_5k = next(
+        (x for x in grupos_kit[0]["itens"] if x["item_final"] == "5KITASAH1FEB11" and x["ordem_op"] == "2003104"),
+        None,
+    )
+    assert item_5k is not None
+    assert item_5k["pedido"] == "195425"
+    assert len(item_5k["faltantes"]) == item_5k["total_faltando"] > 0
+
+    exp = service.exportar_resumo_faltantes_excel(
+        {"visao": "por_item_pedido", "todas_ops": True, "local_producao": ["KIT"], "codigo": "5KITASAH1FEB11"},
+        session_id="t_visao_local",
+    )
+    assert exp.get("status") == "ok"
+    xl = pd.ExcelFile(settings.EXPORTS_DIR / exp["nome"])
+    assert "Por Local e Item-Pedido" in xl.sheet_names

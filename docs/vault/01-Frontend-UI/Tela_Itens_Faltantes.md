@@ -10,12 +10,14 @@ tags: [frontend, tela, faltantes, filtros]
 **Resumo:** lista tudo o que falta (insumos com `Falta > 0`) para os itens finais que atendem aos filtros da tela principal, organizado por local de produção e tipo (P produzido / C comprado).
 
 ## Regras
-- **Filtros espelhados** com [[VerEstoque_Componente]]: mesmo estado no orquestrador (`filtroLocal`, `filtroFamilias`, datas, pedido, código, baixa, tipo). Os modais [[Modal_Filtro_Fabrica_Local]] e [[Modal_Filtro_Familia_Componente]] são reutilizados.
+- **Filtros espelhados** com [[VerEstoque_Componente]]: mesmo estado no orquestrador (`filtroLocal`, `filtroFamilias`, `filtroTodasOps`, datas, pedido, código, baixa, tipo). Os modais [[Modal_Filtro_Fabrica_Local]] e [[Modal_Filtro_Familia_Componente]] são reutilizados.
 - O filtro de **status** do item final (e col. `status`/`saldo`) é ignorado: a tela mostra tudo o que falta.
-- **Tipo P:** agrupado pelo local de produção do componente (`_resolver_local_prod_componente`).
-- **Tipo C:** agrupado pela **fábrica consumidora** (`raiz_Fábrica` do item final).
-- Abas: Todos / Produzidos (P) / Comprados (C); busca client-side; grupos recolhíveis; paginação local (100 + "mostrar mais").
-- Exportação Excel com abas "Produzidos (P)" e "Comprados (C)".
+- **Modo de visualização (`visao`):**
+  - `por_insumo` (**Consolidado por Insumo**, padrão): **Tipo P** agrupado pelo local de produção do componente (`_resolver_local_prod_componente`); **Tipo C** agrupado pela **fábrica consumidora** (`raiz_Fábrica` do item final).
+  - `por_item_pedido` (**Por Local → Item / Pedido**): agrupado pelo **Local de Produção** do item/OP (`raiz_Fábrica`) → cada **Item / Pedido / OP** com falta → lista de insumos faltantes daquela ordem (com atalhos para **Resumo do Pedido** e **Ver Insumos**).
+- **Escopo (`todas_ops`):** alterna entre **Itens Finais** e **Todas as OPs** (itens com e sem item pai, avaliados em 1 nível sem dupla contagem).
+- Abas de tipo: Todos / Produzidos (P) / Comprados (C); busca client-side (local, item, OP, pedido ou insumo); grupos recolhíveis; paginação local.
+- Exportação Excel adaptativa: abas "Produzidos (P)" e "Comprados (C)" em `por_insumo`, ou aba "Por Local e Item-Pedido" em `por_item_pedido`.
 
 ## Acesso
 Sidebar ("Itens Faltantes") e atalho "Ver resumo de itens faltantes →" no card "Com Componentes Faltando".

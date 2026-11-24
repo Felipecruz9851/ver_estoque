@@ -2,21 +2,24 @@
 modulo: "service.py"
 tipo: "backend"
 linguagem: "python"
-data_atualizacao: 2026-11-18
+data_atualizacao: 2026-11-24
 tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 ---
 
 # Módulo: service.py
 
-**Responsabilidade:** Camada central de regras de negócio e serviços do Ver Estoque. Orquestra estados de sessão em memória, carga de snapshots, cálculo de atendimento cumulativo de estoque, enriquecimento gerencial de insumos com OPs e OCs, e consolidação de resumos por pedido.
+**Responsabilidade:** Camada central de regras de negócio e serviços do Ver Estoque. Orquestra estados de sessão em memória, carga de snapshots, cálculo de atendimento cumulativo de estoque (modo Itens Finais MRP multinível ou modo Todas as OPs em 1 nível), enriquecimento gerencial de insumos com OPs e OCs, e consolidação de resumos por pedido e faltantes.
 
 ## Principais Funções / Métodos
 * `gerar_dataframe_cons(recarregar, forcar_oc, sincronizar_snapshot)`: Carrega tabelas do snapshot (pedidos, saldos, estoque, ordens, estruturas), dispara sincronização remota e compõe a base unificada de consumo.
-* `_construir_mapas_enriquecimento(ordens_df, oc_df)`: Indexa dados de ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) priorizando OPs no ano `2030` (itens em atraso) e ordens de compra de matérias-primas (vínculo por pedido/item ou previsão mais antiga).
+* `_construir_mapas_enriquecimento(ordens_df, oc_df)`: Indexa dados de ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) priorizando OPs no ano `2030` (itens em atraso) e ordens de compra de matérias-primas (vínculo por pedido/item ou previsão mais antiga), preservando os caches `.pkl` locais em caso de falha na sincronização concorrente da Intranet.
 * `_calcular_saldos_ops_abertura_d1(comp_item, data_corte_iso)`: Soma o saldo das OPs abertas do componente (`Tipo == 'P'`) segmentado pelo corte `hoje + 1` (`op_saldo_ate_d1` para abertura `<= hoje+1` ou ano `2030`, e `op_saldo_apos_d1` para abertura `> hoje+1`).
-* `_obter_fila_calculada(cons_efetivo, session_id, ...)`: Executa o abatimento cumulativo FIFO de estoque físico (Situação L), posicionando OPs com abertura em `2030` no topo da fila (`_prioridade_2030 = 0`), com tratamento de tolerância a arredondamentos.
-* `_filtrar_itens_finais_base(itens_full, filtros)`: Aplica filtros de local, pedido, código, simulados e janela de datas, incluindo sempre itens com `Data Abertura` em `2030` ao filtrar por `Abertura da OP`.
-* `analisar_itens_finais(filtros, page, page_size, session_id, ...)`: Aplica paginação e filtros sobre os itens finais calculados, computando o percentual de atendimento do pedido.
+* `_calcular_fila_todas_ops(df, b_norm, t_norm, fam_set)`: Executa o abatimento cumulativo FIFO vetorizado em 1 nível por OP (`Ordem Cons`), listando todas as OPs abertas (itens com e sem item pai, expondo `ordem_op`, `eh_raiz`, `item_final_pai`, `fabrica_pai`) sem dupla contagem de estoque.
+* `_obter_fila_calculada(cons_efetivo, todas_ops, session_id, ...)`: Executa o abatimento cumulativo FIFO de estoque físico (Situação L), posicionando OPs com abertura em `2030` no topo da fila (`_prioridade_2030 = 0`), delegando para `_calcular_fila_todas_ops` quando `todas_ops=True`.
+* `_filtrar_itens_finais_base(itens_full, filtros)`: Aplica filtros de local, pedido, código (incluindo `ordem_op`), simulados e janela de datas, incluindo sempre itens com `Data Abertura` em `2030` ao filtrar por `Abertura da OP`.
+* `analisar_itens_finais(filtros, page, page_size, session_id, ...)`: Aplica paginação e filtros (incluindo `todas_ops`) sobre as ordens calculadas, computando o percentual de atendimento.
+* `obter_resumo_faltantes(filtros, session_id)`: Consolida os insumos faltantes nas visões `por_insumo` (Produzidos P por local do componente / Comprados C por fábrica consumidora) e `por_item_pedido` (`_construir_grupos_por_local_item`: Local de Produção → Item/Pedido/OP → insumos faltantes), respeitando `todas_ops`.
+* `exportar_resumo_faltantes_excel(filtros, session_id)`: Gera `.xlsx` com abas `Produzidos (P)`/`Comprados (C)` ou `Por Local e Item-Pedido`.
 * `_enriquecer_insumo_gerencial(insumo_dict, mapas, ...)`: Enriquece itens filhos com datas e saldos de OPs de componentes (`Tipo == 'P'`, incluindo `op_saldo_ate_d1` e `op_saldo_apos_d1`) e previsão de OCs de matérias-primas (`Tipo == 'C'`).
 * `obter_detalhes_item_final(...)`: Retorna insumos e componentes detalhados de um item final com divisão em Matéria-Prima e Componentes por Fábrica.
 * `obter_resumo_pedido(...)`: Consolida a visão executiva de tudo o que falta para produzir um pedido ou item final específico.
