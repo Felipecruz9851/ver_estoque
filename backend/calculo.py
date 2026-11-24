@@ -364,5 +364,5 @@ def calc_data(dfs):
             .fillna(0.0)
             .round(2)
         )
-
+    # consumo.to_csv("consumo_final.csv", index=False, sep=";", decimal=",")
     return consumo
