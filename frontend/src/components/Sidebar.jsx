@@ -21,6 +21,7 @@ export default function Sidebar({
   hashSessao = "",
   dataCarregamento = "",
   dataCarga = "",
+  dataOc = "",
   snapshotNome = "",
 }) {
   const handleRecarregar = onRecarregar || carregarDados;
@@ -174,14 +175,16 @@ export default function Sidebar({
           <div className="font-mono text-[11px] text-[#333] pl-3.5">
             {sid ? sid.slice(0, 8) : "ativa"}
           </div>
-          {(dtSnapshot || snapshotNome) && (
+          {(dtSnapshot || snapshotNome || dataOc) && (
             <div className="text-[10px] text-[#888] pt-1 leading-snug">
-              <div>
-                Snapshot:{" "}
-                <span className="font-mono text-[#555]" title={snapshotNome}>
-                  {snapshotNome ? snapshotNome.replace(/^snapshot_/, "") : "Padrão"}
-                </span>
-              </div>
+              {(dtSnapshot || snapshotNome) && (
+                <div>
+                  Snapshot:{" "}
+                  <span className="font-mono text-[#555]" title={snapshotNome}>
+                    {snapshotNome ? snapshotNome.replace(/^snapshot_/, "") : "Padrão"}
+                  </span>
+                </div>
+              )}
               {dtSnapshot && (
                 <div
                   className="font-mono text-[9px] text-[#777]"
@@ -190,6 +193,12 @@ export default function Sidebar({
                   {dtSnapshot.startsWith("Atualiz") ? dtSnapshot : `Atualização: ${dtSnapshot}`}
                 </div>
               )}
+              <div
+                className="font-mono text-[9px] text-[#777]"
+                title="Data e hora da última sincronização das Ordens de Compra na Intranet"
+              >
+                OCs Intranet: {dataOc || "—"}
+              </div>
             </div>
           )}
         </div>

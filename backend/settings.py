@@ -18,6 +18,7 @@ SNAPSHOTS_AUTO_SYNC = os.environ.get(
 ).lower() in ("1", "true", "yes")
 EXPORTS_DIR = DATA_DIR / "exports"
 OC_CACHE_FILE = DATA_DIR / "oc_abertas_cache.pkl"
+OC_CACHE_TTL_SECONDS = int(os.environ.get("VER_ESTOQUE_OC_CACHE_TTL", str(60 * 30)))  # 30 min
 TECIDOS_CUSTOMIZADOS_CACHE_FILE = DATA_DIR / "tecidos_customizados_cache.pkl"
 DIVISAO_FABRICAS_FILE = DATA_DIR / "DIVISAO_FABRICAS.json"
 TECIDOS_CUSTOMIZADOS_URL = os.environ.get(
@@ -40,6 +41,10 @@ PORT = int(os.environ.get("VER_ESTOQUE_PORT", "8687"))
 SESSION_COOKIE_NAME = os.environ.get("VER_ESTOQUE_SESSION_COOKIE", "ver_estoque_session")
 SESSION_COOKIE_MAX_AGE = int(os.environ.get("VER_ESTOQUE_SESSION_MAX_AGE", str(86400 * 30)))  # 30 dias
 SESSION_TTL_SECONDS = int(os.environ.get("VER_ESTOQUE_SESSION_TTL", str(86400 * 2)))  # 48h inatividade
+
+# Números de pedido internos/fictícios no ERP tratados como sem pedido (lote/estoque)
+PEDIDOS_DESCONSIDERADOS_INT = frozenset({0, 100, 1000})
+PEDIDOS_DESCONSIDERADOS_STR = frozenset({"0", "100", "1000"})
 
 SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)

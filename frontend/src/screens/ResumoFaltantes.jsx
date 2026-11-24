@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { formatarQtd, truncar } from "../utils/formatters";
 
 const LIMITE_INICIAL = 100;
@@ -24,6 +24,8 @@ export default function ResumoFaltantes({
   setVisao = () => {},
   filtroTodasOps = false,
   setFiltroTodasOps = () => {},
+  filtroEscopoAbatimento = "global",
+  setFiltroEscopoAbatimento = () => {},
   onRecarregar,
   onExportar,
   onAbrirDetalhes,
@@ -51,6 +53,7 @@ export default function ResumoFaltantes({
   limparFiltros,
   temFiltrosAtivos = false,
 }) {
+  const abatimentoLabelId = useId();
   const [busca, setBusca] = useState("");
   const [fechados, setFechados] = useState({});
   const [limites, setLimites] = useState({});
@@ -508,8 +511,13 @@ export default function ResumoFaltantes({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onRecarregar} disabled={carregando}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#555] border border-[#E0E0E0] rounded-xs hover:bg-[#F2F2F2] cursor-pointer disabled:opacity-50">
+          <button
+            type="button"
+            onClick={onRecarregar}
+            disabled={carregando}
+            title="Recarregar snapshot e sincronizar OCs da Intranet"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#555] border border-[#E0E0E0] rounded-xs hover:bg-[#F2F2F2] cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5A2B]"
+          >
             <span className="material-symbols-outlined text-[16px]">refresh</span>Atualizar
           </button>
           <button type="button" onClick={onExportar} disabled={exportando || carregando || !dados}
@@ -571,6 +579,46 @@ export default function ResumoFaltantes({
             >
               Todas as OPs
             </button>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span
+              id={abatimentoLabelId}
+              className="text-[11px] uppercase tracking-wider text-[#757575] font-medium"
+            >
+              Abatimento:
+            </span>
+            <div
+              role="group"
+              aria-labelledby={abatimentoLabelId}
+              className="inline-flex min-h-[32px] p-0.5 bg-[#F8F8F8] border border-[#E0E0E0] rounded-sm"
+            >
+              <button
+                type="button"
+                aria-pressed={filtroEscopoAbatimento !== "filtrado"}
+                onClick={() => setFiltroEscopoAbatimento("global")}
+                className={`min-h-[28px] px-2.5 text-xs rounded-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5A2B] ${
+                  filtroEscopoAbatimento !== "filtrado"
+                    ? "bg-white text-[#1A1A1A] font-semibold border-b-2 border-[#8B5A2B]"
+                    : "text-[#666] hover:text-[#1A1A1A]"
+                }`}
+                title="Consumo de estoque considera toda a fila global (incluindo pedidos fora do filtro, ex.: prioridades 2030)"
+              >
+                Fila Global
+              </button>
+              <button
+                type="button"
+                aria-pressed={filtroEscopoAbatimento === "filtrado"}
+                onClick={() => setFiltroEscopoAbatimento("filtrado")}
+                className={`min-h-[28px] px-2.5 text-xs rounded-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5A2B] ${
+                  filtroEscopoAbatimento === "filtrado"
+                    ? "bg-[#8B5A2B] text-white font-semibold border-b-2 border-[#1A1A1A]"
+                    : "text-[#666] hover:text-[#1A1A1A]"
+                }`}
+                title="Abate o estoque apenas entre os pedidos/OPs dentro dos filtros atuais"
+              >
+                Apenas no Filtro
+              </button>
+            </div>
           </div>
           {temFiltrosAtivos && (
             <button type="button" onClick={limparFiltros} className="h-8 px-3 text-xs text-[#B84A39] hover:bg-[#FFEBEE] rounded-sm cursor-pointer">

@@ -7,6 +7,15 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
+if __package__:
+    from . import settings
+else:
+    import settings
+
+_PEDIDOS_DESCONSIDERADOS_INT = getattr(
+    settings, "PEDIDOS_DESCONSIDERADOS_INT", frozenset({0, 100, 1000})
+)
+
 
 def parse_numero_br_series(serie: pd.Series) -> pd.Series:
     """Converte série textual ou numérica no formato brasileiro para float arredondado a 2 casas."""
@@ -91,6 +100,7 @@ def calc_data(dfs):
     )
     ordens["Saldo Prod"] = parse_numero_br_series(ordens.get("Saldo Prod", pd.Series()))
     ordens["Pedido"] = pd.to_numeric(ordens.get("Pedido", pd.Series()), errors="coerce").fillna(0).astype(int)
+    ordens.loc[ordens["Pedido"].isin(_PEDIDOS_DESCONSIDERADOS_INT), "Pedido"] = 0
     if "Ordem Prod" in ordens.columns:
         ordens["Ordem Prod"] = ordens["Ordem Prod"].astype(str).str.strip().str.removesuffix(".0")
     if "Item" in ordens.columns:

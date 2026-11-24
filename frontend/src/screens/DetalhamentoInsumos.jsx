@@ -19,6 +19,7 @@ export default function DetalhamentoInsumos({
   modalTipo = "todos",
   setModalTipo,
   filtroTodasOps = false,
+  filtroEscopoAbatimento = "global",
   carregarDetalhes,
   onAbrirResumoPedido,
   onVoltar,
@@ -106,6 +107,15 @@ export default function DetalhamentoInsumos({
               ) : (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-xs text-[11px] font-semibold bg-[#FFEBEE] text-[#C62828] border border-[#FFCDD2]">
                   ● {totalFaltando} insumo(s) em falta
+                </span>
+              )}
+
+              {(detalhesItem?.escopo_abatimento || filtroEscopoAbatimento) === "filtrado" && (
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-xs text-[10px] font-semibold bg-[#FBF7F4] text-[#8B5A2B] border border-[#8B5A2B]/30"
+                  title="Saldo na fila calculado considerando apenas os pedidos/OPs dentro dos filtros atuais"
+                >
+                  Abatimento: Apenas no Filtro
                 </span>
               )}
             </div>

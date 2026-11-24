@@ -1,6 +1,58 @@
-import React from "react";
+import React, { useId } from "react";
 import Topbar from "../components/Topbar";
 import { formatarQtd, formatarPerc } from "../utils/formatters";
+
+/**
+ * Select compacto reutilizável da barra condensada de filtros.
+ */
+function FiltroSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  active = false,
+  toneClass = "",
+  title = "",
+  minWidthClass = "",
+}) {
+  return (
+    <div className="flex flex-col min-w-0">
+      <label
+        htmlFor={id}
+        className="text-[10px] uppercase tracking-wider text-[#757575] font-medium mb-0.5 leading-none"
+      >
+        {label}
+      </label>
+      <div className="relative flex items-center">
+        <select
+          id={id}
+          value={value}
+          onChange={onChange}
+          title={title}
+          className={`h-8 appearance-none rounded-sm border pl-1.5 pr-5 text-[11px] leading-none transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-1px] focus-visible:outline-[#8B5A2B] ${minWidthClass} ${
+            toneClass ||
+            (active
+              ? "bg-[#FCFAF7] border-[#8B5A2B] text-[#1A1A1A] font-semibold"
+              : "bg-white border-[#E0E0E0] text-[#1A1A1A] hover:border-[#1A1A1A]")
+          }`}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <span
+          aria-hidden="true"
+          className="material-symbols-outlined pointer-events-none absolute right-1 text-[15px] text-[#757575]"
+        >
+          expand_more
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Tela Principal de Disponibilidade de Estoque (Líder Design)
@@ -39,6 +91,8 @@ export default function DisponibilidadeEstoque({
   setFiltroApenasSimulados,
   filtroTodasOps = false,
   setFiltroTodasOps = () => {},
+  filtroEscopoAbatimento = "global",
+  setFiltroEscopoAbatimento = () => {},
   temFiltrosAtivos,
   limparFiltros,
   pedidosSimuladosAtivos = [],
@@ -70,6 +124,18 @@ export default function DisponibilidadeEstoque({
   onAbrirModalFiltroFamilia = () => {},
   onAbrirFaltantes = () => {},
 }) {
+  const baseId = useId();
+  const localLabelId = `${baseId}-local-lbl`;
+  const familiaLabelId = `${baseId}-familia-lbl`;
+  const periodoLabelId = `${baseId}-periodo-lbl`;
+  const tipoDataId = `${baseId}-tipo-data`;
+  const dataInicioId = `${baseId}-dt-ini`;
+  const dataFimId = `${baseId}-dt-fim`;
+  const baixaId = `${baseId}-baixa`;
+  const origemId = `${baseId}-origem`;
+  const statusId = `${baseId}-status`;
+  const escopoId = `${baseId}-escopo`;
+  const abatimentoId = `${baseId}-abatimento`;
   const qtdLocaisFiltrados = Array.isArray(filtroLocal)
     ? filtroLocal.length
     : filtroLocal && String(filtroLocal).trim() && String(filtroLocal).toUpperCase() !== "TODOS"
@@ -249,7 +315,7 @@ export default function DisponibilidadeEstoque({
               <span className="text-2xl font-medium text-[#1A1A1A] tracking-tight">
                 {formatarQtd(metricas.total_itens_avaliados ?? 0)}
               </span>
-              <p className="text-[11px] text-[#757575] mt-0.5">saldo pedido em carteira</p>
+              <p className="text-[11px] text-[#757575] mt-0.5">saldo total</p>
             </div>
           </div>
 
@@ -342,386 +408,301 @@ export default function DisponibilidadeEstoque({
           </div>
         </section>
 
-        {/* 2. PAINEL DE FILTROS AVANÇADOS */}
-        <section className="shrink-0 bg-white p-4 rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col gap-3">
-          {/* Linha 1: Controles de Busca e Período */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
-            {/* Local de Produção / Centros Fabris */}
-            <div className="md:col-span-3 flex flex-col">
-              <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
-                Local de Produção
-              </label>
-              <div className="relative">
+        {/* 2. BARRA CONDENSADA DE FILTROS (Linha Única) */}
+        <search
+          aria-label="Filtros de disponibilidade de estoque"
+          className="shrink-0 bg-white rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden"
+        >
+          <div className="px-3 py-2 filtros-bar-single">
+            {/* Local de Produção */}
+            <div className="flex flex-col min-w-0">
+              <span
+                id={localLabelId}
+                className="text-[10px] uppercase tracking-wider text-[#757575] font-medium mb-0.5 leading-none"
+              >
+                Local
+              </span>
+              <div
+                className={`h-8 min-w-[100px] max-w-[136px] rounded-sm flex items-stretch transition-all border overflow-hidden ${
+                  qtdLocaisFiltrados > 0
+                    ? "bg-[#FCFAF7] border-[#8B5A2B] shadow-xs"
+                    : "bg-white border-[#E0E0E0] hover:border-[#1A1A1A]"
+                }`}
+              >
                 <button
                   type="button"
+                  aria-labelledby={localLabelId}
                   onClick={onAbrirModalFiltroLocal}
-                  className={`w-full h-9 rounded-sm px-3 text-xs flex items-center justify-between transition-all cursor-pointer border ${
-                    qtdLocaisFiltrados > 0
-                      ? "bg-[#FCFAF7] border-[#8B5A2B] text-[#1A1A1A] font-medium shadow-xs"
-                      : "bg-white border-[#E0E0E0] text-[#1A1A1A] hover:border-[#1A1A1A]"
-                  }`}
-                  title="Clique para filtrar por fábricas e locais de produção"
+                  className="flex-1 min-w-0 px-2 text-[11px] flex items-center justify-between gap-1.5 cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
+                  title="Filtrar por fábricas e locais de produção"
                 >
-                  <div className="flex items-center gap-2 truncate">
+                  <span className="flex items-center gap-1 min-w-0">
                     <span
-                      className={`material-symbols-outlined text-[17px] ${
+                      aria-hidden="true"
+                      className={`material-symbols-outlined text-[15px] shrink-0 ${
                         qtdLocaisFiltrados > 0 ? "text-[#8B5A2B]" : "text-[#757575]"
                       }`}
                     >
                       factory
                     </span>
-                    {qtdLocaisFiltrados > 0 ? (
-                      <span className="truncate">
-                        {qtdLocaisFiltrados}{" "}
-                        {qtdLocaisFiltrados === 1 ? "local selecionado" : "locais selecionados"}
-                      </span>
-                    ) : (
-                      <span className="text-[#424242]">
-                        Todos os Locais{" "}
-                        <span className="text-[10px] text-[#9E9E9E] font-normal">(Sem filtro)</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {qtdLocaisFiltrados > 0 && (
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFiltroLocal([]);
-                        }}
-                        className="text-[#B84A39] hover:bg-[#FFEBEE] rounded-full p-0.5 text-xs font-bold leading-none cursor-pointer"
-                        title="Limpar filtro de locais"
-                      >
-                        ✕
-                      </span>
-                    )}
-                    <span className="material-symbols-outlined text-[17px] text-[#757575]">
-                      tune
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Número do Pedido */}
-            <div className="md:col-span-2 flex flex-col">
-              <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
-                Número do Pedido
-              </label>
-              <input
-                type="text"
-                placeholder="Ex: 206473"
-                value={filtroPedido}
-                onChange={(e) => setFiltroPedido(e.target.value)}
-                className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-3 text-xs text-[#1A1A1A] placeholder-[#9E9E9E] focus:outline-none focus:border-[#1A1A1A] transition-colors"
-              />
-            </div>
-
-            {/* Código ou Descrição */}
-            <div className="md:col-span-4 flex flex-col">
-              <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium mb-1">
-                Código ou Descrição do Produto
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Ex: 1APAE180 ou APARADOR"
-                  value={filtroCodigo}
-                  onChange={(e) => setFiltroCodigo(e.target.value)}
-                  className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-3 pl-8 text-xs text-[#1A1A1A] placeholder-[#9E9E9E] focus:outline-none focus:border-[#1A1A1A] transition-colors"
-                />
-                <span className="material-symbols-outlined absolute left-2.5 top-2 text-[16px] text-[#757575]">
-                  search
-                </span>
-              </div>
-            </div>
-
-            {/* Período De / Até com Chave Seletora */}
-            <div className="md:col-span-3 flex flex-col">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
-                  Período De / Até
-                </label>
-                <div className="flex items-center gap-1 bg-[#F5F5F5] p-0.5 rounded-sm">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipoData("abertura_op")}
-                    className={`px-2 py-0.5 rounded-xs text-[10px] font-medium transition-colors cursor-pointer ${
-                      filtroTipoData === "abertura_op"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                    title="Filtrar pela Data de Abertura da OP"
-                  >
-                    Abertura OP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipoData("entrega_pedido")}
-                    className={`px-2 py-0.5 rounded-xs text-[10px] font-medium transition-colors cursor-pointer ${
-                      filtroTipoData === "entrega_pedido"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                    title="Filtrar pela Data de Entrega do Pedido"
-                  >
-                    Entrega Pedido
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={filtroDataInicio}
-                  onChange={(e) => setFiltroDataInicio(e.target.value)}
-                  className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-2 text-center text-xs text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
-                />
-                <span className="text-[#757575] text-[11px]">até</span>
-                <input
-                  type="date"
-                  value={filtroDataFim}
-                  onChange={(e) => setFiltroDataFim(e.target.value)}
-                  className="w-full h-9 bg-white border border-[#E0E0E0] rounded-sm px-2 text-center text-xs text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="h-px bg-[#EAEAEA] w-full" />
-
-          {/* Linha 2: Segmented Pills & Ações */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-5">
-              {/* Baixa Comp. */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
-                  Baixa Comp.:
-                </span>
-                <div className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroBaixa("todos")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroBaixa === "todos"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Todas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroBaixa("S")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroBaixa === "S"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Baixa Sim (S)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroBaixa("N")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroBaixa === "N"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Baixa Não (N)
-                  </button>
-                </div>
-              </div>
-
-              {/* Origem */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
-                  Origem:
-                </span>
-                <div className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]">
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipo("todos")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroTipo === "todos"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Todas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipo("C")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroTipo === "C"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Comprado (C)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroTipo("P")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroTipo === "P"
-                        ? "bg-white text-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Produzido (P)
-                  </button>
-                </div>
-              </div>
-
-              {/* Família (Itens 3) */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
-                  Família (Itens 3):
-                </span>
-                <button
-                  type="button"
-                  onClick={onAbrirModalFiltroFamilia}
-                  className={`h-7 px-2.5 rounded-xs text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
-                    qtdFamiliasFiltradas > 0
-                      ? "bg-[#FCFAF7] border-[#8B5A2B] text-[#1A1A1A] font-semibold shadow-xs"
-                      : "bg-[#F8F8F8] border-[#E0E0E0] text-[#757575] hover:text-[#1A1A1A] hover:border-[#1A1A1A]"
-                  }`}
-                  title="Clique para filtrar e recalcular o consumo pelas famílias dos componentes (itens 3)"
-                >
-                  <span
-                    className={`material-symbols-outlined text-[15px] ${
-                      qtdFamiliasFiltradas > 0 ? "text-[#8B5A2B]" : "text-[#757575]"
-                    }`}
-                  >
-                    category
-                  </span>
-                  {qtdFamiliasFiltradas > 0 ? (
-                    <span className="truncate font-mono">
-                      {qtdFamiliasFiltradas}{" "}
-                      {qtdFamiliasFiltradas === 1 ? "família" : "famílias"}
-                    </span>
-                  ) : (
-                    <span>Todas</span>
-                  )}
-                  {qtdFamiliasFiltradas > 0 && (
                     <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFiltroFamilias([]);
-                      }}
-                      className="text-[#B84A39] hover:bg-[#FFEBEE] rounded-full p-0.5 text-[11px] font-bold leading-none cursor-pointer ml-0.5"
-                      title="Limpar filtro de famílias"
+                      className={`truncate ${
+                        qtdLocaisFiltrados > 0 ? "font-semibold text-[#1A1A1A]" : "text-[#424242]"
+                      }`}
                     >
-                      ✕
+                      {qtdLocaisFiltrados > 0
+                        ? `${qtdLocaisFiltrados} ${qtdLocaisFiltrados === 1 ? "local" : "locais"}`
+                        : "Todos"}
                     </span>
-                  )}
-                  <span className="material-symbols-outlined text-[14px] text-[#9E9E9E]">
+                  </span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[14px] text-[#757575] shrink-0">
                     tune
                   </span>
                 </button>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
-                  Status:
-                </span>
-                <div className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]">
+                {qtdLocaisFiltrados > 0 && (
                   <button
                     type="button"
-                    onClick={() => setFiltroStatus("todos")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroStatus === "todos"
-                        ? "bg-[#1A1A1A] text-white shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
+                    onClick={() => setFiltroLocal([])}
+                    aria-label="Limpar filtro de locais"
+                    title="Limpar filtro de locais"
+                    className="px-1.5 flex items-center justify-center text-[#B84A39] hover:bg-[#FFEBEE] border-l border-[#8B5A2B]/25 text-[11px] font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
                   >
-                    Todos
+                    ✕
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroStatus("disponivel")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroStatus === "disponivel"
-                        ? "bg-[#3B6E4C] text-white shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Disponíveis
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFiltroStatus("falta")}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroStatus === "falta"
-                        ? "bg-[#B84A39] text-white shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    Com Falta
-                  </button>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Botões de Ação na Direita */}
-            <div className="flex flex-wrap items-center gap-2.5 ml-auto">
-              {/* Escopo de Ordens (Itens Finais vs Todas as OPs) */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] uppercase tracking-wider text-[#757575] font-medium">
-                  Escopo:
-                </span>
-                <div
-                  role="group"
-                  aria-label="Escopo de ordens exibidas"
-                  className="inline-flex p-0.5 rounded-xs border border-[#E0E0E0] bg-[#F8F8F8]"
+            {/* Família (Itens 3) */}
+            <div className="flex flex-col min-w-0">
+              <span
+                id={familiaLabelId}
+                className="text-[10px] uppercase tracking-wider text-[#757575] font-medium mb-0.5 leading-none"
+              >
+                Família (3)
+              </span>
+              <div
+                className={`h-8 min-w-[82px] max-w-[116px] rounded-sm flex items-stretch transition-all border overflow-hidden ${
+                  qtdFamiliasFiltradas > 0
+                    ? "bg-[#FCFAF7] border-[#8B5A2B] shadow-xs"
+                    : "bg-white border-[#E0E0E0] hover:border-[#1A1A1A]"
+                }`}
+              >
+                <button
+                  type="button"
+                  aria-labelledby={familiaLabelId}
+                  onClick={onAbrirModalFiltroFamilia}
+                  className="flex-1 min-w-0 px-2 text-[11px] flex items-center justify-between gap-1.5 cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
+                  title="Filtrar e recalcular o consumo pelas famílias dos componentes (itens 3)"
                 >
+                  <span className="flex items-center gap-1 min-w-0">
+                    <span
+                      aria-hidden="true"
+                      className={`material-symbols-outlined text-[14px] shrink-0 ${
+                        qtdFamiliasFiltradas > 0 ? "text-[#8B5A2B]" : "text-[#757575]"
+                      }`}
+                    >
+                      category
+                    </span>
+                    <span
+                      className={`truncate ${
+                        qtdFamiliasFiltradas > 0 ? "font-semibold font-mono text-[#1A1A1A]" : "text-[#424242]"
+                      }`}
+                    >
+                      {qtdFamiliasFiltradas > 0 ? `${qtdFamiliasFiltradas} fam.` : "Todas"}
+                    </span>
+                  </span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[14px] text-[#9E9E9E] shrink-0">
+                    tune
+                  </span>
+                </button>
+                {qtdFamiliasFiltradas > 0 && (
                   <button
                     type="button"
-                    aria-pressed={!filtroTodasOps}
-                    onClick={() => setFiltroTodasOps(false)}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      !filtroTodasOps
-                        ? "bg-white text-[#1A1A1A] border-b-2 border-[#8B5A2B] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                    title="Exibe apenas itens finais raiz (cálculo MRP multinível completo)"
+                    onClick={() => setFiltroFamilias([])}
+                    aria-label="Limpar filtro de famílias"
+                    title="Limpar filtro de famílias"
+                    className="px-1.5 flex items-center justify-center text-[#B84A39] hover:bg-[#FFEBEE] border-l border-[#8B5A2B]/25 text-[11px] font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
                   >
-                    Itens Finais
+                    ✕
                   </button>
-                  <button
-                    type="button"
-                    aria-pressed={Boolean(filtroTodasOps)}
-                    onClick={() => setFiltroTodasOps(true)}
-                    className={`px-2.5 py-1 rounded-xs text-xs font-medium transition-colors cursor-pointer ${
-                      filtroTodasOps
-                        ? "bg-[#8B5A2B] text-white border-b-2 border-[#1A1A1A] shadow-xs font-semibold"
-                        : "text-[#757575] hover:text-[#1A1A1A]"
-                    }`}
-                    title="Recalcula exibindo todas as OPs abertas (itens com e sem item pai, avaliando insumos diretos em 1 nível sem dupla contagem)"
-                  >
-                    Todas as OPs
-                  </button>
-                </div>
+                )}
               </div>
+            </div>
 
+            {/* Período Unificado (Referência + De / Até) */}
+            <div className="flex flex-col min-w-0">
+              <span
+                id={periodoLabelId}
+                className="text-[10px] uppercase tracking-wider text-[#757575] font-medium mb-0.5 leading-none"
+              >
+                Período
+              </span>
+              <div
+                className={`h-8 inline-flex items-center rounded-sm border overflow-hidden ${
+                  filtroDataInicio || filtroDataFim
+                    ? "border-[#8B5A2B] bg-[#FCFAF7]"
+                    : "border-[#E0E0E0] bg-white"
+                }`}
+              >
+                <div className="relative h-full flex items-center bg-[#F5F5F5] border-r border-[#E0E0E0]">
+                  <select
+                    id={tipoDataId}
+                    aria-label="Referência de data do período"
+                    value={filtroTipoData}
+                    onChange={(e) => setFiltroTipoData(e.target.value)}
+                    className="h-full appearance-none bg-transparent pl-2 pr-5 text-[11px] font-medium text-[#1A1A1A] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
+                    title="Alternar data base entre Abertura de OP e Entrega de Pedido"
+                  >
+                    <option value="abertura_op">Abertura de OP</option>
+                    <option value="entrega_pedido">Entrega de Pedido</option>
+                  </select>
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined pointer-events-none absolute right-0.5 text-[14px] text-[#757575]"
+                  >
+                    expand_more
+                  </span>
+                </div>
+                <input
+                  id={dataInicioId}
+                  name="data_inicio"
+                  type="date"
+                  aria-label="Data inicial do período"
+                  aria-describedby={periodoLabelId}
+                  value={filtroDataInicio}
+                  onChange={(e) => setFiltroDataInicio(e.target.value)}
+                  className="h-full w-[98px] bg-transparent px-1 text-center text-[11px] text-[#1A1A1A] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
+                />
+                <span className="text-[#9E9E9E] text-[10px] px-0.5 shrink-0" aria-hidden="true">
+                  –
+                </span>
+                <input
+                  id={dataFimId}
+                  name="data_fim"
+                  type="date"
+                  aria-label="Data final do período"
+                  aria-describedby={periodoLabelId}
+                  value={filtroDataFim}
+                  onChange={(e) => setFiltroDataFim(e.target.value)}
+                  className="h-full w-[98px] bg-transparent px-1 text-center text-[11px] text-[#1A1A1A] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8B5A2B]"
+                />
+              </div>
+            </div>
+
+            {/* Baixa */}
+            <FiltroSelect
+              id={baixaId}
+              label="Baixa"
+              value={filtroBaixa}
+              onChange={(e) => setFiltroBaixa(e.target.value)}
+              active={filtroBaixa !== "todos"}
+              options={[
+                { value: "todos", label: "Todas" },
+                { value: "S", label: "Sim (S)" },
+                { value: "N", label: "Não (N)" },
+              ]}
+            />
+
+            {/* Origem */}
+            <FiltroSelect
+              id={origemId}
+              label="Origem"
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              active={filtroTipo !== "todos"}
+              options={[
+                { value: "todos", label: "Todas" },
+                { value: "C", label: "Comprado (C)" },
+                { value: "P", label: "Produzido (P)" },
+              ]}
+            />
+
+            {/* Status */}
+            <FiltroSelect
+              id={statusId}
+              label="Status"
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              active={filtroStatus !== "todos"}
+              toneClass={
+                filtroStatus === "disponivel"
+                  ? "bg-[#EBF4EC] border-[#3B6E4C] text-[#245D31] font-semibold"
+                  : filtroStatus === "falta"
+                  ? "bg-[#FFEBEE] border-[#B84A39] text-[#B84A39] font-semibold"
+                  : ""
+              }
+              options={[
+                { value: "todos", label: "Todos" },
+                { value: "disponivel", label: "Disponíveis" },
+                { value: "falta", label: "Com Falta" },
+              ]}
+            />
+
+            <span className="hidden xl:inline-block h-7 w-px bg-[#EAEAEA] self-end mb-0.5" aria-hidden="true" />
+
+            {/* Escopo */}
+            <FiltroSelect
+              id={escopoId}
+              label="Escopo"
+              value={filtroTodasOps ? "todas_ops" : "itens_finais"}
+              onChange={(e) => setFiltroTodasOps(e.target.value === "todas_ops")}
+              active={Boolean(filtroTodasOps)}
+              toneClass={
+                filtroTodasOps
+                  ? "bg-[#FBF7F4] border-[#8B5A2B] text-[#8B5A2B] font-semibold"
+                  : ""
+              }
+              title="Alterna entre itens finais raiz (MRP multinível) e todas as OPs abertas (1 nível)"
+              options={[
+                { value: "itens_finais", label: "Itens Finais" },
+                { value: "todas_ops", label: "Todas as OPs" },
+              ]}
+            />
+
+            {/* Abatimento */}
+            <FiltroSelect
+              id={abatimentoId}
+              label="Abatimento"
+              value={filtroEscopoAbatimento}
+              onChange={(e) => setFiltroEscopoAbatimento(e.target.value)}
+              active={filtroEscopoAbatimento === "filtrado"}
+              toneClass={
+                filtroEscopoAbatimento === "filtrado"
+                  ? "bg-[#FBF7F4] border-[#8B5A2B] text-[#8B5A2B] font-semibold"
+                  : ""
+              }
+              title="Define se o estoque abate pela fila global completa ou apenas entre as ordens nos filtros atuais"
+              options={[
+                { value: "global", label: "Fila Global" },
+                { value: "filtrado", label: "Apenas no Filtro" },
+              ]}
+            />
+
+            {/* Ações Rápidas */}
+            <div className="flex items-center gap-1.5 ms-auto self-end">
               <button
                 type="button"
+                aria-pressed={Boolean(filtroApenasSimulados)}
                 onClick={() => setFiltroApenasSimulados((prev) => !prev)}
-                className={`h-8 px-3 rounded-xs border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`h-8 px-2.5 rounded-sm border text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5A2B] ${
                   filtroApenasSimulados
                     ? "bg-[#8B5A2B] text-white border-[#8B5A2B]"
-                    : "bg-white border-[#E0E0E0] text-[#1A1A1A] hover:bg-[#F8F8F8]"
+                    : "bg-white border-[#E0E0E0] text-[#1A1A1A] hover:bg-[#F5F5F5]"
                 }`}
                 title="Exibir apenas as linhas com pedidos consultados/simulados"
               >
-                <span className="material-symbols-outlined text-[16px]">tune</span>
-                <span>Apenas Simulados</span>
-                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-neutral-100 text-neutral-700 text-[10px] font-semibold">
+                <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
+                  tune
+                </span>
+                <span>Simulados</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold leading-none ${
+                    filtroApenasSimulados
+                      ? "bg-white/20 text-white"
+                      : "bg-neutral-100 text-neutral-700"
+                  }`}
+                >
                   {metricas.total_simulados || 0}
                 </span>
               </button>
@@ -730,7 +711,7 @@ export default function DisponibilidadeEstoque({
                 <button
                   type="button"
                   onClick={limparFiltros}
-                  className="h-8 px-3.5 rounded-xs border border-[#E0E0E0] bg-transparent text-[#757575] hover:text-[#1A1A1A] hover:border-[#1A1A1A] text-xs transition-colors cursor-pointer"
+                  className="h-8 px-2.5 rounded-sm border border-[#E0E0E0] bg-white text-[#666666] hover:text-[#B84A39] hover:border-[#B84A39]/50 hover:bg-[#FFF5F5] text-[11px] font-medium transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5A2B]"
                 >
                   Limpar
                 </button>
@@ -738,18 +719,23 @@ export default function DisponibilidadeEstoque({
             </div>
           </div>
 
-          {/* FAIXA DE PEDIDOS SIMULADOS ATIVOS + CHIPS DE FILTROS */}
+          {/* Banda Condicional: Pedidos Simulados Ativos + Chips de Filtros */}
           {(pedidosSimuladosAtivos.length > 0 ||
             Object.keys(colFiltros).length > 0 ||
+            Boolean(filtroPedido) ||
+            Boolean(filtroCodigo) ||
             filtroDataInicio ||
             filtroDataFim ||
             filtroApenasSimulados ||
-            filtroTodasOps) && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-[#EEEEEE]">
+            filtroTodasOps ||
+            filtroEscopoAbatimento === "filtrado") && (
+            <div className="px-3.5 py-1.5 border-t border-[#EEEEEE] bg-white filtros-row-balanced gap-1.5">
               {pedidosSimuladosAtivos.length > 0 && (
                 <>
                   <span className="text-[10px] text-[#8B5A2B] font-bold uppercase tracking-wider flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px]">science</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[13px]">
+                      science
+                    </span>
                     Pedidos no Simulador:
                   </span>
                   {pedidosSimuladosAtivos.map((ps) => {
@@ -782,8 +768,9 @@ export default function DisponibilidadeEstoque({
                         <button
                           type="button"
                           onClick={() => handleRemoverPedidoSimulado(ps.pedido)}
-                          className="hover:text-[#C62828] font-bold leading-none cursor-pointer"
+                          className="hover:text-[#C62828] font-bold leading-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
                           title={`Remover pedido ${ps.pedido} da simulação`}
+                          aria-label={`Remover pedido ${ps.pedido} da simulação`}
                         >
                           ×
                         </button>
@@ -794,25 +781,71 @@ export default function DisponibilidadeEstoque({
               )}
 
               {(Object.keys(colFiltros).length > 0 ||
+                Boolean(filtroPedido) ||
+                Boolean(filtroCodigo) ||
                 filtroDataInicio ||
                 filtroDataFim ||
                 filtroApenasSimulados ||
-                filtroTodasOps) && (
+                filtroTodasOps ||
+                filtroEscopoAbatimento === "filtrado") && (
                 <>
                   {pedidosSimuladosAtivos.length > 0 && (
-                    <span className="h-3.5 w-px bg-[#E0E0E0] mx-1" />
+                    <span className="h-3.5 w-px bg-[#E0E0E0] mx-1" aria-hidden="true" />
                   )}
                   <span className="text-[10px] text-[#757575] font-semibold uppercase tracking-wider">
                     Filtros Ativos:
                   </span>
+                  {Boolean(filtroPedido) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#F5F5F5] text-[#1A1A1A] border border-[#E0E0E0]">
+                      <strong>Pedido:</strong> {filtroPedido}
+                      <button
+                        type="button"
+                        onClick={() => setFiltroPedido("")}
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
+                        title="Remover filtro de pedido"
+                        aria-label="Remover filtro de pedido"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {Boolean(filtroCodigo) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#F5F5F5] text-[#1A1A1A] border border-[#E0E0E0]">
+                      <strong>Item/Desc.:</strong> {filtroCodigo}
+                      <button
+                        type="button"
+                        onClick={() => setFiltroCodigo("")}
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
+                        title="Remover filtro de código ou descrição"
+                        aria-label="Remover filtro de código ou descrição"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
                   {filtroTodasOps && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#FBF7F4] text-[#8B5A2B] border border-[#8B5A2B]/30">
                       <strong>Modo Todas as OPs</strong> (com e sem pai — 1 nível por OP)
                       <button
                         type="button"
                         onClick={() => setFiltroTodasOps(false)}
-                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
                         title="Voltar ao modo padrão (apenas Itens Finais)"
+                        aria-label="Voltar ao modo padrão Itens Finais"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {filtroEscopoAbatimento === "filtrado" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#FBF7F4] text-[#8B5A2B] border border-[#8B5A2B]/30">
+                      <strong>Abatimento:</strong> Apenas no Filtro
+                      <button
+                        type="button"
+                        onClick={() => setFiltroEscopoAbatimento("global")}
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
+                        title="Voltar ao abatimento pela fila global"
+                        aria-label="Remover modo de abatimento Apenas no Filtro"
                       >
                         ×
                       </button>
@@ -824,7 +857,9 @@ export default function DisponibilidadeEstoque({
                       <button
                         type="button"
                         onClick={() => setFiltroApenasSimulados(false)}
-                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
+                        title="Remover filtro Apenas Simulados"
+                        aria-label="Remover filtro Apenas Simulados"
                       >
                         ×
                       </button>
@@ -832,16 +867,19 @@ export default function DisponibilidadeEstoque({
                   )}
                   {(filtroDataInicio || filtroDataFim) && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[11px] bg-[#F5F5F5] text-[#1A1A1A] border border-[#E0E0E0]">
-                      <strong>Abertura OP:</strong> {filtroDataInicio || "Início"} até{" "}
-                      {filtroDataFim || "Fim"}
+                      <strong>
+                        {filtroTipoData === "entrega_pedido" ? "Entrega Pedido:" : "Abertura OP:"}
+                      </strong>{" "}
+                      {filtroDataInicio || "Início"} até {filtroDataFim || "Fim"}
                       <button
                         type="button"
                         onClick={() => {
                           setFiltroDataInicio("");
                           setFiltroDataFim("");
                         }}
-                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
                         title="Remover filtro de data"
+                        aria-label="Remover filtro de data"
                       >
                         ×
                       </button>
@@ -856,7 +894,9 @@ export default function DisponibilidadeEstoque({
                       <button
                         type="button"
                         onClick={() => limparFiltroColuna(k)}
-                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer"
+                        className="hover:text-[#C62828] ml-0.5 font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#8B5A2B]"
+                        title={`Remover filtro da coluna ${k}`}
+                        aria-label={`Remover filtro da coluna ${k}`}
                       >
                         ×
                       </button>
@@ -866,7 +906,7 @@ export default function DisponibilidadeEstoque({
               )}
             </div>
           )}
-        </section>
+        </search>
 
         {/* 3. TABELA COMPLETA DE ITENS (LÍDER DESIGN) */}
         <section className="flex-1 flex flex-col min-h-0 bg-white rounded-sm border border-[#EAEAEA] shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden">

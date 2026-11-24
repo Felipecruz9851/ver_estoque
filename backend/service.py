@@ -40,6 +40,17 @@ _cache_timestamp: Optional[float] = None
 _cache_data_calculo: Optional[str] = None
 _cache_snapshot_nome: Optional[str] = None
 _cache_data_snapshot: Optional[str] = None
+_cache_data_oc: Optional[str] = None
+
+_PEDIDOS_IGNORADOS_INT = getattr(settings, "PEDIDOS_DESCONSIDERADOS_INT", frozenset({0, 100, 1000}))
+_PEDIDOS_IGNORADOS_STR = getattr(settings, "PEDIDOS_DESCONSIDERADOS_STR", frozenset({"0", "100", "1000"}))
+_MAPA_LIMPAR_PEDIDO_STR = {p: "" for p in _PEDIDOS_IGNORADOS_STR}
+
+
+def _normalizar_pedido_valido(valor: Any) -> str:
+    """Normaliza número de pedido descartando códigos sem pedido/internos (0, 100, 1000)."""
+    ped = scraper.normalizar_numero_pedido(valor)
+    return "" if ped in _PEDIDOS_IGNORADOS_STR else ped
 
 # Mapas auxiliares extraídos do snapshot para enriquecer pedidos novos simulados e camada gerencial
 _enriquecimento: Dict[str, Any] = {
@@ -260,10 +271,11 @@ def obter_info_sessao(session_id: Optional[str] = None) -> Dict[str, Any]:
 
 
 def obter_info_carregamento() -> Dict[str, str]:
-    """Data/hora do snapshot (base ERP) e da carga/cálculo em memória."""
+    """Data/hora do snapshot (base ERP), do cálculo em memória e das OCs da Intranet."""
     return {
         "data_carga": _cache_data_snapshot or "",
         "data_carregamento": _cache_data_calculo or "",
+        "data_oc": _cache_data_oc or scraper.obter_data_cache_oc(),
         "snapshot": _cache_snapshot_nome or "",
     }
 
@@ -335,12 +347,15 @@ def _construir_mapas_enriquecimento(
     oc_por_item_geral: Dict[str, List[Dict[str, Any]]] = {}
     oc_por_item_todas: Dict[str, List[Dict[str, Any]]] = {}
 
-    # 1. Apoio compras (Baixa, Descrição de comprados e Identificação da Família CST)
+    # 1. Apoio compras (Baixa, Descrição de comprados, Identificação CST e itens com OC > 0)
     itens_cst: Set[str] = set()
+    itens_apoio_com_oc: List[str] = []
+    itens_apoio_oc_vistos: Set[str] = set()
     raw_apoio = dfs.get("apoio_compras")
     if raw_apoio is not None:
         df_ap = raw_apoio.to_pandas() if isinstance(raw_apoio, pl.DataFrame) else raw_apoio
         col_fam = "Família" if "Família" in df_ap.columns else ("Familia" if "Familia" in df_ap.columns else None)
+        tem_col_oc = "OC" in df_ap.columns
         if "Item" in df_ap.columns:
             for rec in df_ap.to_dict("records"):
                 it = scraper.normalizar_cod_item(rec.get("Item"))
@@ -354,6 +369,10 @@ def _construir_mapas_enriquecimento(
                     desc_item_map[it] = desc
                 if col_fam and str(rec.get(col_fam) or "").strip().upper() == "CST":
                     itens_cst.add(it)
+                if tem_col_oc and it not in itens_apoio_oc_vistos:
+                    if scraper.parse_numero_flexivel(rec.get("OC"), default=0.0) > 0:
+                        itens_apoio_oc_vistos.add(it)
+                        itens_apoio_com_oc.append(it)
 
     # Identificação complementar de tecidos CST a partir de cons
     if "Familia" in df_consumo.columns and "Item" in df_consumo.columns:
@@ -439,9 +458,7 @@ def _construir_mapas_enriquecimento(
                 if not op_str:
                     continue
 
-                ped_norm = scraper.normalizar_numero_pedido(rec.get("Pedido"))
-                if ped_norm == "0":
-                    ped_norm = ""
+                ped_norm = _normalizar_pedido_valido(rec.get("Pedido"))
 
                 dt_ab_br, dt_ab_sort = _parse_data_br_flex(rec.get("Data Abertura"))
                 dt_ent_br, dt_ent_sort = _parse_data_br_flex(rec.get("Data Entrega"))
@@ -495,7 +512,15 @@ def _construir_mapas_enriquecimento(
 
     # 5. Ordens de Compra (OCs) e Tecidos CST da Intranet (concorrente quando forcar_oc=True)
     try:
-        ocs_raw, tecidos_cust_raw = scraper.carregar_ou_atualizar_intranet_concorrente(forcar_intranet=forcar_oc)
+        if forcar_oc and itens_apoio_com_oc:
+            ocs_raw, tecidos_cust_raw = scraper.carregar_ou_atualizar_intranet_concorrente(
+                forcar_intranet=forcar_oc,
+                itens_fallback_vidrosoc=itens_apoio_com_oc,
+            )
+        else:
+            ocs_raw, tecidos_cust_raw = scraper.carregar_ou_atualizar_intranet_concorrente(
+                forcar_intranet=forcar_oc
+            )
     except Exception as exc:
         print(f"[Enriquecimento Intranet] Aviso na carga concorrente: {exc}")
         try:
@@ -553,12 +578,12 @@ def _construir_mapas_enriquecimento(
             ped_vinc = oc_info["pedido_vinculado"]
             it_vinc = oc_info["item_final_vinculado"]
             oc_por_item_todas.setdefault(it, []).append(oc_info)
-            if ped_vinc and ped_vinc != "0":
+            if ped_vinc and ped_vinc not in _PEDIDOS_IGNORADOS_STR:
                 oc_por_item_ped.setdefault((it, ped_vinc), []).append(oc_info)
                 if it_vinc:
                     oc_por_item_ped_it.setdefault((it, ped_vinc, it_vinc), []).append(oc_info)
             else:
-                if ped_vinc == "0" and it_vinc:
+                if ped_vinc in _PEDIDOS_IGNORADOS_STR and it_vinc:
                     oc_por_item_it_sem_ped.setdefault((it, it_vinc), []).append(oc_info)
                 oc_por_item_geral.setdefault(it, []).append(oc_info)
 
@@ -654,7 +679,7 @@ def sincronizar_base_snapshots(forcar: bool = False) -> Dict[str, Any]:
     """Sincroniza snapshots a partir da API remota (366n:8001) e recarrega o cache em memória."""
     res = sincronizar_snapshots_remotos(forcar=forcar)
     if res.get("baixados") or forcar:
-        gerar_dataframe_cons(forcar_oc=False, sincronizar_snapshot=False)
+        gerar_dataframe_cons(forcar_oc=True, sincronizar_snapshot=False)
     return res
 
 
@@ -668,12 +693,15 @@ def gerar_dataframe_cons(
     SEM filtros restritivos (preserva Tipo 'C', 'P', 'T', 'F' e todas as datas de entrega).
     Quando sincronizar_snapshot=True (ou settings.SNAPSHOTS_AUTO_SYNC), consulta e atualiza
     snapshots remotos via http://366n:8001/api/snapshots.
-    Quando forcar_oc=True, atualiza também a base de OCs abertas diretamente na Intranet.
+    Quando forcar_oc=True (ou quando chegar snapshot novo / cache OC expirar ou for legado),
+    atualiza também a base de OCs abertas diretamente na Intranet.
     """
+    baixou_snapshot = False
     if sincronizar_snapshot or settings.SNAPSHOTS_AUTO_SYNC:
         try:
             res_sync = sincronizar_snapshots_remotos(forcar=False)
             if res_sync.get("baixados"):
+                baixou_snapshot = True
                 print(
                     f"[{datetime.now().strftime('%H:%M:%S')}] Novos snapshots baixados do servidor remoto: {res_sync['baixados']}"
                 )
@@ -692,6 +720,18 @@ def gerar_dataframe_cons(
         try:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando base pré-calculada '{cache_pqt.name}'...")
             df_consumo = pl.read_parquet(cache_pqt).to_pandas()
+            _peds_proib_int = _PEDIDOS_IGNORADOS_INT - {0}
+            _peds_proib_str = _PEDIDOS_IGNORADOS_STR - {"0"}
+            _cache_tem_ignorado = False
+            if "Pedido" in df_consumo.columns and pd.to_numeric(df_consumo["Pedido"], errors="coerce").isin(_peds_proib_int).any():
+                _cache_tem_ignorado = True
+            elif "raiz_Pedido" in df_consumo.columns and pd.to_numeric(df_consumo["raiz_Pedido"], errors="coerce").isin(_peds_proib_int).any():
+                _cache_tem_ignorado = True
+            elif "raiz_Pedido_Str" in df_consumo.columns and df_consumo["raiz_Pedido_Str"].astype(str).str.strip().isin(_peds_proib_str).any():
+                _cache_tem_ignorado = True
+            if _cache_tem_ignorado:
+                print("[CACHE] Cache pré-calculado contém pedidos desconsiderados (100/1000). Recalculando...")
+                df_consumo = None
         except Exception as e_read:
             print(f"[CACHE] Aviso ao ler cache persistente: {e_read}. Recalculando...")
             df_consumo = None
@@ -723,7 +763,7 @@ def gerar_dataframe_cons(
                 .fillna(0)
                 .astype(int)
                 .astype(str)
-                .replace("0", "")
+                .replace(_MAPA_LIMPAR_PEDIDO_STR)
             )
         else:
             df_consumo["raiz_Pedido_Str"] = ""
@@ -766,14 +806,23 @@ def gerar_dataframe_cons(
         print(f"Salvando DataFrame completo sem filtros em {dest_excel}...")
         df_consumo.to_excel(dest_excel, index=False)
 
-    global _cache_cons, _cache_timestamp, _cache_data_calculo, _cache_snapshot_nome, _cache_data_snapshot, _enriquecimento, _cache_familias_3
-    _enriquecimento = _construir_mapas_enriquecimento(dfs, df_consumo, forcar_oc=forcar_oc)
+    global _cache_cons, _cache_timestamp, _cache_data_calculo, _cache_snapshot_nome, _cache_data_snapshot, _cache_data_oc, _enriquecimento, _cache_familias_3
+    forcar_oc_efetivo = bool(forcar_oc or baixou_snapshot)
+    if not forcar_oc_efetivo:
+        try:
+            if scraper.cache_oc_expirado(referencia_mtime=source_mtime):
+                forcar_oc_efetivo = True
+        except Exception:
+            pass
+
+    _enriquecimento = _construir_mapas_enriquecimento(dfs, df_consumo, forcar_oc=forcar_oc_efetivo)
     _cache_cons = df_consumo
     _cache_familias_3 = None
     _cache_timestamp = time.time()
     _cache_data_calculo = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     _cache_snapshot_nome = caminho.name
     _cache_data_snapshot = data_snapshot(caminho)
+    _cache_data_oc = scraper.obter_data_cache_oc()
     _invalidar_cache_fila()
 
     return df_consumo
@@ -785,11 +834,16 @@ def obter_cons_com_cache(
     sincronizar_snapshot: bool = False,
 ) -> pd.DataFrame:
     """Retorna o DataFrame 'cons' base com cache em memória (recarregar=True relê o snapshot e forcar_oc=True busca OCs frescas na Intranet)."""
-    if _cache_cons is None or recarregar:
+    if _cache_cons is None or recarregar or forcar_oc:
         return gerar_dataframe_cons(
             forcar_oc=forcar_oc,
             sincronizar_snapshot=sincronizar_snapshot or recarregar,
         )
+    try:
+        if scraper.cache_oc_expirado():
+            return gerar_dataframe_cons(forcar_oc=True, sincronizar_snapshot=False)
+    except Exception:
+        pass
     return _cache_cons
 
 
@@ -797,7 +851,11 @@ def obter_pedidos_existentes_na_tabela() -> Set[str]:
     """Conjunto de números de pedido que já possuem itens finais ativos na tabela atual do snapshot."""
     df_base = obter_cons_com_cache()
     validos = df_base.loc[df_base["raiz_Item Final"].notna(), "raiz_Pedido_Str"]
-    pedidos = {str(x).strip() for x in validos.dropna().unique() if str(x).strip() and str(x).strip() != "0"}
+    pedidos = {
+        str(x).strip()
+        for x in validos.dropna().unique()
+        if str(x).strip() and str(x).strip() not in _PEDIDOS_IGNORADOS_STR
+    }
     return pedidos
 
 
@@ -1413,11 +1471,113 @@ def obter_cons_efetivo(recarregar: bool = False, session_id: Optional[str] = Non
     return df_trab
 
 
+def _normalizar_escopo_abatimento(escopo: Any) -> str:
+    """Normaliza o escopo de abatimento do estoque na fila ('global' ou 'filtrado')."""
+    val = str(escopo or "global").strip().lower()
+    if val in ("filtrado", "apenas_filtro", "filtro"):
+        return "filtrado"
+    return "global"
+
+
+def _extrair_filtros_escopo_abatimento(
+    filtros: Optional[Dict[str, Any]],
+    ignorar_col_saldo: bool = False,
+) -> Dict[str, Any]:
+    """
+    Extrai apenas os filtros que restringem o subconjunto de itens/OPs antes do cálculo
+    cumulativo da fila (escopo_abatimento='filtrado'), ignorando status pós-MRP e valores vazios.
+    """
+    if not filtros or not isinstance(filtros, dict):
+        return {}
+
+    limpos: Dict[str, Any] = {}
+
+    local_raw = filtros.get("local_producao")
+    locais_norm: List[str] = []
+    if isinstance(local_raw, (list, tuple, set)):
+        locais_set = {str(x).strip().upper() for x in local_raw if str(x).strip()}
+        if locais_set and "TODOS" not in locais_set:
+            locais_norm = sorted(locais_set)
+    elif isinstance(local_raw, str):
+        s_loc = local_raw.strip()
+        if s_loc and s_loc.upper() != "TODOS":
+            locais_set = {x.strip().upper() for x in s_loc.split(",") if x.strip()}
+            if locais_set and "TODOS" not in locais_set:
+                locais_norm = sorted(locais_set)
+    if locais_norm:
+        limpos["local_producao"] = locais_norm
+
+    ped = str(filtros.get("pedido") or "").strip()
+    if ped:
+        limpos["pedido"] = ped
+
+    cod = str(filtros.get("codigo") or "").strip().upper()
+    if cod:
+        limpos["codigo"] = cod
+
+    if bool(filtros.get("apenas_simulados", False)):
+        limpos["apenas_simulados"] = True
+
+    dt_in = str(filtros.get("data_inicio") or "").strip()
+    dt_fim = str(filtros.get("data_fim") or "").strip()
+    if dt_in:
+        limpos["data_inicio"] = dt_in
+    if dt_fim:
+        limpos["data_fim"] = dt_fim
+    if dt_in or dt_fim:
+        tp_dt = str(filtros.get("tipo_data") or "abertura_op").strip().lower()
+        limpos["tipo_data"] = "entrega_pedido" if tp_dt in ("entrega_pedido", "entrega") else "abertura_op"
+
+    col_raw = filtros.get("col_filtros")
+    if isinstance(col_raw, dict):
+        ignorados = {"status", "saldo"} if ignorar_col_saldo else {"status"}
+        col_limpo = {
+            str(k): str(v).strip()
+            for k, v in sorted(col_raw.items(), key=lambda kv: str(kv[0]))
+            if str(k) not in ignorados and v is not None and str(v).strip()
+        }
+        if col_limpo:
+            limpos["col_filtros"] = col_limpo
+
+    return limpos
+
+
+def _chave_filtros_escopo(filtros_efetivos: Dict[str, Any]) -> str:
+    if not filtros_efetivos:
+        return ""
+    return json.dumps(filtros_efetivos, sort_keys=True, ensure_ascii=False, default=str)
+
+
+def _aplicar_filtro_escopo_filas(
+    filas: pd.DataFrame,
+    filtros_escopo: Optional[Dict[str, Any]],
+) -> pd.DataFrame:
+    """Popula colunas de exibição pré-MRP, aplica filtro de escopo opcional e reindexa `_ordem_fila`."""
+    filas["_dt_abertura_br"] = (
+        pd.to_datetime(filas["raiz_Data_Abertura"], errors="coerce")
+        .dt.strftime("%d/%m/%Y")
+        .fillna("")
+    )
+    filas["_dt_entrega_br"] = (
+        pd.to_datetime(filas["raiz_Entrega_Pedido"], errors="coerce")
+        .dt.strftime("%d/%m/%Y")
+        .fillna("")
+    )
+    filas["_saldo_str"] = filas["raiz_Saldo"].fillna(0).astype(str)
+    if filtros_escopo:
+        filas = _filtrar_itens_finais_base(filas, filtros_escopo)
+        filas = _aplicar_col_filtros(filas, filtros_escopo.get("col_filtros"))
+        filas = filas.reset_index(drop=True)
+    filas["_ordem_fila"] = filas.index
+    return filas
+
+
 def _calcular_fila_todas_ops(
     df: pd.DataFrame,
     b_norm: str,
     t_norm: str,
     fam_set: Set[str],
+    filtros_escopo: Optional[Dict[str, Any]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
     """
     Calcula o atendimento cumulativo de estoque (Situação L) em 1 nível por OP (`Ordem Cons`),
@@ -1455,7 +1615,7 @@ def _calcular_fila_todas_ops(
         return pd.DataFrame(), pd.DataFrame(), []
 
     raiz_item_col = df_w["raiz_Item Final"].fillna("").astype(str).str.strip()
-    raiz_ped_col = df_w["raiz_Pedido_Str"].fillna("").astype(str).str.strip()
+    raiz_ped_col = df_w["raiz_Pedido_Str"].fillna("").astype(str).str.strip().replace(_MAPA_LIMPAR_PEDIDO_STR)
     raiz_fab_col = (
         df_w["raiz_Fábrica"]
         .fillna("NÃO INFORMADO")
@@ -1472,7 +1632,7 @@ def _calcular_fila_todas_ops(
         .fillna(0)
         .astype(int)
         .astype(str)
-        .replace("0", "")
+        .replace(_MAPA_LIMPAR_PEDIDO_STR)
     )
     df_w["_ped_op_str"] = np.where(sim_intranet, raiz_ped_col, ped_real)
 
@@ -1491,7 +1651,25 @@ def _calcular_fila_todas_ops(
     dt_ab_orig = df_w["Data Abertura"] if "Data Abertura" in df_w.columns else df_w["raiz_Data Abertura"]
     dt_ent_orig = df_w["Entrega Pedido"] if "Entrega Pedido" in df_w.columns else df_w["raiz_Entrega Pedido"]
     df_w["_dt_ab_op"] = dt_ab_orig.where(~usa_data_raiz, df_w["raiz_Data Abertura"])
-    df_w["_dt_ent_op"] = dt_ent_orig.where(~usa_data_raiz, df_w["raiz_Entrega Pedido"])
+    dt_ent_op = dt_ent_orig.where(~usa_data_raiz, df_w["raiz_Entrega Pedido"])
+    mask_ent_na_com_ped = dt_ent_op.isna() & (df_w["_ped_op_str"] != "")
+    if mask_ent_na_com_ped.any():
+        mesmo_ped = mask_ent_na_com_ped & (df_w["_ped_op_str"] == raiz_ped_col)
+        if mesmo_ped.any():
+            dt_ent_op = dt_ent_op.where(~mesmo_ped, df_w["raiz_Entrega Pedido"])
+        ainda_na = dt_ent_op.isna() & (df_w["_ped_op_str"] != "")
+        if ainda_na.any():
+            ped_ent_map = (
+                df_w.loc[
+                    df_w["raiz_Entrega Pedido"].notna() & (raiz_ped_col != ""),
+                    ["raiz_Pedido_Str", "raiz_Entrega Pedido"],
+                ]
+                .drop_duplicates("raiz_Pedido_Str")
+                .set_index("raiz_Pedido_Str")["raiz_Entrega Pedido"]
+            )
+            if not ped_ent_map.empty:
+                dt_ent_op = dt_ent_op.where(~ainda_na, df_w["_ped_op_str"].map(ped_ent_map))
+    df_w["_dt_ent_op"] = dt_ent_op
 
     desc_map = _enriquecimento.get("desc_item", {})
     desc_op = df_w["_item_op"].map(scraper.normalizar_cod_item).map(desc_map).fillna("")
@@ -1539,7 +1717,13 @@ def _calcular_fila_todas_ops(
         ascending=[True, True, True, True, True],
         na_position="last",
     ).reset_index(drop=True)
-    filas["_ordem_fila"] = filas.index
+    filas = _aplicar_filtro_escopo_filas(filas, filtros_escopo)
+    if filtros_escopo and filas.empty:
+        for col_int in ("total_componentes", "componentes_disponiveis", "componentes_faltando"):
+            filas[col_int] = pd.Series(dtype=int)
+        filas["perc_disponivel"] = pd.Series(dtype=float)
+        filas["status"] = pd.Series(dtype=str)
+        return filas, pd.DataFrame(), locais_producao
 
     # Abatimento 1-nível vetorizado diretamente sobre os filhos diretos de cada OP
     df_comp = df_w.copy()
@@ -1685,17 +1869,6 @@ def _calcular_fila_todas_ops(
     itens_resumo["status"] = np.where(
         itens_resumo["componentes_faltando"] == 0, "Disponível", "Com Falta"
     )
-    itens_resumo["_dt_abertura_br"] = (
-        pd.to_datetime(itens_resumo["raiz_Data_Abertura"], errors="coerce")
-        .dt.strftime("%d/%m/%Y")
-        .fillna("")
-    )
-    itens_resumo["_dt_entrega_br"] = (
-        pd.to_datetime(itens_resumo["raiz_Entrega_Pedido"], errors="coerce")
-        .dt.strftime("%d/%m/%Y")
-        .fillna("")
-    )
-    itens_resumo["_saldo_str"] = itens_resumo["raiz_Saldo"].fillna(0).astype(str)
     itens_resumo = itens_resumo.sort_values(by="_ordem_fila", ascending=True).reset_index(drop=True)
     return itens_resumo, comp_agg_escopo, locais_producao
 
@@ -1708,14 +1881,27 @@ def _obter_fila_calculada(
     forcar_oc: bool = False,
     todas_ops: bool = False,
     session_id: Optional[str] = None,
+    escopo_abatimento: str = "global",
+    filtros_escopo: Optional[Dict[str, Any]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
     """
     Executa (ou recupera do cache da sessão) o cálculo de abatimento cumulativo de estoque (Situação L)
     seguindo estritamente a ordem de Data de Abertura da OP (e itens sem data ao final da lista).
     Quando todas_ops=True, avalia cada OP (com ou sem item pai) em 1 nível sem dupla contagem.
+    Quando escopo_abatimento='filtrado', restringe a fila aos filtros informados antes do abatimento.
     """
-    if recarregar or _cache_cons is None:
-        gerar_dataframe_cons(forcar_oc=forcar_oc, sincronizar_snapshot=recarregar)
+    oc_expirado = False
+    if not (recarregar or forcar_oc or _cache_cons is None):
+        try:
+            oc_expirado = scraper.cache_oc_expirado()
+        except Exception:
+            oc_expirado = False
+
+    if recarregar or forcar_oc or _cache_cons is None or oc_expirado:
+        gerar_dataframe_cons(
+            forcar_oc=bool(forcar_oc or oc_expirado),
+            sincronizar_snapshot=recarregar,
+        )
 
     sess = obter_sessao(session_id)
     b_norm = baixa_filtro if baixa_filtro in ("S", "N") else "TODOS"
@@ -1735,8 +1921,26 @@ def _obter_fila_calculada(
     if fam_set and todas_fam_3 and fam_set >= todas_fam_3:
         fam_set = set()
 
+    escopo_norm = _normalizar_escopo_abatimento(escopo_abatimento)
+    filtros_efetivos = (
+        _extrair_filtros_escopo_abatimento(filtros_escopo)
+        if escopo_norm == "filtrado"
+        else {}
+    )
+    escopo_chave = "filtrado" if filtros_efetivos else "global"
+    chave_escopo = _chave_filtros_escopo(filtros_efetivos)
+
     fam_tuple = tuple(sorted(fam_set)) if fam_set else ()
-    cache_key = (_cache_timestamp, sess.simulacao_versao, b_norm, t_norm, fam_tuple, todas_ops_flag)
+    cache_key = (
+        _cache_timestamp,
+        sess.simulacao_versao,
+        b_norm,
+        t_norm,
+        fam_tuple,
+        todas_ops_flag,
+        escopo_chave,
+        chave_escopo,
+    )
 
     with sess.lock:
         if cache_key in sess.cache_filas:
@@ -1750,9 +1954,10 @@ def _obter_fila_calculada(
             b_norm=b_norm,
             t_norm=t_norm,
             fam_set=fam_set,
+            filtros_escopo=filtros_efetivos or None,
         )
         with sess.lock:
-            if len(sess.cache_filas) >= 10:
+            if len(sess.cache_filas) >= 15:
                 sess.cache_filas.clear()
             sess.cache_filas[cache_key] = (itens_resumo, comp_agg_escopo, locais_producao)
         return itens_resumo, comp_agg_escopo, locais_producao
@@ -1760,6 +1965,7 @@ def _obter_fila_calculada(
     locais_producao = sorted(
         [str(x) for x in df["raiz_Fábrica"].dropna().unique() if str(x).strip()]
     )
+    estoque_inicial = df.drop_duplicates("Item").set_index("Item")["estoque"].to_dict()
 
     group_cols = ["raiz_Item Final", "raiz_Pedido_Str", "raiz_Fábrica"]
 
@@ -1786,13 +1992,27 @@ def _obter_fila_calculada(
         ascending=[True, True, True, True, True],
         na_position="last",
     ).reset_index(drop=True)
-    filas["_ordem_fila"] = filas.index
+    filas = _aplicar_filtro_escopo_filas(filas, filtros_efetivos or None)
+
+    if filtros_efetivos and filas.empty:
+        for col_int in ("total_componentes", "componentes_disponiveis", "componentes_faltando"):
+            filas[col_int] = pd.Series(dtype=int)
+        filas["perc_disponivel"] = pd.Series(dtype=float)
+        filas["status"] = pd.Series(dtype=str)
+        filas["ordem_op"] = pd.Series(dtype=str)
+        filas["eh_raiz"] = pd.Series(dtype=bool)
+        filas["item_final_pai"] = pd.Series(dtype=str)
+        filas["fabrica_pai"] = pd.Series(dtype=str)
+        with sess.lock:
+            if len(sess.cache_filas) >= 15:
+                sess.cache_filas.clear()
+            sess.cache_filas[cache_key] = (filas, pd.DataFrame(), locais_producao)
+        return filas, pd.DataFrame(), locais_producao
 
     # 2. Executa o algoritmo multinível (MRP Top-Down com Atendimento Condicional ao Saldo)
     # Garante que semiacabados em estoque não explodam componentes filhos desnecessariamente
-    df_ord = df.merge(filas[group_cols + ["_ordem_fila"]], on=group_cols, how="left")
+    df_ord = df.merge(filas[group_cols + ["_ordem_fila"]], on=group_cols, how="inner")
 
-    estoque_inicial = df_ord.drop_duplicates("Item").set_index("Item")["estoque"].to_dict()
     estoque_atual = {k: float(v or 0.0) for k, v in estoque_inicial.items()}
 
     candidatos_cols = [
@@ -2014,17 +2234,6 @@ def _obter_fila_calculada(
         itens_resumo["componentes_faltando"] == 0, "Disponível", "Com Falta"
     )
 
-    itens_resumo["_dt_abertura_br"] = (
-        pd.to_datetime(itens_resumo["raiz_Data_Abertura"], errors="coerce")
-        .dt.strftime("%d/%m/%Y")
-        .fillna("")
-    )
-    itens_resumo["_dt_entrega_br"] = (
-        pd.to_datetime(itens_resumo["raiz_Entrega_Pedido"], errors="coerce")
-        .dt.strftime("%d/%m/%Y")
-        .fillna("")
-    )
-    itens_resumo["_saldo_str"] = itens_resumo["raiz_Saldo"].fillna(0).astype(str)
     itens_resumo["ordem_op"] = ""
     itens_resumo["eh_raiz"] = True
     itens_resumo["item_final_pai"] = ""
@@ -2033,7 +2242,7 @@ def _obter_fila_calculada(
     itens_resumo = itens_resumo.sort_values(by="_ordem_fila", ascending=True).reset_index(drop=True)
 
     with sess.lock:
-        if len(sess.cache_filas) >= 10:
+        if len(sess.cache_filas) >= 15:
             sess.cache_filas.clear()
         sess.cache_filas[cache_key] = (itens_resumo, comp_agg_escopo, locais_producao)
     return itens_resumo, comp_agg_escopo, locais_producao
@@ -2176,6 +2385,7 @@ def analisar_itens_finais(
     data_inicio_raw = filtros.get("data_inicio")
     data_fim_raw = filtros.get("data_fim")
     tipo_data_filtro = str(filtros.get("tipo_data", "abertura_op") or "abertura_op").strip().lower()
+    escopo_abatimento = _normalizar_escopo_abatimento(filtros.get("escopo_abatimento"))
 
     itens_full, _, locais_producao = _obter_fila_calculada(
         baixa_filtro=baixa_filtro,
@@ -2185,6 +2395,8 @@ def analisar_itens_finais(
         forcar_oc=forcar_oc,
         todas_ops=todas_ops,
         session_id=session_id,
+        escopo_abatimento=escopo_abatimento,
+        filtros_escopo=filtros if escopo_abatimento == "filtrado" else None,
     )
     info_carga = obter_info_carregamento()
     pedidos_ativos = listar_pedidos_simulados_ativos(session_id=session_id)
@@ -2196,6 +2408,7 @@ def analisar_itens_finais(
             "pagina_atual": page,
             "itens": [],
             "todas_ops": todas_ops,
+            "escopo_abatimento": escopo_abatimento,
             "metricas": {
                 "total_itens_finais": 0,
                 "total_itens_avaliados": 0,
@@ -2210,6 +2423,7 @@ def analisar_itens_finais(
             "familias_componentes_3": obter_familias_componentes_3(session_id=session_id),
             "data_carga": info_carga["data_carga"],
             "data_carregamento": info_carga["data_carregamento"],
+            "data_oc": info_carga["data_oc"],
             "snapshot": info_carga["snapshot"],
             "session_id": str(session_id or "default"),
         }
@@ -2299,6 +2513,7 @@ def analisar_itens_finais(
         "pagina_atual": page,
         "itens": registros,
         "todas_ops": todas_ops,
+        "escopo_abatimento": escopo_abatimento,
         "metricas": {
             "total_itens_finais": total_itens_finais,
             "total_itens_avaliados": total_itens_avaliados,
@@ -2313,6 +2528,7 @@ def analisar_itens_finais(
         "familias_componentes_3": obter_familias_componentes_3(session_id=session_id),
         "data_carga": info_carga["data_carga"],
         "data_carregamento": info_carga["data_carregamento"],
+        "data_oc": info_carga["data_oc"],
         "snapshot": info_carga["snapshot"],
         "session_id": str(session_id or "default"),
     }
@@ -2369,9 +2585,7 @@ def _enriquecer_insumo_gerencial(
     - Se Família CST: Resolve a situação na intranet /pcp/tecidos_customizados3.php (TECIDO CHEGOU / AGUARDANDO TECIDO).
     """
     it = scraper.normalizar_cod_item(comp_item)
-    ped = scraper.normalizar_numero_pedido(raiz_pedido_str)
-    if ped == "0":
-        ped = ""
+    ped = _normalizar_pedido_valido(raiz_pedido_str)
     it_final = scraper.normalizar_cod_item(raiz_item_final)
     dt_ab_ordem_br, dt_ab_ordem_sort = _parse_data_br_flex(raiz_data_abertura)
 
@@ -2443,7 +2657,7 @@ def _enriquecer_insumo_gerencial(
     if not lp:
         lp = "NÃO INFORMADO" if tipo_comp == "P" else "COMPRAS"
 
-    # Dados de Ordem de Compra (Matérias-Primas Tipo C)
+    # Dados de Ordem de Compra (Matérias-Primas Tipo C e Ferramentas/Insumos Tipo F)
     oc_numero = ""
     oc_previsao = ""
     oc_data_origem = ""
@@ -2463,7 +2677,7 @@ def _enriquecer_insumo_gerencial(
     oc_vinculada_pedido = False
     ocs_abertas: List[Dict[str, Any]] = []
 
-    if tipo_comp == "C":
+    if tipo_comp in ("C", "F"):
         oc_por_item_ped_it = _enriquecimento.get("oc_por_item_ped_it", {})
         oc_por_item_ped = _enriquecimento.get("oc_por_item_ped", {})
         oc_por_item_it_sem_ped = _enriquecimento.get("oc_por_item_it_sem_ped", {})
@@ -2613,10 +2827,10 @@ def _enriquecer_insumo_gerencial(
 def _organizar_insumos_gerencial(lista_insumos: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Separa a lista de insumos em:
-    1. `materias_primas`: Tipo == 'C', ordenados por falta DESC e código ASC.
+    1. `materias_primas`: Tipo in ('C', 'F'), ordenados por falta DESC e código ASC.
     2. `componentes_por_fabrica`: Tipo == 'P', agrupados por Fábrica (`fabrica_componente` / `local_prod`).
     """
-    materias_primas = [x for x in lista_insumos if x.get("tipo") == "C"]
+    materias_primas = [x for x in lista_insumos if x.get("tipo") in ("C", "F")]
     componentes = [x for x in lista_insumos if x.get("tipo") == "P"]
 
     materias_primas.sort(
@@ -2680,6 +2894,8 @@ def obter_detalhes_item_final(
     ordem_op: Optional[str] = None,
     todas_ops: bool = False,
     session_id: Optional[str] = None,
+    escopo_abatimento: str = "global",
+    filtros_escopo: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Retorna a lista analítica e a camada gerencial de todos os componentes de um item final específico (ou OP específica),
@@ -2691,6 +2907,7 @@ def obter_detalhes_item_final(
     t_norm = str(tipo or "todos").strip().upper()
     todas_ops_flag = bool(todas_ops)
     op_filtro = str(ordem_op or "").strip()
+    escopo_norm = _normalizar_escopo_abatimento(escopo_abatimento)
 
     itens_full, comp_agg_full, _ = _obter_fila_calculada(
         baixa_filtro=b_norm,
@@ -2698,6 +2915,8 @@ def obter_detalhes_item_final(
         familias_filtro=familias,
         todas_ops=todas_ops_flag,
         session_id=session_id,
+        escopo_abatimento=escopo_norm,
+        filtros_escopo=filtros_escopo if escopo_norm == "filtrado" else None,
     )
     if itens_full.empty or comp_agg_full.empty:
         return {"erro": "Nenhum insumo encontrado para os filtros selecionados."}
@@ -2708,10 +2927,9 @@ def obter_detalhes_item_final(
 
     if alvo.empty:
         mask_item = itens_full["raiz_Item Final"].astype(str) == str(raiz_item_final)
-        if raiz_pedido is not None and str(raiz_pedido).strip() != "":
-            mask_item &= itens_full["raiz_Pedido_Str"].astype(str) == str(raiz_pedido).strip()
-        elif raiz_pedido == "":
-            mask_item &= itens_full["raiz_Pedido_Str"].astype(str) == ""
+        if raiz_pedido is not None:
+            ped_param = _normalizar_pedido_valido(raiz_pedido)
+            mask_item &= itens_full["raiz_Pedido_Str"].astype(str) == ped_param
 
         if raiz_fabrica:
             mask_item &= itens_full["raiz_Fábrica"].astype(str).str.upper() == str(raiz_fabrica).upper()
@@ -2723,7 +2941,7 @@ def obter_detalhes_item_final(
 
     row_alvo = alvo.iloc[0]
     ordem_fila = int(row_alvo["_ordem_fila"])
-    ped_str_alvo = str(row_alvo.get("raiz_Pedido_Str") or raiz_pedido or "").strip()
+    ped_str_alvo = _normalizar_pedido_valido(row_alvo.get("raiz_Pedido_Str") or raiz_pedido or "")
     item_final_alvo = str(row_alvo.get("raiz_Item Final") or raiz_item_final).strip()
     item_pai_cst = str(row_alvo.get("item_final_pai") or item_final_alvo).strip()
     dt_abertura_alvo = str(row_alvo.get("_dt_abertura_br") or "").strip()
@@ -2744,7 +2962,11 @@ def obter_detalhes_item_final(
             tipo_desc = (
                 "Matéria Prima (C)"
                 if tp == "C"
-                else ("Componente Produzido (P)" if tp == "P" else f"Outro ({tp})")
+                else (
+                    "Componente Produzido (P)"
+                    if tp == "P"
+                    else ("Ferramenta / Insumo (F)" if tp == "F" else f"Outro ({tp})")
+                )
             )
             info_ger = _enriquecer_insumo_gerencial(
                 comp_item=str(r["Item"]),
@@ -2802,6 +3024,7 @@ def obter_detalhes_item_final(
         "disponiveis": disponiveis_list,
         "gerencial_faltando": _organizar_insumos_gerencial(faltando_list),
         "gerencial_disponiveis": _organizar_insumos_gerencial(disponiveis_list),
+        "escopo_abatimento": escopo_norm,
         "session_id": str(session_id or "default"),
     }
 
@@ -2814,6 +3037,8 @@ def obter_resumo_pedido(
     tipo: Optional[str] = None,
     familias: Optional[Any] = None,
     session_id: Optional[str] = None,
+    escopo_abatimento: str = "global",
+    filtros_escopo: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Tela Gerencial de Resumo de Pedido / Item ("O que falta para resolver o pedido ou o item"):
@@ -2826,9 +3051,7 @@ def obter_resumo_pedido(
          Falta, OP do componente, Data de Abertura e Data de Entrega da OP.
     """
     ped_raw = str(pedido or "").strip()
-    ped_norm = scraper.normalizar_numero_pedido(ped_raw) if ped_raw else ""
-    if ped_norm == "0":
-        ped_norm = ""
+    ped_norm = _normalizar_pedido_valido(ped_raw) if ped_raw else ""
 
     item_filtro = str(item_final or "").strip().upper()
     if item_filtro in ("", "TODOS"):
@@ -2840,12 +3063,15 @@ def obter_resumo_pedido(
 
     b_norm = str(baixa or "todos").strip().upper()
     t_norm = str(tipo or "todos").strip().upper()
+    escopo_norm = _normalizar_escopo_abatimento(escopo_abatimento)
 
     itens_full, comp_agg_full, _ = _obter_fila_calculada(
         baixa_filtro=b_norm,
         tipo_filtro=t_norm,
         familias_filtro=familias,
         session_id=session_id,
+        escopo_abatimento=escopo_norm,
+        filtros_escopo=filtros_escopo if escopo_norm == "filtrado" else None,
     )
     if itens_full.empty or comp_agg_full.empty:
         return {"erro": "Nenhum dado encontrado na fila para os filtros informados."}
@@ -2941,7 +3167,11 @@ def obter_resumo_pedido(
         tipo_desc = (
             "Matéria Prima (C)"
             if tp == "C"
-            else ("Componente Produzido (P)" if tp == "P" else f"Outro ({tp})")
+            else (
+                "Componente Produzido (P)"
+                if tp == "P"
+                else ("Ferramenta / Insumo (F)" if tp == "F" else f"Outro ({tp})")
+            )
         )
 
         consumo_total_escopo = round(float(grp["Consumo"].sum()), 2)
@@ -3052,6 +3282,7 @@ def obter_resumo_pedido(
         "disponiveis": disponiveis_list,
         "gerencial_faltando": gerencial_faltando,
         "gerencial_disponiveis": gerencial_disponiveis,
+        "escopo_abatimento": escopo_norm,
         "session_id": str(session_id or "default"),
     }
 
@@ -3686,10 +3917,13 @@ def _resumo_faltantes_vazio(
     session_id: Optional[str] = None,
     visao: str = "por_insumo",
     todas_ops: bool = False,
+    escopo_abatimento: str = "global",
 ) -> Dict[str, Any]:
+    info_carga = obter_info_carregamento()
     return {
         "visao": visao,
         "todas_ops": bool(todas_ops),
+        "escopo_abatimento": _normalizar_escopo_abatimento(escopo_abatimento),
         "grupos_produzidos": [],
         "grupos_comprados": [],
         "grupos_por_local_item": [],
@@ -3705,6 +3939,9 @@ def _resumo_faltantes_vazio(
             "c_com_oc": 0,
             "c_locais": 0,
         },
+        "data_carga": info_carga["data_carga"],
+        "data_oc": info_carga["data_oc"],
+        "snapshot": info_carga["snapshot"],
         "session_id": str(session_id or "default"),
     }
 
@@ -3808,9 +4045,7 @@ def _construir_grupos_por_local_item(
         lp_raw = tup[5]
         op_prod_raw = tup[6]
         ord_cons_raw = tup[7]
-        ped = scraper.normalizar_numero_pedido(meta["pedido"])
-        if ped == "0":
-            ped = ""
+        ped = _normalizar_pedido_valido(meta["pedido"])
         it_fin_ref = scraper.normalizar_cod_item(meta["item_final_pai"] or meta["item_final"])
 
         if it_norm in itens_cst:
@@ -3912,6 +4147,8 @@ def _construir_grupos_por_local_item(
 def obter_resumo_faltantes(
     filtros: Optional[Dict[str, Any]] = None,
     session_id: Optional[str] = None,
+    recarregar: bool = False,
+    forcar_oc: bool = False,
 ) -> Dict[str, Any]:
     """
     Resumo consolidado de TUDO o que falta (insumos com Falta > 0) para os itens finais (ou todas as OPs)
@@ -3928,9 +4165,25 @@ def obter_resumo_faltantes(
     todas_ops = bool(filtros.get("todas_ops", False))
     visao_raw = str(filtros.get("visao", "por_insumo") or "por_insumo").strip().lower()
     visao = visao_raw if visao_raw in ("por_insumo", "por_item_pedido") else "por_insumo"
+    escopo_abatimento = _normalizar_escopo_abatimento(filtros.get("escopo_abatimento"))
+
+    obter_cons_com_cache(
+        recarregar=bool(recarregar),
+        forcar_oc=bool(forcar_oc),
+        sincronizar_snapshot=bool(recarregar),
+    )
 
     sess = obter_sessao(session_id)
-    filtros_json = json.dumps({**filtros, "visao": visao, "todas_ops": todas_ops}, sort_keys=True, default=str)
+    filtros_json = json.dumps(
+        {
+            **filtros,
+            "visao": visao,
+            "todas_ops": todas_ops,
+            "escopo_abatimento": escopo_abatimento,
+        },
+        sort_keys=True,
+        default=str,
+    )
     hoje_d1_iso = (datetime.now().date() + timedelta(days=1)).isoformat()
     cache_key = (_cache_timestamp, sess.simulacao_versao, hoje_d1_iso, filtros_json)
     with sess.lock:
@@ -3939,6 +4192,14 @@ def obter_resumo_faltantes(
 
     baixa = str(filtros.get("baixa", "todos") or "todos").strip().upper()
     tipo = str(filtros.get("tipo", "todos") or "todos").strip().upper()
+    col_f = {
+        k: v for k, v in (filtros.get("col_filtros") or {}).items() if k not in ("status", "saldo")
+    }
+    filtros_escopo_falt = (
+        {**filtros, "col_filtros": col_f}
+        if escopo_abatimento == "filtrado"
+        else None
+    )
 
     itens_full, comp_agg, _ = _obter_fila_calculada(
         baixa_filtro=baixa,
@@ -3946,16 +4207,25 @@ def obter_resumo_faltantes(
         familias_filtro=filtros.get("familias"),
         todas_ops=todas_ops,
         session_id=session_id,
+        escopo_abatimento=escopo_abatimento,
+        filtros_escopo=filtros_escopo_falt,
     )
     if itens_full.empty or comp_agg.empty:
-        return _resumo_faltantes_vazio(session_id, visao=visao, todas_ops=todas_ops)
+        return _resumo_faltantes_vazio(
+            session_id,
+            visao=visao,
+            todas_ops=todas_ops,
+            escopo_abatimento=escopo_abatimento,
+        )
 
-    col_f = {
-        k: v for k, v in (filtros.get("col_filtros") or {}).items() if k not in ("status", "saldo")
-    }
     itens_sel = _aplicar_col_filtros(_filtrar_itens_finais_base(itens_full, filtros), col_f)
     if itens_sel.empty:
-        return _resumo_faltantes_vazio(session_id, visao=visao, todas_ops=todas_ops)
+        return _resumo_faltantes_vazio(
+            session_id,
+            visao=visao,
+            todas_ops=todas_ops,
+            escopo_abatimento=escopo_abatimento,
+        )
 
     mapa_abertura = dict(zip(itens_sel["_ordem_fila"], itens_sel["_dt_abertura_br"]))
     comp = comp_agg[
@@ -3964,7 +4234,12 @@ def obter_resumo_faltantes(
         & comp_agg["Tipo"].astype(str).str.upper().isin(["P", "C"])
     ].copy()
     if comp.empty:
-        return _resumo_faltantes_vazio(session_id, visao=visao, todas_ops=todas_ops)
+        return _resumo_faltantes_vazio(
+            session_id,
+            visao=visao,
+            todas_ops=todas_ops,
+            escopo_abatimento=escopo_abatimento,
+        )
 
     comp = comp.sort_values("_ordem_fila", kind="stable")
     comp["Tipo"] = comp["Tipo"].astype(str).str.upper()
@@ -4069,9 +4344,11 @@ def obter_resumo_faltantes(
         else []
     )
 
+    info_carga = obter_info_carregamento()
     resultado = {
         "visao": visao,
         "todas_ops": todas_ops,
+        "escopo_abatimento": escopo_abatimento,
         "grupos_produzidos": gp,
         "grupos_comprados": gc,
         "grupos_por_local_item": grupos_por_local_item,
@@ -4087,6 +4364,9 @@ def obter_resumo_faltantes(
             "c_com_oc": sum(g["total_com_enriquecimento"] for g in gc),
             "c_locais": len(gc),
         },
+        "data_carga": info_carga["data_carga"],
+        "data_oc": info_carga["data_oc"],
+        "snapshot": info_carga["snapshot"],
         "session_id": str(session_id or "default"),
     }
 

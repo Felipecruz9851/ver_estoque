@@ -54,6 +54,7 @@ export default function VerEstoque() {
   const [familiasComponentes3, setFamiliasComponentes3] = useState([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
+  const [dataOc, setDataOc] = useState("");
   const [snapshotNome, setSnapshotNome] = useState("");
   const [sessionId, setSessionId] = useState("");
 
@@ -79,6 +80,7 @@ export default function VerEstoque() {
   const [filtroTipoData, setFiltroTipoData] = useState("abertura_op"); // 'abertura_op' | 'entrega_pedido'
   const [filtroApenasSimulados, setFiltroApenasSimulados] = useState(false);
   const [filtroTodasOps, setFiltroTodasOps] = useState(false);
+  const [filtroEscopoAbatimento, setFiltroEscopoAbatimento] = useState("global"); // 'global' | 'filtrado'
 
   // Filtros em Títulos de Colunas (Backend)
   const [colFiltros, setColFiltros] = useState({});
@@ -208,6 +210,7 @@ export default function VerEstoque() {
             tipo: filtroTipo,
             familias: filtroFamilias,
             todas_ops: filtroTodasOps,
+            escopo_abatimento: filtroEscopoAbatimento,
             apenas_simulados: filtroApenasSimulados,
             col_filtros: recarregarCache ? colFiltros : debouncedColFiltros,
             data_inicio: filtroDataInicio,
@@ -249,6 +252,7 @@ export default function VerEstoque() {
         if (res.divisao_fabricas && isReset) setDivisaoFabricas(res.divisao_fabricas);
         if (Array.isArray(res.familias_componentes_3) && isReset) setFamiliasComponentes3(res.familias_componentes_3);
         if (res.data_carga) setDataCarga(res.data_carga);
+        if (res.data_oc) setDataOc(res.data_oc);
         if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
       } catch (e) {
@@ -273,6 +277,7 @@ export default function VerEstoque() {
       filtroTipo,
       filtroFamilias,
       filtroTodasOps,
+      filtroEscopoAbatimento,
       filtroApenasSimulados,
       filtroDataInicio,
       filtroDataFim,
@@ -294,6 +299,7 @@ export default function VerEstoque() {
     filtroTipo,
     filtroFamilias,
     filtroTodasOps,
+    filtroEscopoAbatimento,
     filtroApenasSimulados,
     filtroDataInicio,
     filtroDataFim,
@@ -470,6 +476,7 @@ export default function VerEstoque() {
           tipo: filtroTipo,
           familias: filtroFamilias,
           todas_ops: filtroTodasOps,
+          escopo_abatimento: filtroEscopoAbatimento,
           apenas_simulados: filtroApenasSimulados,
           col_filtros: colFiltros,
           data_inicio: filtroDataInicio,
@@ -493,6 +500,17 @@ export default function VerEstoque() {
     }
   };
 
+  const montarFiltrosEscopoAtual = () => ({
+    local_producao: filtroLocal,
+    pedido: filtroPedido,
+    codigo: filtroCodigo,
+    apenas_simulados: filtroApenasSimulados,
+    data_inicio: filtroDataInicio,
+    data_fim: filtroDataFim,
+    tipo_data: filtroTipoData,
+    col_filtros: colFiltros,
+  });
+
   // --- Ações da Tela de Detalhes de Insumos ---
   const carregarDetalhes = async (it, bFiltro = modalBaixa, tFiltro = modalTipo) => {
     setCarregandoDetalhes(true);
@@ -506,6 +524,9 @@ export default function VerEstoque() {
         familias: filtroFamilias,
         ordem_op: it.ordem_op || "",
         todas_ops: Boolean(filtroTodasOps),
+        escopo_abatimento: filtroEscopoAbatimento,
+        filtros_escopo:
+          filtroEscopoAbatimento === "filtrado" ? montarFiltrosEscopoAtual() : null,
       });
       if (res && res.erro) throw new Error(res.erro);
       setDetalhesItem(res);
@@ -577,6 +598,9 @@ export default function VerEstoque() {
         baixa: bFiltro,
         tipo: tFiltro,
         familias: filtroFamilias,
+        escopo_abatimento: filtroEscopoAbatimento,
+        filtros_escopo:
+          filtroEscopoAbatimento === "filtrado" ? montarFiltrosEscopoAtual() : null,
       });
       if (res && res.erro) throw new Error(res.erro);
       setResumoDados(res);
@@ -628,6 +652,7 @@ export default function VerEstoque() {
     tipo: filtroTipo,
     familias: filtroFamilias,
     todas_ops: filtroTodasOps,
+    escopo_abatimento: filtroEscopoAbatimento,
     visao: visaoFaltantes,
     apenas_simulados: filtroApenasSimulados,
     col_filtros: debouncedColFiltros,
@@ -636,14 +661,21 @@ export default function VerEstoque() {
     tipo_data: filtroTipoData,
   });
 
-  const carregarFaltantes = async () => {
+  const carregarFaltantes = async (forcarRecarga = false) => {
     const req = ++faltantesReqRef.current;
     setCarregandoFaltantes(true);
     setErroFaltantes("");
     try {
-      const res = await apiCall("obter_resumo_faltantes", { filtros: montarFiltrosFaltantes() });
+      const res = await apiCall("obter_resumo_faltantes", {
+        filtros: montarFiltrosFaltantes(),
+        recarregar: Boolean(forcarRecarga),
+        forcar_oc: Boolean(forcarRecarga),
+      });
       if (req !== faltantesReqRef.current) return;
       if (res && res.erro) throw new Error(res.erro);
+      if (res?.data_carga) setDataCarga(res.data_carga);
+      if (res?.data_oc) setDataOc(res.data_oc);
+      if (res?.snapshot) setSnapshotNome(res.snapshot);
       setFaltantesDados(res);
     } catch (e) {
       if (req !== faltantesReqRef.current) return;
@@ -655,7 +687,7 @@ export default function VerEstoque() {
 
   // Recarrega o resumo ao entrar na tela ou quando qualquer filtro compartilhado mudar
   useEffect(() => {
-    if (telaAtiva === "faltantes") carregarFaltantes();
+    if (telaAtiva === "faltantes") carregarFaltantes(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     telaAtiva,
@@ -666,6 +698,7 @@ export default function VerEstoque() {
     filtroTipo,
     filtroFamilias,
     filtroTodasOps,
+    filtroEscopoAbatimento,
     visaoFaltantes,
     filtroApenasSimulados,
     filtroDataInicio,
@@ -823,6 +856,7 @@ export default function VerEstoque() {
     setFiltroBaixa("todos");
     setFiltroTipo("todos");
     setFiltroApenasSimulados(false);
+    setFiltroEscopoAbatimento("global");
     setFiltroDataInicio("");
     setFiltroDataFim("");
     setColFiltros({});
@@ -837,6 +871,7 @@ export default function VerEstoque() {
     filtroBaixa !== "todos" ||
     filtroTipo !== "todos" ||
     filtroApenasSimulados ||
+    filtroEscopoAbatimento === "filtrado" ||
     Boolean(filtroDataInicio) ||
     Boolean(filtroDataFim) ||
     Object.values(colFiltros).some((v) => Boolean(v && v.trim()));
@@ -890,6 +925,20 @@ export default function VerEstoque() {
     }
   };
 
+  const handleRecarregarGlobal = async () => {
+    await carregarDados(true, 0, true);
+    if (telaAtiva === "faltantes") {
+      await carregarFaltantes(false);
+    } else if (telaAtiva === "detalhes" && itemSelecionado) {
+      await carregarDetalhes(itemSelecionado);
+    } else if (
+      telaAtiva === "resumo" &&
+      (resumoPedidoInput || (resumoItemEscopo && resumoItemEscopo !== "TODOS"))
+    ) {
+      await carregarResumoPedido(resumoPedidoInput, resumoItemEscopo);
+    }
+  };
+
   return (
     <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-row bg-[#F8F8F8] text-[#1A1A1A] font-sans">
       {/* SIDEBAR FIXA E PERSISTENTE (COMUM A TODAS AS TELAS) */}
@@ -899,12 +948,13 @@ export default function VerEstoque() {
         pedidosSimuladosAtivos={pedidosSimuladosAtivos}
         onAbrirSimulador={abrirModalSimulador}
         onLimparSimulacao={handleLimparSimulacao}
-        onRecarregar={() => carregarDados(true, 0, true)}
+        onRecarregar={handleRecarregarGlobal}
         onExportarExcel={handleExportarExcel}
         loading={loading}
         exportando={exportando}
         sessionId={sessionId}
         dataCarregamento={dataCarga}
+        dataOc={dataOc}
         snapshotNome={snapshotNome}
       />
 
@@ -935,6 +985,8 @@ export default function VerEstoque() {
           setFiltroApenasSimulados={setFiltroApenasSimulados}
           filtroTodasOps={filtroTodasOps}
           setFiltroTodasOps={setFiltroTodasOps}
+          filtroEscopoAbatimento={filtroEscopoAbatimento}
+          setFiltroEscopoAbatimento={setFiltroEscopoAbatimento}
           temFiltrosAtivos={temFiltrosAtivos}
           limparFiltros={limparFiltros}
           pedidosSimuladosAtivos={pedidosSimuladosAtivos}
@@ -980,7 +1032,9 @@ export default function VerEstoque() {
           setVisao={setVisaoFaltantes}
           filtroTodasOps={filtroTodasOps}
           setFiltroTodasOps={setFiltroTodasOps}
-          onRecarregar={carregarFaltantes}
+          filtroEscopoAbatimento={filtroEscopoAbatimento}
+          setFiltroEscopoAbatimento={setFiltroEscopoAbatimento}
+          onRecarregar={() => carregarFaltantes(true)}
           onExportar={handleExportarFaltantes}
           onAbrirDetalhes={abrirDetalhes}
           onAbrirResumoPedido={abrirResumoPedido}
@@ -1076,6 +1130,7 @@ export default function VerEstoque() {
           modalTipo={modalTipo}
           setModalTipo={setModalTipo}
           filtroTodasOps={filtroTodasOps}
+          filtroEscopoAbatimento={filtroEscopoAbatimento}
           carregarDetalhes={carregarDetalhes}
           onAbrirResumoPedido={abrirResumoPedido}
           onVoltar={() => setTelaAtiva("disponibilidade")}

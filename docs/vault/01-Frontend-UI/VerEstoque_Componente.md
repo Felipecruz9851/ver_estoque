@@ -8,11 +8,13 @@ tags: [codigo, frontend, javascript, react, ui]
 
 # Módulo: VerEstoque.jsx
 
-**Responsabilidade:** Componente principal da interface em React/Vite do Ver Estoque, apresentando a listagem paginada de itens finais (ou todas as OPs com e sem item pai via `filtroTodasOps`), status de atendimento cumulativo, tela de Itens Faltantes (com visão consolidada por insumo ou por Local × Item/Pedido), detalhamento gerencial de insumos por fábrica, resumo executivo de pedidos e Matriz Pivot de Componentes Produzidos Faltantes por fábrica.
+**Responsabilidade:** Componente principal da interface em React/Vite do Ver Estoque, apresentando a listagem paginada de itens finais (ou todas as OPs com e sem item pai via `filtroTodasOps`), controle global/filtrado do escopo de abatimento (`filtroEscopoAbatimento`), status de atendimento cumulativo, tela de Itens Faltantes (com visão consolidada por insumo ou por Local × Item/Pedido), detalhamento gerencial de insumos por fábrica (exibindo OCs em itens CST e `Tipo == 'F'`), resumo executivo de pedidos e Matriz Pivot de Componentes Produzidos Faltantes por fábrica.
 
 ## Principais Funções / Métodos
-* `carregarDados(resetar, paginaAlvo, recarregarCache)`: Dispara busca paginada com filtros ativos (incluindo `todas_ops` para alternar entre Itens Finais e Todas as OPs em 1 nível), recarga fresca ou paginação sob demanda.
-* `carregarFaltantes()`: Consulta `obter_resumo_faltantes` com os filtros espelhados (incluindo `todas_ops` e `visao` em [[Tela_Itens_Faltantes]]).
+* `carregarDados(resetar, paginaAlvo, recarregarCache)`: Dispara busca paginada com filtros ativos (incluindo `todas_ops` e `escopo_abatimento`), recarga fresca ou paginação sob demanda, sincronizando também `dataOc` exibido na [[Sidebar]].
+* `handleRecarregarGlobal()`: Acionado pelo botão da Sidebar; aguarda `carregarDados(true, 0, true)` e reatualiza automaticamente a tela secundária ativa (`faltantes`, `detalhes` ou `resumo`).
+* `carregarFaltantes(forcarRecarga)`: Consulta `obter_resumo_faltantes` com os filtros espelhados (incluindo `todas_ops`, `escopo_abatimento` e `visao` em [[Tela_Itens_Faltantes]]), propagando `recarregar`/`forcar_oc` quando acionado manualmente.
+* `montarFiltrosEscopoAtual()`: Empacota os filtros restritivos da fila para repasse coerente a `carregarDetalhes` e `carregarResumoPedido` quando `filtroEscopoAbatimento === "filtrado"`.
 * `abrirModalSimulador()` / `fecharModalSimulador()`: Controla a exibição do diálogo modal `<dialog>` para inserção de pedidos de teste para simulação em fila.
 * `handleConfirmarSimulacao()`: Envia lista de pedidos para simulação temporária na sessão ativa e atualiza a fila de atendimento.
 * `handleRemoverPedidoSimulado(numPedido)`: Remove um pedido simulado individualmente da sessão corrente.

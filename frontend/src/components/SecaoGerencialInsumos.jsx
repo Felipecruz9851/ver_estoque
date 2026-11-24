@@ -203,6 +203,34 @@ export default function SecaoGerencialInsumos({
                               </span>
                             )}
                           </div>
+                          {mp.oc_numero && (
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              <span className="text-[10px] font-semibold text-[#1A1A1A]">
+                                OC #{mp.oc_numero}
+                              </span>
+                              {mp.oc_sit === "A" ? (
+                                <span
+                                  className="text-[9px] font-medium px-1.5 py-0.5 bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2] rounded-xs"
+                                  title="OC em aberto (sit_oc=S / situação A)"
+                                >
+                                  Em Aberto (A)
+                                </span>
+                              ) : mp.oc_pedido_compra ? (
+                                <span
+                                  className="text-[9px] font-medium px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xs"
+                                  title={`Pedido de Compra no fornecedor #${mp.oc_pedido_compra}`}
+                                >
+                                  Ped.Compra #{mp.oc_pedido_compra}
+                                </span>
+                              ) : null}
+                              <span className="text-[10px] text-neutral-500">
+                                Qtd OC:{" "}
+                                <strong className="text-neutral-700 font-mono">
+                                  {formatarQtd(mp.oc_saldo)}
+                                </strong>
+                              </span>
+                            </div>
+                          )}
                           <div className="text-[10px] text-neutral-500 mt-0.5">
                             {mp.cst_fornecedor
                               ? mp.cst_fornecedor
@@ -250,9 +278,19 @@ export default function SecaoGerencialInsumos({
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       {mp.eh_cst && mp.cst_prev_entrega ? (
-                        <span className="inline-block px-2 py-0.5 text-[11px] font-mono text-sky-900 bg-sky-50/80 border border-sky-200/60 rounded-xs">
-                          {mp.cst_prev_entrega}
-                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="inline-block px-2 py-0.5 text-[11px] font-mono text-sky-900 bg-sky-50/80 border border-sky-200/60 rounded-xs">
+                            {mp.cst_prev_entrega}
+                          </span>
+                          {mp.oc_previsao && mp.oc_previsao !== mp.cst_prev_entrega && (
+                            <span
+                              className="text-[9px] font-mono text-amber-800"
+                              title="Previsão da OC vinculada na Intranet"
+                            >
+                              OC: {mp.oc_previsao}
+                            </span>
+                          )}
+                        </div>
                       ) : mp.oc_previsao ? (
                         <span className="inline-block px-2 py-0.5 text-[11px] font-mono text-amber-900 bg-amber-50/80 border border-amber-200/60 rounded-xs">
                           {mp.oc_previsao}

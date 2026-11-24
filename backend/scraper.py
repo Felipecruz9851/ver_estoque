@@ -8,8 +8,11 @@ Fluxo autenticado via httpx.Client:
 4. GET http://192.168.0.6/JSN001/json-pedido-estrutura.php?pedido=... -> obtém árvore de estrutura
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import pickle
 import re
+import time
 import unicodedata
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -22,12 +25,12 @@ LOGIN_URL = f"{INTRANET_BASE}/home/login/"
 SITUACAO_PEDIDOS_URL = f"{INTRANET_BASE}/pcp/situacao_pedidos2.php"
 TECIDOS_CUSTOMIZADOS_URL = f"{INTRANET_BASE}/pcp/tecidos_customizados3.php"
 ESTRUTURA_PEDIDO_URL = f"{INTRANET_BASE}/JSN001/json-pedido-estrutura.php"
-OC_ATRASADAS_URL = f"{INTRANET_BASE}/sup/oc_atrasadas.php"
+OC_ATRASADAS_URL = f"{INTRANET_BASE}/sup/oc_atrasadas-lgx.php"
 OC_ATRASADAS_URLS = [
-    f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=&sit_oc=S",
-    f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=",
-    f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=2050-12-31&familia=",
+    f"{INTRANET_BASE}/sup/oc_atrasadas-lgx.php?action=oc-atrasadas-lgx&cod_empresa=11&todas_empresas=N&comprador=&programador=&fornecedor=&data=&familia=&linha=&sit_oc=S&banco=L",
+    f"{INTRANET_BASE}/sup/oc_atrasadas-lgx.php?action=oc-atrasadas-lgx&cod_empresa=11&todas_empresas=N&comprador=&programador=&fornecedor=&data=2999-12-31&familia=&linha=&banco=L",
 ]
+VIDROSOC_URL = f"{INTRANET_BASE}/sup/vidrosoc.php"
 
 DEFAULT_HEADERS = {
     "User-Agent": (
@@ -105,6 +108,43 @@ def parse_numero_flexivel(valor: Any, default: float = 0.0) -> float:
         # X.XXX ou XX.XXX (ex: '1.000', '10.000', '2.500') -> milhar brasileiro puro!
         if re.match(r"^[1-9]\d{0,2}(\.\d{3})+$", token):
             token = token.replace(".", "")
+
+    try:
+        return round(float(token), 2)
+    except ValueError:
+        return round(float(default), 2)
+
+
+def _parse_saldo_intranet(valor: Any, default: float = 0.0) -> float:
+    """
+    Parser numérico seguro para saldos vindos de relatórios SQL da Intranet
+    (`/sup/oc_atrasadas-lgx.php`, `/sup/oc_atrasadas.php`, `/sup/vidrosoc.php`),
+    onde strings como '1.000' ou '12.000' representam ponto decimal (1.0 e 12.0),
+    evitando inflar em 1000x como faria o parser de milhar brasileiro.
+    """
+    if valor is None:
+        return round(float(default), 2)
+    if isinstance(valor, (int, float)):
+        return round(float(valor), 2)
+
+    texto = str(valor).strip()
+    if not texto or texto == ".":
+        return round(float(default), 2)
+
+    m_num = re.search(r"-?\d[\d.,]*", texto)
+    if not m_num:
+        return round(float(default), 2)
+    token = m_num.group(0).rstrip(".")
+
+    if "," in token and "." in token:
+        if token.rfind(",") > token.rfind("."):
+            token = token.replace(".", "").replace(",", ".")
+        else:
+            token = token.replace(",", "")
+    elif "," in token:
+        token = token.replace(",", ".")
+    elif token.count(".") > 1:
+        token = token.replace(".", "")
 
     try:
         return round(float(token), 2)
@@ -663,6 +703,10 @@ def parse_oc_abertas_html(html: str, sit_oc_origem: str = "") -> List[Dict[str, 
         texto_oc = _cell(tds, "texto")
         ped_vinc, it_vinc = parse_oc_texto_vinculo(texto_oc)
         forn_reduz = _cell(tds, "raz_social_reduz") or _cell(tds, "fornecedor")
+        if forn_reduz in (",", "-", "--", "."):
+            forn_reduz = ""
+        else:
+            forn_reduz = forn_reduz.strip(" ,.")
 
         prev_entrega = _cell(tds, "prev_entrega")
         prev_reprog = _cell(tds, "previsao")
@@ -681,7 +725,7 @@ def parse_oc_abertas_html(html: str, sit_oc_origem: str = "") -> List[Dict[str, 
                 "oc_numero": oc_num,
                 "item": item_code,
                 "descricao": _cell(tds, "descricao"),
-                "saldo": parse_numero_flexivel(_cell(tds, "saldo"), default=0.0),
+                "saldo": _parse_saldo_intranet(_cell(tds, "saldo"), default=0.0),
                 "unidade": _cell(tds, "unidade"),
                 "emissao_oc": _cell(tds, "emissao"),
                 "abertura_oc": _cell(tds, "abertura"),
@@ -704,17 +748,191 @@ def parse_oc_abertas_html(html: str, sit_oc_origem: str = "") -> List[Dict[str, 
     return registros
 
 
+def parse_vidrosoc_html(
+    html: str, cod_item_esperado: str = ""
+) -> List[Dict[str, Any]]:
+    """
+    Faz o parse da tabela de OCs por item em `/sup/vidrosoc.php?cod_empresa=11&cod_item=...`
+    (`OC | Item | Saldo | Pedido | Emissao | Data Origem | Entrega | Fornecedor`),
+    normalizando para o mesmo schema de `parse_oc_abertas_html`.
+    """
+    soup = BeautifulSoup(html or "", "lxml")
+    alvo_norm = normalizar_cod_item(cod_item_esperado)
+    registros: List[Dict[str, Any]] = []
+
+    for table in soup.find_all("table"):
+        if table.find("table") is not None:
+            continue
+        rows = table.find_all("tr")
+        if len(rows) < 2:
+            continue
+
+        headers_norm = [
+            _norm_header(c.get_text(" ", strip=True))
+            for c in rows[0].find_all(["th", "td"])
+        ]
+        idx_map: Dict[str, int] = {}
+        for idx, hn in enumerate(headers_norm):
+            if hn in ("oc", "o c", "ordem compra", "nro oc"):
+                idx_map.setdefault("oc", idx)
+            elif hn == "item" or ("cod" in hn and "item" in hn):
+                idx_map.setdefault("item", idx)
+            elif hn == "saldo":
+                idx_map.setdefault("saldo", idx)
+            elif hn == "pedido":
+                idx_map.setdefault("pedido_compra", idx)
+            elif "emiss" in hn:
+                idx_map.setdefault("emissao", idx)
+            elif "origem" in hn:
+                idx_map.setdefault("data_origem", idx)
+            elif "entreg" in hn or "previs" in hn:
+                idx_map.setdefault("entrega", idx)
+            elif "fornec" in hn:
+                idx_map.setdefault("fornecedor", idx)
+
+        if "oc" not in idx_map or "saldo" not in idx_map:
+            continue
+
+        def _vcell(vals: List[str], key: str) -> str:
+            ci = idx_map.get(key)
+            if ci is None or ci >= len(vals):
+                return ""
+            return _limpar_celula_php(vals[ci])
+
+        for tr in rows[1:]:
+            tds = [td.get_text(" ", strip=True) for td in tr.find_all(["td", "th"])]
+            if not tds or len(tds) <= idx_map["oc"]:
+                continue
+            oc_num = _vcell(tds, "oc")
+            if not oc_num or not re.search(r"\d", oc_num):
+                continue
+            item_code = normalizar_cod_item(_vcell(tds, "item")) or alvo_norm
+            if not item_code:
+                continue
+
+            ped_raw = _vcell(tds, "pedido_compra")
+            ped_compra = "" if ped_raw in ("", "0", "-", "--") else ped_raw
+            forn_raw = _vcell(tds, "fornecedor")
+            forn = "" if forn_raw in ("", ",", "-", "--", ".") else forn_raw.strip(" ,.")
+
+            dt_origem = _vcell(tds, "data_origem")
+            dt_entrega = _vcell(tds, "entrega")
+            if dt_origem in ("--", "-", ""):
+                dt_origem = ""
+            if dt_entrega in ("--", "-", ""):
+                dt_entrega = ""
+            prev_efetiva = dt_entrega or dt_origem
+
+            registros.append(
+                {
+                    "oc_numero": oc_num,
+                    "item": item_code,
+                    "descricao": "",
+                    "saldo": _parse_saldo_intranet(_vcell(tds, "saldo"), default=0.0),
+                    "unidade": "",
+                    "emissao_oc": _vcell(tds, "emissao"),
+                    "abertura_oc": "",
+                    "data_origem": dt_origem or prev_efetiva,
+                    "previsao": prev_efetiva,
+                    "fornecedor": forn,
+                    "comprador": "",
+                    "programador": "",
+                    "prazo": "",
+                    "pedido_compra": ped_compra,
+                    "data_pedido_compra": "",
+                    "familia": "",
+                    "texto": "",
+                    "pedido_vinculado": None,
+                    "item_final_vinculado": None,
+                    "sit_oc": "A" if not ped_compra else "P",
+                }
+            )
+
+    return registros
+
+
+def consultar_oc_vidrosoc_itens(
+    itens: Sequence[str],
+    usuario: Optional[str] = None,
+    senha: Optional[str] = None,
+    timeout: float = 20.0,
+    max_workers: int = 6,
+) -> List[Dict[str, Any]]:
+    """
+    Consulta complementar em `/sup/vidrosoc.php` para itens sem Comprador vinculado
+    (descartados pelo INNER JOIN de `oc_atrasadas-lgx.php`).
+    """
+    itens_limpos: List[str] = []
+    vistos_it = set()
+    for it in itens:
+        cod = normalizar_cod_item(it)
+        if cod and cod not in vistos_it:
+            vistos_it.add(cod)
+            itens_limpos.append(cod)
+
+    if not itens_limpos:
+        return []
+
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    user_eff = str(usuario or _settings.INTRANET_DEFAULT_USER).strip()
+    pass_eff = str(senha or _settings.INTRANET_DEFAULT_PASS)
+
+    n_workers = max(1, min(int(max_workers or 1), len(itens_limpos)))
+    chunks = [itens_limpos[i::n_workers] for i in range(n_workers)]
+
+    def _fetch_chunk(lote: List[str]) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        with httpx.Client(headers=DEFAULT_HEADERS, timeout=timeout) as client:
+            _autenticar_intranet(client, usuario=user_eff, senha=pass_eff)
+            for cod in lote:
+                try:
+                    url = f"{VIDROSOC_URL}?cod_empresa=11&cod_item={cod}"
+                    resp = client.get(url, follow_redirects=True)
+                    if _foi_redirecionado_para_login(resp):
+                        _autenticar_intranet(client, usuario=user_eff, senha=pass_eff)
+                        resp = client.get(url, follow_redirects=True)
+                    resp.raise_for_status()
+                    out.extend(parse_vidrosoc_html(_decodificar_html(resp), cod_item_esperado=cod))
+                except Exception as exc_item:
+                    print(f"[OC VidrosOC] Aviso ao consultar item {cod}: {exc_item}")
+        return out
+
+    consolidado: List[Dict[str, Any]] = []
+    vistos: set = set()
+    if n_workers == 1:
+        partes = [_fetch_chunk(chunks[0])]
+    else:
+        with ThreadPoolExecutor(max_workers=n_workers) as executor:
+            partes = list(executor.map(_fetch_chunk, chunks))
+
+    for lista in partes:
+        for reg in lista:
+            chave = (str(reg.get("oc_numero") or ""), str(reg.get("item") or ""))
+            if chave not in vistos:
+                vistos.add(chave)
+                consolidado.append(reg)
+
+    return consolidado
+
+
 def consultar_oc_abertas_intranet(
     usuario: Optional[str] = None,
     senha: Optional[str] = None,
     timeout: float = 45.0,
+    itens_fallback_vidrosoc: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Consulta as Ordens de Compra de matérias-primas em `/sup/oc_atrasadas.php` combinando:
-      1. `http://192.168.0.6/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=&sit_oc=S` (OCs em aberto situação A)
-      2. `http://192.168.0.6/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=` (OCs situação padrão até a data atual)
-      3. `http://192.168.0.6/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=2050-12-31&familia=` (OCs situação padrão com entrega programada futura)
-    Desduplica por `(oc_numero, item)` preservando a ordem acima.
+    Consulta as Ordens de Compra em `/sup/oc_atrasadas-lgx.php` combinando:
+      1. `sit_oc=S` (OCs em aberto situação A sem vínculo de pedido de compra)
+      2. `data=2999-12-31` (OCs padrão até 2999-12-31, incluindo datas simbólicas e sem corte prematuro)
+    Quando `itens_fallback_vidrosoc` é informado, complementa itens com OC no apoio de compras
+    que ficaram de fora do relatório principal (ex.: itens sem Comprador vinculado no Logix)
+    consultando `/sup/vidrosoc.php`.
+    Aborta em falha da consulta principal para não sobrescrever o cache local com lista truncada.
     """
     if __package__:
         from . import settings as _settings
@@ -725,26 +943,17 @@ def consultar_oc_abertas_intranet(
     pass_eff = str(senha or _settings.INTRANET_DEFAULT_PASS)
 
     consultas = [
-        (
-            f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=&sit_oc=S",
-            "A",
-        ),
-        (
-            f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=&familia=",
-            "P",
-        ),
-        (
-            f"{INTRANET_BASE}/sup/oc_atrasadas.php?cod_empresa=11&comprador=&programador=&data=2050-12-31&familia=",
-            "P",
-        ),
+        (OC_ATRASADAS_URLS[0], "A", False),
+        (OC_ATRASADAS_URLS[1], "P", True),
     ]
 
     consolidado: List[Dict[str, Any]] = []
     vistos: set = set()
+    principal_ok = False
 
     with httpx.Client(headers=DEFAULT_HEADERS, timeout=timeout) as client:
         _autenticar_intranet(client, usuario=user_eff, senha=pass_eff)
-        for url, sit_flag in consultas:
+        for url, sit_flag, obrigatoria in consultas:
             try:
                 resp = client.get(url, follow_redirects=True)
                 if _foi_redirecionado_para_login(resp):
@@ -753,6 +962,8 @@ def consultar_oc_abertas_intranet(
                 resp.raise_for_status()
                 html = _decodificar_html(resp)
                 rows_parsed = parse_oc_abertas_html(html, sit_oc_origem=sit_flag)
+                if obrigatoria and rows_parsed:
+                    principal_ok = True
                 for reg in rows_parsed:
                     chave = (str(reg.get("oc_numero") or ""), str(reg.get("item") or ""))
                     if chave not in vistos:
@@ -760,21 +971,137 @@ def consultar_oc_abertas_intranet(
                         consolidado.append(reg)
             except Exception as exc:
                 print(f"[OC Intranet] Aviso ao consultar {url}: {exc}")
+                if obrigatoria:
+                    raise RuntimeError(
+                        f"Falha na consulta principal de OCs (oc_atrasadas-lgx.php): {exc}"
+                    ) from exc
+
+    if not principal_ok:
+        raise RuntimeError(
+            "Consulta principal de OCs (oc_atrasadas-lgx.php) retornou vazia; mantendo cache anterior íntegro."
+        )
+
+    if itens_fallback_vidrosoc:
+        cobertos = {normalizar_cod_item(r.get("item")) for r in consolidado}
+        pendentes: List[str] = []
+        vistos_pend = set()
+        for raw_it in itens_fallback_vidrosoc:
+            cod = normalizar_cod_item(raw_it)
+            if cod and cod not in cobertos and cod not in vistos_pend:
+                vistos_pend.add(cod)
+                pendentes.append(cod)
+        if pendentes:
+            extras = consultar_oc_vidrosoc_itens(
+                pendentes[:250],
+                usuario=user_eff,
+                senha=pass_eff,
+                timeout=min(float(timeout), 25.0),
+            )
+            for reg in extras:
+                chave = (str(reg.get("oc_numero") or ""), str(reg.get("item") or ""))
+                if chave not in vistos:
+                    vistos.add(chave)
+                    consolidado.append(reg)
 
     return consolidado
+
+
+_oc_cache_validado_mtime: Optional[float] = None
+_oc_ultima_tentativa_falha_ts: float = 0.0
+
+
+def obter_data_cache_oc() -> str:
+    """Retorna data/hora de modificação de `oc_abertas_cache.pkl` formatada em DD/MM/YYYY HH:MM:SS."""
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    cache_path = _settings.OC_CACHE_FILE
+    if not cache_path.exists():
+        return ""
+    try:
+        return datetime.fromtimestamp(cache_path.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+    except Exception:
+        return ""
+
+
+def _cache_oc_eh_legado(dados: Any) -> bool:
+    """
+    Detecta se `oc_abertas_cache.pkl` ainda foi gerado pelo relatório legado `/sup/oc_atrasadas.php`
+    (que não possui coluna `Unidade` e sofre do bug de saldo x1000).
+    """
+    if not isinstance(dados, list) or not dados:
+        return True
+    regs_p = [r for r in dados if str(r.get("sit_oc") or "").upper() == "P"]
+    if regs_p and not any(str(r.get("unidade") or "").strip() for r in regs_p):
+        return True
+    return False
+
+
+def cache_oc_expirado(
+    ttl_segundos: Optional[int] = None,
+    referencia_mtime: float = 0.0,
+) -> bool:
+    """
+    Indica se `oc_abertas_cache.pkl` precisa ser atualizado da Intranet:
+      - ausente ou corrompido
+      - legado (`_cache_oc_eh_legado`)
+      - mais antigo que `referencia_mtime` (ex.: novo snapshot baixado)
+      - com idade superior a `ttl_segundos` (padrão `settings.OC_CACHE_TTL_SECONDS`)
+    """
+    global _oc_cache_validado_mtime
+    if __package__:
+        from . import settings as _settings
+    else:
+        import settings as _settings
+
+    cache_path = _settings.OC_CACHE_FILE
+    if not cache_path.exists():
+        _oc_cache_validado_mtime = None
+        return True
+
+    if _oc_ultima_tentativa_falha_ts > 0 and (time.time() - _oc_ultima_tentativa_falha_ts) < 120:
+        return False
+
+    try:
+        st = cache_path.stat()
+    except Exception:
+        return True
+
+    if referencia_mtime > 0 and st.st_mtime < referencia_mtime:
+        return True
+
+    ttl = getattr(_settings, "OC_CACHE_TTL_SECONDS", 1800) if ttl_segundos is None else int(ttl_segundos)
+    if ttl > 0 and (time.time() - st.st_mtime) > ttl:
+        return True
+
+    if _oc_cache_validado_mtime == st.st_mtime:
+        return False
+
+    try:
+        with open(cache_path, "rb") as f:
+            dados = pickle.load(f)
+        if not isinstance(dados, list) or len(dados) == 0 or _cache_oc_eh_legado(dados):
+            return True
+        _oc_cache_validado_mtime = st.st_mtime
+    except Exception:
+        return True
+
+    return False
 
 
 def carregar_ou_atualizar_oc_abertas(
     forcar_intranet: bool = False,
     usuario: Optional[str] = None,
     senha: Optional[str] = None,
+    itens_fallback_vidrosoc: Optional[Sequence[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Carrega a lista de OCs em aberto do cache local (`oc_abertas_cache.pkl`) ou atualiza da Intranet
     quando `forcar_intranet=True` ou quando o cache ainda não existe.
+    Grava atomicamente via `.pkl.tmp` para preservar o cache anterior em caso de falha.
     """
-    import pickle
-
     if __package__:
         from . import settings as _settings
     else:
@@ -791,17 +1118,30 @@ def carregar_ou_atualizar_oc_abertas(
         except Exception as exc:
             print(f"[OC Cache] Aviso ao ler cache de OCs: {exc}")
 
+    global _oc_cache_validado_mtime, _oc_ultima_tentativa_falha_ts
     try:
-        dados_intranet = consultar_oc_abertas_intranet(usuario=usuario, senha=senha)
+        if itens_fallback_vidrosoc is not None:
+            dados_intranet = consultar_oc_abertas_intranet(
+                usuario=usuario,
+                senha=senha,
+                itens_fallback_vidrosoc=itens_fallback_vidrosoc,
+            )
+        else:
+            dados_intranet = consultar_oc_abertas_intranet(usuario=usuario, senha=senha)
         if dados_intranet:
+            _oc_ultima_tentativa_falha_ts = 0.0
             try:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(cache_path, "wb") as f:
+                tmp_path = cache_path.with_suffix(".pkl.tmp")
+                with open(tmp_path, "wb") as f:
                     pickle.dump(dados_intranet, f)
+                tmp_path.replace(cache_path)
+                _oc_cache_validado_mtime = cache_path.stat().st_mtime if not _cache_oc_eh_legado(dados_intranet) else None
             except Exception as exc:
                 print(f"[OC Cache] Aviso ao salvar cache de OCs: {exc}")
             return dados_intranet
     except Exception as exc:
+        _oc_ultima_tentativa_falha_ts = time.time()
         print(f"[OC Intranet] Aviso ao consultar OCs na Intranet (usando cache se disponível): {exc}")
 
     if cache_path.exists():
@@ -1030,6 +1370,7 @@ def carregar_ou_atualizar_intranet_concorrente(
     forcar_intranet: bool = False,
     usuario: Optional[str] = None,
     senha: Optional[str] = None,
+    itens_fallback_vidrosoc: Optional[Sequence[str]] = None,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Carrega simultaneamente OCs abertas e Tecidos Customizados utilizando ThreadPoolExecutor
@@ -1037,8 +1378,6 @@ def carregar_ou_atualizar_intranet_concorrente(
     e reduzindo o tempo de espera de ~24s para ~11s.
     Retorna (ocs_raw, tecidos_cust_raw).
     """
-    from concurrent.futures import ThreadPoolExecutor
-
     if not forcar_intranet:
         ocs = carregar_ou_atualizar_oc_abertas(forcar_intranet=False, usuario=usuario, senha=senha)
         tec = carregar_ou_atualizar_tecidos_customizados(forcar_intranet=False, usuario=usuario, senha=senha)
@@ -1046,7 +1385,21 @@ def carregar_ou_atualizar_intranet_concorrente(
 
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Sincronizando OCs e Tecidos CST da Intranet em paralelo...")
     with ThreadPoolExecutor(max_workers=2) as executor:
-        fut_oc = executor.submit(carregar_ou_atualizar_oc_abertas, forcar_intranet=True, usuario=usuario, senha=senha)
+        if itens_fallback_vidrosoc is not None:
+            fut_oc = executor.submit(
+                carregar_ou_atualizar_oc_abertas,
+                forcar_intranet=True,
+                usuario=usuario,
+                senha=senha,
+                itens_fallback_vidrosoc=itens_fallback_vidrosoc,
+            )
+        else:
+            fut_oc = executor.submit(
+                carregar_ou_atualizar_oc_abertas,
+                forcar_intranet=True,
+                usuario=usuario,
+                senha=senha,
+            )
         fut_tec = executor.submit(
             carregar_ou_atualizar_tecidos_customizados, forcar_intranet=True, usuario=usuario, senha=senha
         )

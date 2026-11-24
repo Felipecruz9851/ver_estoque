@@ -89,6 +89,8 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             ordem_op=payload.get("ordem_op"),
             todas_ops=bool(payload.get("todas_ops", False)),
             session_id=session_id,
+            escopo_abatimento=payload.get("escopo_abatimento", "global"),
+            filtros_escopo=payload.get("filtros_escopo"),
         )
     if method == "obter_resumo_pedido":
         return service.obter_resumo_pedido(
@@ -99,6 +101,8 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
             tipo=payload.get("tipo"),
             familias=payload.get("familias"),
             session_id=session_id,
+            escopo_abatimento=payload.get("escopo_abatimento", "global"),
+            filtros_escopo=payload.get("filtros_escopo"),
         )
     if method == "obter_opcoes_filtros_faltantes":
         return service.obter_opcoes_filtros_faltantes(session_id=session_id)
@@ -115,6 +119,8 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
         return service.obter_resumo_faltantes(
             filtros=payload.get("filtros"),
             session_id=session_id,
+            recarregar=bool(payload.get("recarregar", False)),
+            forcar_oc=bool(payload.get("forcar_oc", False)),
         )
     if method == "exportar_resumo_faltantes_excel":
         return service.exportar_resumo_faltantes_excel(

@@ -3,10 +3,11 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from backend import service, settings  # noqa: E402
+from backend import service, settings, snapshots  # noqa: E402
 
 
 def _todos_itens(res):
@@ -231,3 +232,65 @@ def test_resumo_faltantes_visao_por_local_item_pedido():
     assert exp.get("status") == "ok"
     xl = pd.ExcelFile(settings.EXPORTS_DIR / exp["nome"])
     assert "Por Local e Item-Pedido" in xl.sheet_names
+
+
+def test_pedidos_100_e_1000_desconsiderados_em_todos_os_escopos():
+    df_base = service.obter_cons_com_cache(recarregar=False)
+    peds_proib_int = {100, 1000}
+    peds_proib_str = {"100", "1000"}
+
+    if "Pedido" in df_base.columns:
+        assert not pd.to_numeric(df_base["Pedido"], errors="coerce").isin(peds_proib_int).any()
+    if "raiz_Pedido" in df_base.columns:
+        assert not pd.to_numeric(df_base["raiz_Pedido"], errors="coerce").isin(peds_proib_int).any()
+    assert not df_base["raiz_Pedido_Str"].astype(str).str.strip().isin(peds_proib_str).any()
+
+    itens_padrao, _, _ = service._obter_fila_calculada(todas_ops=False, session_id="t_ped_ign")
+    itens_todas, _, _ = service._obter_fila_calculada(todas_ops=True, session_id="t_ped_ign")
+    assert not itens_padrao["raiz_Pedido_Str"].astype(str).str.strip().isin(peds_proib_str).any()
+    assert not itens_todas["raiz_Pedido_Str"].astype(str).str.strip().isin(peds_proib_str).any()
+
+    # Confirma que as OPs originalmente com pedido 100/1000 continuam presentes, apenas com pedido vazio
+    snap_dir = snapshots.localizar_snapshot(tentar_sync=False)
+    df_ord = pl.read_parquet(snap_dir / "ordens.parquet").to_pandas()
+    df_cons = pl.read_parquet(snap_dir / "cons.parquet").to_pandas()
+    col_ord = "Ordem" if "Ordem" in df_ord.columns else "Ordem Prod"
+    col_op = "OP" if "OP" in df_cons.columns else "Ordem Cons"
+    ops_cons_validas = set(df_cons[col_op].fillna("").astype(str).str.strip().str.removesuffix(".0"))
+    mask_100_1000 = pd.to_numeric(df_ord["Pedido"], errors="coerce").isin(peds_proib_int)
+    ops_100_1000 = {
+        op
+        for op in df_ord.loc[mask_100_1000, col_ord].fillna("").astype(str).str.strip().str.removesuffix(".0")
+        if op and op in ops_cons_validas
+    }
+    assert len(ops_100_1000) > 0, "snapshot sem OPs 100/1000 com consumo para validar preservacao"
+
+    sub_preservadas = itens_todas[itens_todas["ordem_op"].astype(str).isin(ops_100_1000)]
+    assert ops_100_1000 <= set(sub_preservadas["ordem_op"].astype(str))
+    assert (sub_preservadas["raiz_Pedido_Str"].astype(str).str.strip() == "").all()
+
+    exemplo = sub_preservadas.iloc[0]
+    det = service.obter_detalhes_item_final(
+        raiz_item_final=str(exemplo["raiz_Item Final"]),
+        raiz_pedido="",
+        ordem_op=str(exemplo["ordem_op"]),
+        todas_ops=True,
+        session_id="t_ped_ign",
+    )
+    assert "erro" not in det
+    assert det["pedido"] == ""
+
+    assert not any(
+        ped in peds_proib_str for (_, ped) in service._enriquecimento.get("op_por_item_pedido", {}).keys()
+    )
+
+    assert "erro" in service.obter_resumo_pedido(pedido="100", session_id="t_ped_ign")
+    assert "erro" in service.obter_resumo_pedido(pedido="1000", session_id="t_ped_ign")
+
+    res_falt = service.obter_resumo_faltantes(
+        {"visao": "por_item_pedido", "todas_ops": True},
+        session_id="t_ped_ign",
+    )
+    for grp in res_falt.get("grupos_por_local_item") or []:
+        for it in grp.get("itens") or []:
+            assert it.get("pedido") not in peds_proib_str
