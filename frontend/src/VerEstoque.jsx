@@ -1,20 +1,57 @@
-import React, { useState, useEffect, useCallback, useRef, useId } from "react";
+import React, {
+  Suspense,
+  lazy,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useId,
+} from "react";
 import { apiCall } from "./api";
 import Sidebar from "./components/Sidebar";
-import SimuladorModal from "./components/SimuladorModal";
-import ModalFiltroFabricaLocal from "./components/ModalFiltroFabricaLocal";
-import ModalFiltroFamiliaComponente from "./components/ModalFiltroFamiliaComponente";
+import Toast from "./components/Toast";
+import Icon from "./components/Icon";
+import logoLider from "./components/logo_lider.png";
 import DisponibilidadeEstoque from "./screens/DisponibilidadeEstoque";
-import MatrizFaltasProduzidos from "./screens/MatrizFaltasProduzidos";
-import ResumoPedido from "./screens/ResumoPedido";
-import ResumoFaltantes from "./screens/ResumoFaltantes";
-import DetalhamentoInsumos from "./screens/DetalhamentoInsumos";
 import { useDebounce } from "./utils/useDebounce";
 import {
   SESSION_USER_KEY,
   SESSION_PASS_KEY,
   criarLinhaPedidoVazia,
 } from "./utils/formatters";
+
+const MatrizFaltasProduzidos = lazy(() =>
+  import("./screens/MatrizFaltasProduzidos")
+);
+const ResumoFaltantes = lazy(() => import("./screens/ResumoFaltantes"));
+const ResumoPedido = lazy(() => import("./screens/ResumoPedido"));
+const DetalhamentoInsumos = lazy(() => import("./screens/DetalhamentoInsumos"));
+const SimuladorModal = lazy(() => import("./components/SimuladorModal"));
+const ModalFiltroFabricaLocal = lazy(() =>
+  import("./components/ModalFiltroFabricaLocal")
+);
+const ModalFiltroFamiliaComponente = lazy(() =>
+  import("./components/ModalFiltroFamiliaComponente")
+);
+
+const SIDEBAR_COLLAPSE_KEY = "ver_estoque_sidebar_colapsada";
+
+const TITULOS_TELA = {
+  disponibilidade: "Disponibilidade de Estoque",
+  matriz: "Faltas Produzidos (Matriz)",
+  faltantes: "Itens Faltantes",
+  resumo: "Resumo do Pedido",
+  detalhes: "Detalhamento de Insumos",
+};
+
+function CarregandoTela() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 text-xs text-[#757575] gap-2.5 bg-[#F8F8F8]">
+      <Icon name="progress_activity" className="w-6 h-6 animate-spin text-[#8B5A2B]" />
+      <span>Carregando módulo...</span>
+    </div>
+  );
+}
 
 /**
  * Orquestrador Principal do Sistema Ver Estoque (Líder Design)
@@ -30,11 +67,49 @@ export default function VerEstoque() {
   const sentinelRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const simDialogRef = useRef(null);
-  const isFetchingRef = useRef(false);
+  const resetAbortRef = useRef(null);
+  const appendAbortRef = useRef(null);
+  const reqSeqRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const faltantesAbortRef = useRef(null);
+  const faltantesReqRef = useRef(0);
 
   // Navegação da Área Principal
   // 'disponibilidade' | 'matriz' | 'resumo' | 'detalhes' | 'faltantes'
   const [telaAtiva, setTelaAtiva] = useState("disponibilidade");
+
+  // Layout Sidebar Desktop + Drawer Mobile + Toast
+  const [sidebarColapsada, setSidebarColapsada] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const mostrarToast = useCallback((message, type = "error") => {
+    setToast({ id: Date.now(), message, type });
+  }, []);
+
+  const toggleSidebarColapso = useCallback(() => {
+    setSidebarColapsada((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        // Ignora caso localStorage esteja indisponível
+      }
+      return next;
+    });
+  }, []);
+
+  // Atualiza document.title conforme a tela ativa
+  useEffect(() => {
+    const titulo = TITULOS_TELA[telaAtiva] || "Ver Estoque";
+    document.title = `${titulo} — Ver Estoque`;
+  }, [telaAtiva]);
 
   // Estados de dados da Disponibilidade de Estoque
   const [itens, setItens] = useState([]);
@@ -50,7 +125,9 @@ export default function VerEstoque() {
   const [locaisProducao, setLocaisProducao] = useState([]);
   const [divisaoFabricas, setDivisaoFabricas] = useState(null);
   const [modalFiltroLocalAberto, setModalFiltroLocalAberto] = useState(false);
+  const [modalLocalMontado, setModalLocalMontado] = useState(false);
   const [modalFiltroFamiliaAberto, setModalFiltroFamiliaAberto] = useState(false);
+  const [modalFamiliaMontado, setModalFamiliaMontado] = useState(false);
   const [familiasComponentes3, setFamiliasComponentes3] = useState([]);
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [dataCarga, setDataCarga] = useState("");
@@ -91,8 +168,11 @@ export default function VerEstoque() {
   const debouncedFiltroPedido = useDebounce(filtroPedido, 350);
   const debouncedFiltroCodigo = useDebounce(filtroCodigo, 350);
   const debouncedColFiltros = useDebounce(colFiltros, 350);
+  const debouncedColFiltrosKey = JSON.stringify(debouncedColFiltros);
 
   // Modal do Simulador de Pedidos (Intranet)
+  const [simuladorAberto, setSimuladorAberto] = useState(false);
+  const [simuladorMontado, setSimuladorMontado] = useState(false);
   const [intranetUsuario, setIntranetUsuario] = useState(() => {
     try {
       return sessionStorage.getItem(SESSION_USER_KEY) || "";
@@ -138,7 +218,6 @@ export default function VerEstoque() {
   const [abaFaltantes, setAbaFaltantes] = useState("todos"); // 'todos' | 'P' | 'C'
   const [visaoFaltantes, setVisaoFaltantes] = useState("por_insumo"); // 'por_insumo' | 'por_item_pedido'
   const [exportandoFaltantes, setExportandoFaltantes] = useState(false);
-  const faltantesReqRef = useRef(0);
 
   // Tela de Matriz Pivot de Componentes Produzidos Faltantes
   const [opcoesMatriz, setOpcoesMatriz] = useState({
@@ -178,11 +257,36 @@ export default function VerEstoque() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeColMenu]);
 
+  // Cancela requisições em andamento ao desmontar
+  useEffect(() => {
+    return () => {
+      resetAbortRef.current?.abort();
+      appendAbortRef.current?.abort();
+      faltantesAbortRef.current?.abort();
+    };
+  }, []);
+
   // Função centralizada para carregar dados (reset ou append)
   const carregarDados = useCallback(
     async (isReset = true, paginaDestino = 0, recarregarCache = false) => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
+      let controller = null;
+      let seq = 0;
+
+      if (isReset) {
+        resetAbortRef.current?.abort();
+        appendAbortRef.current?.abort();
+        loadingMoreRef.current = false;
+        controller = new AbortController();
+        resetAbortRef.current = controller;
+        seq = ++reqSeqRef.current;
+        setLoadingMore(false);
+      } else {
+        if (loadingMoreRef.current) return;
+        loadingMoreRef.current = true;
+        controller = new AbortController();
+        appendAbortRef.current = controller;
+        seq = reqSeqRef.current;
+      }
 
       let stepTimer = null;
       if (isReset) {
@@ -224,7 +328,10 @@ export default function VerEstoque() {
           sincronizar_snapshot: recarregarCache,
         };
 
-        const res = await apiCall("obter_estoque_itens_finais", payload);
+        const res = await apiCall("obter_estoque_itens_finais", payload, {
+          signal: controller.signal,
+        });
+        if (seq !== reqSeqRef.current) return;
         if (res && res.erro) throw new Error(res.erro);
 
         const novosItens = res.itens || [];
@@ -256,12 +363,18 @@ export default function VerEstoque() {
         if (res.snapshot) setSnapshotNome(res.snapshot);
         if (res.session_id) setSessionId(res.session_id);
       } catch (e) {
-        alert("Erro ao carregar análise de estoque: " + e.message);
+        if (e?.name === "AbortError" || controller.signal.aborted) return;
+        mostrarToast("Erro ao carregar análise de estoque: " + e.message, "error");
       } finally {
         if (stepTimer) clearTimeout(stepTimer);
-        isFetchingRef.current = false;
-        setLoading(false);
-        setLoadingMore(false);
+        if (isReset) {
+          if (seq === reqSeqRef.current) {
+            setLoading(false);
+          }
+        } else {
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+        }
       }
     },
     [
@@ -283,17 +396,19 @@ export default function VerEstoque() {
       filtroDataFim,
       filtroTipoData,
       pageSize,
+      mostrarToast,
     ]
   );
 
   // Recarrega do início sempre que qualquer filtro mudar (com debounce aplicado)
   useEffect(() => {
     carregarDados(true, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filtroLocal,
     debouncedFiltroPedido,
     debouncedFiltroCodigo,
-    debouncedColFiltros,
+    debouncedColFiltrosKey,
     filtroStatus,
     filtroBaixa,
     filtroTipo,
@@ -346,12 +461,15 @@ export default function VerEstoque() {
     if (linhasSimulador.length === 0) {
       setLinhasSimulador([criarLinhaPedidoVazia()]);
     }
+    setSimuladorMontado(true);
+    setSimuladorAberto(true);
     if (simDialogRef.current && !simDialogRef.current.open) {
       simDialogRef.current.showModal();
     }
   };
 
   const fecharModalSimulador = () => {
+    setSimuladorAberto(false);
     if (simDialogRef.current && simDialogRef.current.open) {
       simDialogRef.current.close();
     }
@@ -442,7 +560,7 @@ export default function VerEstoque() {
         await carregarDados(true, 0, false);
       }
     } catch (err) {
-      alert("Erro ao remover pedido simulado: " + err.message);
+      mostrarToast("Erro ao remover pedido simulado: " + err.message, "error");
       setLoading(false);
     }
   };
@@ -458,7 +576,7 @@ export default function VerEstoque() {
         await carregarDados(true, 0, false);
       }
     } catch (err) {
-      alert("Erro ao limpar simulação: " + err.message);
+      mostrarToast("Erro ao limpar simulação: " + err.message, "error");
       setLoading(false);
     }
   };
@@ -494,7 +612,7 @@ export default function VerEstoque() {
         a.remove();
       }
     } catch (e) {
-      alert("Erro ao exportar Excel: " + e.message);
+      mostrarToast("Erro ao exportar Excel: " + e.message, "error");
     } finally {
       setExportando(false);
     }
@@ -545,7 +663,7 @@ export default function VerEstoque() {
           disponiveis: [],
         });
       } else {
-        alert("Erro ao obter detalhes do item: " + msg);
+        mostrarToast("Erro ao obter detalhes do item: " + msg, "error");
       }
     } finally {
       setCarregandoDetalhes(false);
@@ -662,15 +780,23 @@ export default function VerEstoque() {
   });
 
   const carregarFaltantes = async (forcarRecarga = false) => {
+    faltantesAbortRef.current?.abort();
+    const controller = new AbortController();
+    faltantesAbortRef.current = controller;
     const req = ++faltantesReqRef.current;
+
     setCarregandoFaltantes(true);
     setErroFaltantes("");
     try {
-      const res = await apiCall("obter_resumo_faltantes", {
-        filtros: montarFiltrosFaltantes(),
-        recarregar: Boolean(forcarRecarga),
-        forcar_oc: Boolean(forcarRecarga),
-      });
+      const res = await apiCall(
+        "obter_resumo_faltantes",
+        {
+          filtros: montarFiltrosFaltantes(),
+          recarregar: Boolean(forcarRecarga),
+          forcar_oc: Boolean(forcarRecarga),
+        },
+        { signal: controller.signal }
+      );
       if (req !== faltantesReqRef.current) return;
       if (res && res.erro) throw new Error(res.erro);
       if (res?.data_carga) setDataCarga(res.data_carga);
@@ -678,6 +804,7 @@ export default function VerEstoque() {
       if (res?.snapshot) setSnapshotNome(res.snapshot);
       setFaltantesDados(res);
     } catch (e) {
+      if (e?.name === "AbortError" || controller.signal.aborted) return;
       if (req !== faltantesReqRef.current) return;
       setErroFaltantes(e.message || "Não foi possível carregar os itens faltantes.");
     } finally {
@@ -704,7 +831,7 @@ export default function VerEstoque() {
     filtroDataInicio,
     filtroDataFim,
     filtroTipoData,
-    debouncedColFiltros,
+    debouncedColFiltrosKey,
   ]);
 
   const handleExportarFaltantes = async () => {
@@ -721,7 +848,7 @@ export default function VerEstoque() {
         a.remove();
       }
     } catch (e) {
-      alert("Erro ao exportar itens faltantes: " + e.message);
+      mostrarToast("Erro ao exportar itens faltantes: " + e.message, "error");
     } finally {
       setExportandoFaltantes(false);
     }
@@ -840,7 +967,7 @@ export default function VerEstoque() {
         a.remove();
       }
     } catch (e) {
-      alert("Erro ao exportar Matriz Excel: " + e.message);
+      mostrarToast("Erro ao exportar Matriz Excel: " + e.message, "error");
     } finally {
       setExportandoMatriz(false);
     }
@@ -876,7 +1003,14 @@ export default function VerEstoque() {
     Boolean(filtroDataFim) ||
     Object.values(colFiltros).some((v) => Boolean(v && v.trim()));
 
+  const handleAbrirModalFiltroLocal = () => {
+    setModalLocalMontado(true);
+    setModalFiltroLocalAberto(true);
+  };
+
   const handleAbrirModalFiltroFamilia = async () => {
+    setModalFamiliaMontado(true);
+    setModalFiltroFamiliaAberto(true);
     if (!familiasComponentes3 || familiasComponentes3.length === 0) {
       try {
         const res = await apiCall("obter_familias_componentes_3", {});
@@ -887,7 +1021,6 @@ export default function VerEstoque() {
         console.warn("Erro ao buscar famílias de componentes:", err);
       }
     }
-    setModalFiltroFamiliaAberto(true);
   };
 
   // Aplica filtro digitado no título da coluna no Backend
@@ -940,8 +1073,12 @@ export default function VerEstoque() {
   };
 
   return (
-    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-row bg-[#F8F8F8] text-[#1A1A1A] font-sans">
-      {/* SIDEBAR FIXA E PERSISTENTE (COMUM A TODAS AS TELAS) */}
+    <div className="min-h-screen lg:h-screen lg:max-h-screen w-full max-w-full overflow-x-hidden lg:overflow-hidden flex flex-col lg:flex-row bg-[#F8F8F8] text-[#1A1A1A] font-sans">
+      <a href="#conteudo-principal" className="skip-link">
+        Pular para o conteúdo principal
+      </a>
+
+      {/* SIDEBAR FIXA E PERSISTENTE (DESKTOP COLAPSÁVEL + DRAWER MOBILE) */}
       <Sidebar
         telaAtiva={telaAtiva}
         onNavegar={handleNavegar}
@@ -956,239 +1093,284 @@ export default function VerEstoque() {
         dataCarregamento={dataCarga}
         dataOc={dataOc}
         snapshotNome={snapshotNome}
+        colapsada={sidebarColapsada}
+        onToggleColapso={toggleSidebarColapso}
+        menuMobileAberto={menuMobileAberto}
+        onFecharMobile={() => setMenuMobileAberto(false)}
       />
 
-      {/* ÁREA PRINCIPAL DA APLICAÇÃO */}
-      {telaAtiva === "disponibilidade" && (
-        <DisponibilidadeEstoque
-          metricas={metricas}
-          filtroLocal={filtroLocal}
-          setFiltroLocal={setFiltroLocal}
-          locaisProducao={locaisProducao}
-          filtroPedido={filtroPedido}
-          setFiltroPedido={setFiltroPedido}
-          filtroCodigo={filtroCodigo}
-          setFiltroCodigo={setFiltroCodigo}
-          filtroTipoData={filtroTipoData}
-          setFiltroTipoData={setFiltroTipoData}
-          filtroDataInicio={filtroDataInicio}
-          setFiltroDataInicio={setFiltroDataInicio}
-          filtroDataFim={filtroDataFim}
-          setFiltroDataFim={setFiltroDataFim}
-          filtroBaixa={filtroBaixa}
-          setFiltroBaixa={setFiltroBaixa}
-          filtroTipo={filtroTipo}
-          setFiltroTipo={setFiltroTipo}
-          filtroStatus={filtroStatus}
-          setFiltroStatus={setFiltroStatus}
-          filtroApenasSimulados={filtroApenasSimulados}
-          setFiltroApenasSimulados={setFiltroApenasSimulados}
-          filtroTodasOps={filtroTodasOps}
-          setFiltroTodasOps={setFiltroTodasOps}
-          filtroEscopoAbatimento={filtroEscopoAbatimento}
-          setFiltroEscopoAbatimento={setFiltroEscopoAbatimento}
-          temFiltrosAtivos={temFiltrosAtivos}
-          limparFiltros={limparFiltros}
-          pedidosSimuladosAtivos={pedidosSimuladosAtivos}
-          handleRemoverPedidoSimulado={handleRemoverPedidoSimulado}
-          colFiltros={colFiltros}
-          limparFiltroColuna={limparFiltroColuna}
-          aplicarFiltroColuna={aplicarFiltroColuna}
-          activeColMenu={activeColMenu}
-          setActiveColMenu={setActiveColMenu}
-          localColInput={localColInput}
-          setLocalColInput={setLocalColInput}
-          scrollContainerRef={scrollContainerRef}
-          handleScrollContainer={handleScrollContainer}
-          tableId={tableId}
-          itens={itens}
-          loading={loading}
-          loadingMsg={loadingMsg}
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          sentinelRef={sentinelRef}
-          totalRegistros={totalRegistros}
-          onAbrirDetalhes={abrirDetalhes}
-          onAbrirResumoPedido={abrirResumoPedido}
-          onAbrirSimulador={abrirModalSimulador}
-          onAbrirModalFiltroLocal={() => setModalFiltroLocalAberto(true)}
-          filtroFamilias={filtroFamilias}
-          setFiltroFamilias={setFiltroFamilias}
-          familiasDisponiveis={familiasComponentes3}
-          onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
-          onAbrirFaltantes={() => setTelaAtiva("faltantes")}
-        />
-      )}
+      {/* COLUNA PRINCIPAL */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-x-hidden lg:overflow-hidden">
+        {/* Barra móvel compacta (< 1024px) */}
+        <div className="lg:hidden flex items-center justify-between gap-3 px-4 py-2 bg-white border-b border-[#EAEAEA] shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMenuMobileAberto(true)}
+              aria-label="Abrir menu de navegação"
+              aria-expanded={menuMobileAberto}
+              className="min-h-[44px] min-w-[44px] -ml-2 flex items-center justify-center rounded-xs text-[#1A1A1A] hover:bg-[#F2F2F2] transition-colors cursor-pointer shrink-0"
+            >
+              <Icon name="menu" className="w-5 h-5" />
+            </button>
+            <img
+              src={logoLider}
+              alt="Líder Design"
+              width={88}
+              height={24}
+              className="h-5 w-auto brightness-50 contrast-125 shrink-0"
+            />
+            <span className="text-xs font-medium text-[#757575] truncate">
+              • {TITULOS_TELA[telaAtiva] || "Ver Estoque"}
+            </span>
+          </div>
+        </div>
 
-      {telaAtiva === "faltantes" && (
-        <ResumoFaltantes
-          dados={faltantesDados}
-          carregando={carregandoFaltantes}
-          erro={erroFaltantes}
-          exportando={exportandoFaltantes}
-          aba={abaFaltantes}
-          setAba={setAbaFaltantes}
-          visao={visaoFaltantes}
-          setVisao={setVisaoFaltantes}
-          filtroTodasOps={filtroTodasOps}
-          setFiltroTodasOps={setFiltroTodasOps}
-          filtroEscopoAbatimento={filtroEscopoAbatimento}
-          setFiltroEscopoAbatimento={setFiltroEscopoAbatimento}
-          onRecarregar={() => carregarFaltantes(true)}
-          onExportar={handleExportarFaltantes}
-          onAbrirDetalhes={abrirDetalhes}
-          onAbrirResumoPedido={abrirResumoPedido}
-          onVoltar={() => setTelaAtiva("disponibilidade")}
-          filtroLocal={filtroLocal}
-          setFiltroLocal={setFiltroLocal}
-          filtroFamilias={filtroFamilias}
-          setFiltroFamilias={setFiltroFamilias}
-          filtroPedido={filtroPedido}
-          setFiltroPedido={setFiltroPedido}
-          filtroCodigo={filtroCodigo}
-          setFiltroCodigo={setFiltroCodigo}
-          filtroBaixa={filtroBaixa}
-          setFiltroBaixa={setFiltroBaixa}
-          filtroTipoData={filtroTipoData}
-          setFiltroTipoData={setFiltroTipoData}
-          filtroDataInicio={filtroDataInicio}
-          setFiltroDataInicio={setFiltroDataInicio}
-          filtroDataFim={filtroDataFim}
-          setFiltroDataFim={setFiltroDataFim}
-          onAbrirModalFiltroLocal={() => setModalFiltroLocalAberto(true)}
-          onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
-          limparFiltros={limparFiltros}
-          temFiltrosAtivos={temFiltrosAtivos}
-        />
-      )}
+        {/* ÁREA PRINCIPAL DA APLICAÇÃO */}
+        {telaAtiva === "disponibilidade" && (
+          <DisponibilidadeEstoque
+            metricas={metricas}
+            filtroLocal={filtroLocal}
+            setFiltroLocal={setFiltroLocal}
+            locaisProducao={locaisProducao}
+            filtroPedido={filtroPedido}
+            setFiltroPedido={setFiltroPedido}
+            filtroCodigo={filtroCodigo}
+            setFiltroCodigo={setFiltroCodigo}
+            filtroTipoData={filtroTipoData}
+            setFiltroTipoData={setFiltroTipoData}
+            filtroDataInicio={filtroDataInicio}
+            setFiltroDataInicio={setFiltroDataInicio}
+            filtroDataFim={filtroDataFim}
+            setFiltroDataFim={setFiltroDataFim}
+            filtroBaixa={filtroBaixa}
+            setFiltroBaixa={setFiltroBaixa}
+            filtroTipo={filtroTipo}
+            setFiltroTipo={setFiltroTipo}
+            filtroStatus={filtroStatus}
+            setFiltroStatus={setFiltroStatus}
+            filtroApenasSimulados={filtroApenasSimulados}
+            setFiltroApenasSimulados={setFiltroApenasSimulados}
+            filtroTodasOps={filtroTodasOps}
+            setFiltroTodasOps={setFiltroTodasOps}
+            filtroEscopoAbatimento={filtroEscopoAbatimento}
+            setFiltroEscopoAbatimento={setFiltroEscopoAbatimento}
+            temFiltrosAtivos={temFiltrosAtivos}
+            limparFiltros={limparFiltros}
+            pedidosSimuladosAtivos={pedidosSimuladosAtivos}
+            handleRemoverPedidoSimulado={handleRemoverPedidoSimulado}
+            colFiltros={colFiltros}
+            limparFiltroColuna={limparFiltroColuna}
+            aplicarFiltroColuna={aplicarFiltroColuna}
+            activeColMenu={activeColMenu}
+            setActiveColMenu={setActiveColMenu}
+            localColInput={localColInput}
+            setLocalColInput={setLocalColInput}
+            scrollContainerRef={scrollContainerRef}
+            handleScrollContainer={handleScrollContainer}
+            tableId={tableId}
+            itens={itens}
+            loading={loading}
+            loadingMsg={loadingMsg}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            sentinelRef={sentinelRef}
+            totalRegistros={totalRegistros}
+            onAbrirDetalhes={abrirDetalhes}
+            onAbrirResumoPedido={abrirResumoPedido}
+            onAbrirSimulador={abrirModalSimulador}
+            onAbrirModalFiltroLocal={handleAbrirModalFiltroLocal}
+            filtroFamilias={filtroFamilias}
+            setFiltroFamilias={setFiltroFamilias}
+            familiasDisponiveis={familiasComponentes3}
+            onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
+            onAbrirFaltantes={() => setTelaAtiva("faltantes")}
+          />
+        )}
 
-      {telaAtiva === "matriz" && (
-        <MatrizFaltasProduzidos
-          matrizDados={matrizDados}
-          carregandoMatriz={carregandoMatriz}
-          erroMatriz={erroMatriz}
-          opcoesMatriz={opcoesMatriz}
-          matrizMenuAberto={matrizMenuAberto}
-          setMatrizMenuAberto={setMatrizMenuAberto}
-          matrizLocaisPaiSel={matrizLocaisPaiSel}
-          setMatrizLocaisPaiSel={setMatrizLocaisPaiSel}
-          toggleLocalPaiMatriz={toggleLocalPaiMatriz}
-          matrizLocaisCompSel={matrizLocaisCompSel}
-          setMatrizLocaisCompSel={setMatrizLocaisCompSel}
-          toggleLocalCompMatriz={toggleLocalCompMatriz}
-          matrizBuscaLocalPai={matrizBuscaLocalPai}
-          setMatrizBuscaLocalPai={setMatrizBuscaLocalPai}
-          matrizBuscaLocalComp={matrizBuscaLocalComp}
-          setMatrizBuscaLocalComp={setMatrizBuscaLocalComp}
-          matrizEscopoAbatimento={matrizEscopoAbatimento}
-          setMatrizEscopoAbatimento={setMatrizEscopoAbatimento}
-          matrizBaixa={matrizBaixa}
-          setMatrizBaixa={setMatrizBaixa}
-          matrizDataInicio={matrizDataInicio}
-          setMatrizDataInicio={setMatrizDataInicio}
-          matrizDataFim={matrizDataFim}
-          setMatrizDataFim={setMatrizDataFim}
-          matrizBuscaItem={matrizBuscaItem}
-          setMatrizBuscaItem={setMatrizBuscaItem}
-          gruposExpandidos={gruposExpandidos}
-          setGruposExpandidos={setGruposExpandidos}
-          exportandoMatriz={exportandoMatriz}
-          carregarMatrizFaltantes={carregarMatrizFaltantes}
-          handleExportarMatrizExcel={handleExportarMatrizExcel}
-          onVoltar={() => setTelaAtiva("disponibilidade")}
-        />
-      )}
+        <Suspense fallback={<CarregandoTela />}>
+          {telaAtiva === "faltantes" && (
+            <ResumoFaltantes
+              dados={faltantesDados}
+              carregando={carregandoFaltantes}
+              erro={erroFaltantes}
+              exportando={exportandoFaltantes}
+              aba={abaFaltantes}
+              setAba={setAbaFaltantes}
+              visao={visaoFaltantes}
+              setVisao={setVisaoFaltantes}
+              filtroTodasOps={filtroTodasOps}
+              setFiltroTodasOps={setFiltroTodasOps}
+              filtroEscopoAbatimento={filtroEscopoAbatimento}
+              setFiltroEscopoAbatimento={setFiltroEscopoAbatimento}
+              onRecarregar={() => carregarFaltantes(true)}
+              onExportar={handleExportarFaltantes}
+              onAbrirDetalhes={abrirDetalhes}
+              onAbrirResumoPedido={abrirResumoPedido}
+              onVoltar={() => setTelaAtiva("disponibilidade")}
+              filtroLocal={filtroLocal}
+              setFiltroLocal={setFiltroLocal}
+              filtroFamilias={filtroFamilias}
+              setFiltroFamilias={setFiltroFamilias}
+              filtroPedido={filtroPedido}
+              setFiltroPedido={setFiltroPedido}
+              filtroCodigo={filtroCodigo}
+              setFiltroCodigo={setFiltroCodigo}
+              filtroBaixa={filtroBaixa}
+              setFiltroBaixa={setFiltroBaixa}
+              filtroTipoData={filtroTipoData}
+              setFiltroTipoData={setFiltroTipoData}
+              filtroDataInicio={filtroDataInicio}
+              setFiltroDataInicio={setFiltroDataInicio}
+              filtroDataFim={filtroDataFim}
+              setFiltroDataFim={setFiltroDataFim}
+              onAbrirModalFiltroLocal={handleAbrirModalFiltroLocal}
+              onAbrirModalFiltroFamilia={handleAbrirModalFiltroFamilia}
+              limparFiltros={limparFiltros}
+              temFiltrosAtivos={temFiltrosAtivos}
+            />
+          )}
 
-      {telaAtiva === "resumo" && (
-        <ResumoPedido
-          resumoDados={resumoDados}
-          carregandoResumo={carregandoResumo}
-          erroResumo={erroResumo}
-          resumoPedidoInput={resumoPedidoInput}
-          setResumoPedidoInput={setResumoPedidoInput}
-          resumoItemEscopo={resumoItemEscopo}
-          resumoBaixa={resumoBaixa}
-          setResumoBaixa={setResumoBaixa}
-          resumoTipo={resumoTipo}
-          setResumoTipo={setResumoTipo}
-          abaResumo={abaResumo}
-          setAbaResumo={setAbaResumo}
-          carregarResumoPedido={carregarResumoPedido}
-          onVoltar={() => setTelaAtiva("disponibilidade")}
-        />
-      )}
+          {telaAtiva === "matriz" && (
+            <MatrizFaltasProduzidos
+              matrizDados={matrizDados}
+              carregandoMatriz={carregandoMatriz}
+              erroMatriz={erroMatriz}
+              opcoesMatriz={opcoesMatriz}
+              matrizMenuAberto={matrizMenuAberto}
+              setMatrizMenuAberto={setMatrizMenuAberto}
+              matrizLocaisPaiSel={matrizLocaisPaiSel}
+              setMatrizLocaisPaiSel={setMatrizLocaisPaiSel}
+              toggleLocalPaiMatriz={toggleLocalPaiMatriz}
+              matrizLocaisCompSel={matrizLocaisCompSel}
+              setMatrizLocaisCompSel={setMatrizLocaisCompSel}
+              toggleLocalCompMatriz={toggleLocalCompMatriz}
+              matrizBuscaLocalPai={matrizBuscaLocalPai}
+              setMatrizBuscaLocalPai={setMatrizBuscaLocalPai}
+              matrizBuscaLocalComp={matrizBuscaLocalComp}
+              setMatrizBuscaLocalComp={setMatrizBuscaLocalComp}
+              matrizEscopoAbatimento={matrizEscopoAbatimento}
+              setMatrizEscopoAbatimento={setMatrizEscopoAbatimento}
+              matrizBaixa={matrizBaixa}
+              setMatrizBaixa={setMatrizBaixa}
+              matrizDataInicio={matrizDataInicio}
+              setMatrizDataInicio={setMatrizDataInicio}
+              matrizDataFim={matrizDataFim}
+              setMatrizDataFim={setMatrizDataFim}
+              matrizBuscaItem={matrizBuscaItem}
+              setMatrizBuscaItem={setMatrizBuscaItem}
+              gruposExpandidos={gruposExpandidos}
+              setGruposExpandidos={setGruposExpandidos}
+              exportandoMatriz={exportandoMatriz}
+              carregarMatrizFaltantes={carregarMatrizFaltantes}
+              handleExportarMatrizExcel={handleExportarMatrizExcel}
+              onVoltar={() => setTelaAtiva("disponibilidade")}
+            />
+          )}
 
-      {telaAtiva === "detalhes" && (
-        <DetalhamentoInsumos
-          itemSelecionado={itemSelecionado}
-          detalhesItem={detalhesItem}
-          carregandoDetalhes={carregandoDetalhes}
-          abaDetalhe={abaDetalhe}
-          setAbaDetalhe={setAbaDetalhe}
-          modalBaixa={modalBaixa}
-          setModalBaixa={setModalBaixa}
-          modalTipo={modalTipo}
-          setModalTipo={setModalTipo}
-          filtroTodasOps={filtroTodasOps}
-          filtroEscopoAbatimento={filtroEscopoAbatimento}
-          carregarDetalhes={carregarDetalhes}
-          onAbrirResumoPedido={abrirResumoPedido}
-          onVoltar={() => setTelaAtiva("disponibilidade")}
-        />
-      )}
+          {telaAtiva === "resumo" && (
+            <ResumoPedido
+              resumoDados={resumoDados}
+              carregandoResumo={carregandoResumo}
+              erroResumo={erroResumo}
+              resumoPedidoInput={resumoPedidoInput}
+              setResumoPedidoInput={setResumoPedidoInput}
+              resumoItemEscopo={resumoItemEscopo}
+              resumoBaixa={resumoBaixa}
+              setResumoBaixa={setResumoBaixa}
+              resumoTipo={resumoTipo}
+              setResumoTipo={setResumoTipo}
+              abaResumo={abaResumo}
+              setAbaResumo={setAbaResumo}
+              carregarResumoPedido={carregarResumoPedido}
+              onVoltar={() => setTelaAtiva("disponibilidade")}
+            />
+          )}
+
+          {telaAtiva === "detalhes" && (
+            <DetalhamentoInsumos
+              itemSelecionado={itemSelecionado}
+              detalhesItem={detalhesItem}
+              carregandoDetalhes={carregandoDetalhes}
+              abaDetalhe={abaDetalhe}
+              setAbaDetalhe={setAbaDetalhe}
+              modalBaixa={modalBaixa}
+              setModalBaixa={setModalBaixa}
+              modalTipo={modalTipo}
+              setModalTipo={setModalTipo}
+              filtroTodasOps={filtroTodasOps}
+              filtroEscopoAbatimento={filtroEscopoAbatimento}
+              carregarDetalhes={carregarDetalhes}
+              onAbrirResumoPedido={abrirResumoPedido}
+              onVoltar={() => setTelaAtiva("disponibilidade")}
+            />
+          )}
+        </Suspense>
+      </div>
 
       {/* MODAL NATIVO <dialog> DO SIMULADOR DE PEDIDOS (INTRANET) */}
-      <SimuladorModal
-        dialogRef={simDialogRef}
-        dialogTitleId={simDialogTitleId}
-        titleId={simDialogTitleId}
-        userFieldId={userFieldId}
-        passFieldId={passFieldId}
-        intranetUsuario={intranetUsuario}
-        setIntranetUsuario={setIntranetUsuario}
-        intranetSenha={intranetSenha}
-        setIntranetSenha={setIntranetSenha}
-        mostrarSenha={mostrarSenha}
-        setMostrarSenha={setMostrarSenha}
-        linhasSimulador={linhasSimulador}
-        onAdicionarLinha={adicionarLinhaPedido}
-        adicionarLinhaPedido={adicionarLinhaPedido}
-        onRemoverLinha={removerLinhaPedido}
-        removerLinhaPedido={removerLinhaPedido}
-        onAtualizarLinha={atualizarLinhaPedido}
-        atualizarLinhaPedido={atualizarLinhaPedido}
-        onConfirmarSimulacao={handleConfirmarSimulacao}
-        handleConfirmarSimulacao={handleConfirmarSimulacao}
-        onFecharModal={fecharModalSimulador}
-        fecharModalSimulador={fecharModalSimulador}
-        simulando={simulando}
-        erroSimulador={erroSimulador}
-        avisoSimulador={avisoSimulador}
-        pedidosSimuladosAtivos={pedidosSimuladosAtivos}
-        onRemoverPedidoSimulado={handleRemoverPedidoSimulado}
-        handleRemoverPedidoSimulado={handleRemoverPedidoSimulado}
-        onLimparSimulacao={handleLimparSimulacao}
-        handleLimparSimulacao={handleLimparSimulacao}
-      />
+      <Suspense fallback={null}>
+        {simuladorMontado && (
+          <SimuladorModal
+            aberto={simuladorAberto}
+            dialogRef={simDialogRef}
+            dialogTitleId={simDialogTitleId}
+            titleId={simDialogTitleId}
+            userFieldId={userFieldId}
+            passFieldId={passFieldId}
+            intranetUsuario={intranetUsuario}
+            setIntranetUsuario={setIntranetUsuario}
+            intranetSenha={intranetSenha}
+            setIntranetSenha={setIntranetSenha}
+            mostrarSenha={mostrarSenha}
+            setMostrarSenha={setMostrarSenha}
+            linhasSimulador={linhasSimulador}
+            onAdicionarLinha={adicionarLinhaPedido}
+            adicionarLinhaPedido={adicionarLinhaPedido}
+            onRemoverLinha={removerLinhaPedido}
+            removerLinhaPedido={removerLinhaPedido}
+            onAtualizarLinha={atualizarLinhaPedido}
+            atualizarLinhaPedido={atualizarLinhaPedido}
+            onConfirmarSimulacao={handleConfirmarSimulacao}
+            handleConfirmarSimulacao={handleConfirmarSimulacao}
+            onFecharModal={fecharModalSimulador}
+            fecharModalSimulador={fecharModalSimulador}
+            simulando={simulando}
+            erroSimulador={erroSimulador}
+            avisoSimulador={avisoSimulador}
+            pedidosSimuladosAtivos={pedidosSimuladosAtivos}
+            onRemoverPedidoSimulado={handleRemoverPedidoSimulado}
+            handleRemoverPedidoSimulado={handleRemoverPedidoSimulado}
+            onLimparSimulacao={handleLimparSimulacao}
+            handleLimparSimulacao={handleLimparSimulacao}
+          />
+        )}
 
-      {/* MODAL DE FILTRO DE FÁBRICAS E LOCAIS DE PRODUÇÃO (LÍDER DESIGN) */}
-      <ModalFiltroFabricaLocal
-        aberto={modalFiltroLocalAberto}
-        onFechar={() => setModalFiltroLocalAberto(false)}
-        locaisDisponiveis={locaisProducao}
-        divisaoFabricas={divisaoFabricas}
-        locaisSelecionados={filtroLocal}
-        onAplicar={(novosLocais) => setFiltroLocal(novosLocais)}
-      />
+        {/* MODAL DE FILTRO DE FÁBRICAS E LOCAIS DE PRODUÇÃO (LÍDER DESIGN) */}
+        {modalLocalMontado && (
+          <ModalFiltroFabricaLocal
+            aberto={modalFiltroLocalAberto}
+            onFechar={() => setModalFiltroLocalAberto(false)}
+            locaisDisponiveis={locaisProducao}
+            divisaoFabricas={divisaoFabricas}
+            locaisSelecionados={filtroLocal}
+            onAplicar={(novosLocais) => setFiltroLocal(novosLocais)}
+          />
+        )}
 
-      {/* MODAL DE FILTRO DE FAMÍLIAS DE COMPONENTES (ITENS INICIADOS EM 3) */}
-      <ModalFiltroFamiliaComponente
-        aberto={modalFiltroFamiliaAberto}
-        onFechar={() => setModalFiltroFamiliaAberto(false)}
-        familiasDisponiveis={familiasComponentes3}
-        familiasSelecionadas={filtroFamilias}
-        onAplicar={(novasFamilias) => setFiltroFamilias(novasFamilias)}
-      />
+        {/* MODAL DE FILTRO DE FAMÍLIAS DE COMPONENTES (ITENS INICIADOS EM 3) */}
+        {modalFamiliaMontado && (
+          <ModalFiltroFamiliaComponente
+            aberto={modalFiltroFamiliaAberto}
+            onFechar={() => setModalFiltroFamiliaAberto(false)}
+            familiasDisponiveis={familiasComponentes3}
+            familiasSelecionadas={filtroFamilias}
+            onAplicar={(novasFamilias) => setFiltroFamilias(novasFamilias)}
+          />
+        )}
+      </Suspense>
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

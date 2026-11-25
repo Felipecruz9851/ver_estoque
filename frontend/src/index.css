@@ -84,6 +84,97 @@ dialog::backdrop {
   backdrop-filter: blur(3px);
 }
 
+/* Drawer mobile em <dialog> */
+.mobile-drawer {
+  margin: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: none;
+  padding: 0;
+  background: #FAFAFA;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease-out;
+}
+
+.mobile-drawer[open] {
+  transform: translateX(0);
+}
+
+.mobile-drawer::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-drawer {
+    transition: none;
+  }
+}
+
+/* Remove seta nativa duplicada em <select> estilizados */
+.select-custom {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none;
+}
+
+/* Renderização adiada de seções/tabelas fora da viewport */
+.deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 72px;
+}
+
+.deferred-table-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 380px;
+}
+
+@supports not (content-visibility: auto) {
+  .deferred-section,
+  .deferred-table-card {
+    contain: layout style paint;
+  }
+}
+
+/* Skip link acessível apenas via teclado */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 9999;
+  padding: 0.625rem 1rem;
+  background-color: #1A1A1A;
+  color: #FFFFFF;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 2px;
+  text-decoration: none;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.skip-link:focus-visible {
+  clip-path: none;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  outline: 2px solid #8B5A2B;
+  outline-offset: 2px;
+}
+
+/* Alvos de toque mínimos em dispositivos touch */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+  }
+}
+
 /* Indicador nativo de calendário com cursor de clique e destaque */
 input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 0.7;

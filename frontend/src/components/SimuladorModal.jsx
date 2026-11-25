@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import Icon from "./Icon";
 
 /**
  * Modal nativo <dialog> do Simulador de Pedidos na Intranet (Líder Design)
@@ -6,6 +7,7 @@ import React from "react";
  * adição/remoção de linhas e consulta na Intranet.
  */
 export default function SimuladorModal({
+  aberto,
   dialogRef,
   dialogTitleId,
   titleId,
@@ -38,6 +40,10 @@ export default function SimuladorModal({
   onRemoverPedidoSimulado,
   handleRemoverPedidoSimulado,
 }) {
+  const internalRef = useRef(null);
+  const resolvedRef = dialogRef || internalRef;
+  const pointerDownOutsideRef = useRef(false);
+
   const confirmar = onConfirmarSimulacao || handleConfirmarSimulacao;
   const fechar = onFecharModal || fecharModalSimulador;
   const adicionar = onAdicionarLinha || adicionarLinhaPedido;
@@ -47,22 +53,70 @@ export default function SimuladorModal({
   const removerSimulado = onRemoverPedidoSimulado || handleRemoverPedidoSimulado;
   const idTitulo = dialogTitleId || titleId || "sim-dialog-title";
 
+  useEffect(() => {
+    if (aberto === undefined) return;
+    const dialog = resolvedRef.current;
+    if (!dialog) return;
+    if (aberto && !dialog.open) {
+      dialog.showModal();
+    } else if (!aberto && dialog.open) {
+      dialog.close();
+    }
+  }, [aberto, resolvedRef]);
+
+  const isClickOutsideDialog = (e, dialog) => {
+    const rect = dialog.getBoundingClientRect();
+    return (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    );
+  };
+
+  const handlePointerDown = (e) => {
+    const dialog = resolvedRef.current;
+    if (!dialog || e.target !== dialog || simulando) {
+      pointerDownOutsideRef.current = false;
+      return;
+    }
+    pointerDownOutsideRef.current = isClickOutsideDialog(e, dialog);
+  };
+
+  const handlePointerUp = (e) => {
+    const dialog = resolvedRef.current;
+    if (
+      !simulando &&
+      pointerDownOutsideRef.current &&
+      dialog &&
+      e.target === dialog &&
+      isClickOutsideDialog(e, dialog)
+    ) {
+      fechar?.();
+    }
+    pointerDownOutsideRef.current = false;
+  };
+
   return (
     <dialog
-      ref={dialogRef}
+      ref={resolvedRef}
+      closedby={simulando ? "none" : "any"}
       aria-labelledby={idTitulo}
-      className="w-full max-w-[690px] rounded-xs shadow-lider-modal border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto backdrop:bg-black/30 backdrop:backdrop-blur-[2px] animate-in fade-in zoom-in-95 duration-200"
+      onClose={() => {
+        if (!simulando) fechar?.();
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      className="w-[calc(100%-1.5rem)] max-w-[690px] rounded-xs shadow-lider-modal border border-[#E0E0E0] p-0 bg-white text-[#1A1A1A] m-auto backdrop:bg-black/30 backdrop:backdrop-blur-[2px]"
     >
       <form onSubmit={confirmar} className="flex flex-col max-h-[90vh]">
         {/* Cabeçalho do Modal */}
-        <header className="px-8 pt-7 pb-5 flex items-start justify-between border-b border-[#EDEDED] bg-white shrink-0">
-          <div className="flex items-start gap-3.5">
+        <header className="px-4 sm:px-8 pt-6 sm:pt-7 pb-5 flex items-start justify-between gap-3 border-b border-[#EDEDED] bg-white shrink-0">
+          <div className="flex items-start gap-3.5 min-w-0">
             <div className="mt-0.5 w-8 h-8 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] flex items-center justify-center text-[#8B5A2B] shrink-0">
-              <svg className="w-4 h-4 stroke-[1.4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Icon name="science" className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 id={idTitulo} className="font-display font-medium text-[17px] tracking-tight text-[#1A1A1A]">
                 Consultar e Simular Pedidos Específicos
               </h2>
@@ -74,25 +128,22 @@ export default function SimuladorModal({
           <button
             type="button"
             onClick={fechar}
-            className="text-[#9E9E9E] hover:text-[#1A1A1A] p-1.5 -mr-1 transition-colors rounded-xs focus:outline-none cursor-pointer"
+            disabled={simulando}
+            className="text-[#9E9E9E] hover:text-[#1A1A1A] p-1.5 -mr-1 transition-colors rounded-xs focus:outline-none cursor-pointer disabled:opacity-50"
             aria-label="Fechar janela"
           >
-            <svg className="w-4 h-4 stroke-[1.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <Icon name="close" className="w-4 h-4" />
           </button>
         </header>
 
         {/* Corpo do Modal */}
-        <div className="p-8 space-y-6 overflow-y-auto bg-white max-h-[calc(90vh-140px)]">
+        <div className="p-4 sm:p-8 space-y-6 overflow-y-auto bg-white max-h-[calc(90vh-140px)]">
           {erroSimulador && (
             <div
               role="alert"
               className="p-3.5 rounded-xs bg-[#FFEBEE]/80 border border-[#EF9A9A] text-[#C62828] text-xs flex items-start gap-2.5"
             >
-              <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
-                error
-              </span>
+              <Icon name="error" className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{erroSimulador}</span>
             </div>
           )}
@@ -102,9 +153,7 @@ export default function SimuladorModal({
               role="status"
               className="p-3.5 rounded-xs bg-[#FAF7F2] border border-[#EBE4DC] text-[#8B5A2B] text-xs flex items-start gap-2.5"
             >
-              <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
-                info
-              </span>
+              <Icon name="info" className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{avisoSimulador}</span>
             </div>
           )}
@@ -320,6 +369,7 @@ export default function SimuladorModal({
                       }}
                       className="hover:text-red-700 font-bold ml-1 text-sm leading-none cursor-pointer"
                       title={`Remover pedido ${ps.pedido} da simulação`}
+                      aria-label={`Remover pedido ${ps.pedido} da simulação`}
                     >
                       ×
                     </button>
@@ -331,7 +381,7 @@ export default function SimuladorModal({
         </div>
 
         {/* Rodapé do Modal */}
-        <footer className="px-8 py-5 bg-[#FAF7F2]/40 border-t border-[#EDEDED] flex items-center justify-end gap-3 shrink-0">
+        <footer className="px-4 sm:px-8 py-4 sm:py-5 bg-[#FAF7F2]/40 border-t border-[#EDEDED] flex flex-wrap items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={fechar}
@@ -345,13 +395,10 @@ export default function SimuladorModal({
             disabled={simulando}
             className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#222222] hover:bg-black text-white text-xs font-medium tracking-wide rounded-xs transition-all shadow-none hover:shadow-sm focus:outline-none disabled:opacity-60 cursor-pointer"
           >
-            <span
-              className={`material-symbols-outlined text-[15px] ${
-                simulando ? "animate-spin" : ""
-              }`}
-            >
-              {simulando ? "progress_activity" : "play_arrow"}
-            </span>
+            <Icon
+              name={simulando ? "progress_activity" : "play_arrow"}
+              className={`w-[15px] h-[15px] ${simulando ? "animate-spin" : ""}`}
+            />
             <span>
               {simulando ? "Consultando e Recalculando..." : "Confirmar e Recalcular Fila"}
             </span>

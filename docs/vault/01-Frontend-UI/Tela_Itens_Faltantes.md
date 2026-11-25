@@ -1,14 +1,14 @@
 ---
 projeto: "Ver_estoque"
 data_criacao: 2026-11-13
-data_atualizacao: 2026-11-24
+data_atualizacao: 2026-11-25
 status: ativo
 tags: [frontend, tela, faltantes, filtros]
 ---
 
 # Tela Itens Faltantes (`ResumoFaltantes.jsx`)
 
-**Resumo:** lista tudo o que falta (insumos com `Falta > 0`) para os itens finais que atendem aos filtros da tela principal, organizado por local de produção e tipo (P produzido / C comprado).
+**Resumo:** lista tudo o que falta (insumos com `Falta > 0`) para os itens finais que atendem aos filtros da tela principal, organizado por local de produção e tipo (P produzido / C comprado), com `useDebounce(250)`, inicialização com apenas o 1º grupo aberto, `LIMITE_INICIAL = 50`, `deferred-section` e semântica acessível (`<main>`, `<h1>`, `select-custom`).
 
 ## Regras
 - **Filtros espelhados** com [[VerEstoque_Componente]]: mesmo estado no orquestrador (`filtroLocal`, `filtroFamilias`, `filtroTodasOps`, `filtroEscopoAbatimento`, datas, pedido, código, baixa, tipo). Os modais [[Modal_Filtro_Fabrica_Local]] e [[Modal_Filtro_Familia_Componente]] são reutilizados.

@@ -2,28 +2,25 @@
 modulo: "VerEstoque.jsx"
 tipo: "frontend"
 linguagem: "javascript"
-data_atualizacao: 2026-11-24
+data_atualizacao: 2026-11-25
 tags: [codigo, frontend, javascript, react, ui]
 ---
 
 # Módulo: VerEstoque.jsx
 
-**Responsabilidade:** Componente principal da interface em React/Vite do Ver Estoque, apresentando a listagem paginada de itens finais (ou todas as OPs com e sem item pai via `filtroTodasOps`), controle global/filtrado do escopo de abatimento (`filtroEscopoAbatimento`), status de atendimento cumulativo, tela de Itens Faltantes (com visão consolidada por insumo ou por Local × Item/Pedido), detalhamento gerencial de insumos por fábrica (exibindo OCs em itens CST e `Tipo == 'F'`), resumo executivo de pedidos e Matriz Pivot de Componentes Produzidos Faltantes por fábrica.
+**Responsabilidade:** Orquestrador principal da interface em React/Vite do Ver Estoque, com code-splitting (`React.lazy` + `<Suspense>`) para telas secundárias e modais, cancelamento de requisições concorrentes via `AbortController`, ícones SVG inline (`./frontend/src/components/Icon.jsx`), notificações via `./frontend/src/components/Toast.jsx`, sidebar desktop colapsável e drawer mobile nativo em `<dialog>`, listagem paginada de itens finais (`DisponibilidadeEstoque.jsx`), tela de Itens Faltantes (`ResumoFaltantes.jsx`), detalhamento gerencial de insumos (`DetalhamentoInsumos.jsx`), resumo executivo de pedidos (`ResumoPedido.jsx`) e Matriz Pivot (`MatrizFaltasProduzidos.jsx`).
 
 ## Principais Funções / Métodos
-* `carregarDados(resetar, paginaAlvo, recarregarCache)`: Dispara busca paginada com filtros ativos (incluindo `todas_ops` e `escopo_abatimento`), recarga fresca ou paginação sob demanda, sincronizando também `dataOc` exibido na [[Sidebar]].
+* `carregarDados(resetar, paginaAlvo, recarregarCache)`: Dispara busca paginada com `AbortController` + `reqSeqRef` (preservando `loadingMoreRef` na rolagem infinita limitada por `max-h-[65vh] lg:max-h-none` em mobile), filtros ativos (`todas_ops`, `escopo_abatimento`) e sincronização de `dataOc` exibido na `Sidebar`.
 * `handleRecarregarGlobal()`: Acionado pelo botão da Sidebar; aguarda `carregarDados(true, 0, true)` e reatualiza automaticamente a tela secundária ativa (`faltantes`, `detalhes` ou `resumo`).
-* `carregarFaltantes(forcarRecarga)`: Consulta `obter_resumo_faltantes` com os filtros espelhados (incluindo `todas_ops`, `escopo_abatimento` e `visao` em [[Tela_Itens_Faltantes]]), propagando `recarregar`/`forcar_oc` quando acionado manualmente.
+* `carregarFaltantes(forcarRecarga)`: Consulta `obter_resumo_faltantes` com `AbortController`, `JSON.stringify(debouncedColFiltros)` estável e filtros espelhados em [[Tela_Itens_Faltantes]].
 * `montarFiltrosEscopoAtual()`: Empacota os filtros restritivos da fila para repasse coerente a `carregarDetalhes` e `carregarResumoPedido` quando `filtroEscopoAbatimento === "filtrado"`.
-* `abrirModalSimulador()` / `fecharModalSimulador()`: Controla a exibição do diálogo modal `<dialog>` para inserção de pedidos de teste para simulação em fila.
-* `handleConfirmarSimulacao()`: Envia lista de pedidos para simulação temporária na sessão ativa e atualiza a fila de atendimento.
-* `handleRemoverPedidoSimulado(numPedido)`: Remove um pedido simulado individualmente da sessão corrente.
-* `handleLimparSimulacao()`: Reseta todas as simulações ativas da sessão, restaurando a visão original do estoque.
+* `abrirModalSimulador()` / `fecharModalSimulador()`: Controla o diálogo nativo `<dialog>` (`SimuladorModal.jsx`) para inserção de pedidos de teste em fila.
+* `handleConfirmarSimulacao()` / `handleRemoverPedidoSimulado(numPedido)` / `handleLimparSimulacao()`: Gerenciam pedidos simulados da sessão com feedback não-bloqueante via `Toast`.
 * `handleExportarExcel()`: Solicita a geração e download da planilha Excel com a análise completa de atendimento e insumos.
-* `abrirResumoPedido(numPedido, itemFinalOpcional)`: Consulta o endpoint gerencial e exibe o modal `<dialog>` com KPIs do pedido, faltas de MP e componentes por fábrica.
-* `abrirMatrizFaltantes()` / `carregarMatrizFaltantes()` / `handleExportarMatrizExcel()`: Controla a tela da Matriz Pivot de Componentes Produzidos Faltantes (`Tipo == 'P'` em `MatrizFaltasProduzidos.jsx`), com menu de seleção de filtros para cálculo (`locais_item_final`, `locais_componente`, `escopo_abatimento`, `baixa`), tabelas por fábrica do componente com linha de subtotal no topo fixada no `<thead>`, colunas de prazo de expedição, `Total Faltante`, `Saldo da ops do item com abertura menor ou igual a hoje+1`, `Saldo das OPs com abertura maior que hoje+1` e exportação em Excel e imagem PNG Retina 2x via Canvas.
-* `exportarTabelaMatrizComoImagem()`: Renderiza em Canvas HTML5 (`exportarImagemMatriz.js`) a tabela de componentes faltantes da fábrica selecionada com cabeçalho institucional (suportando quebra automática de títulos longos), subtotal no topo, colunas de prazo, `Total Faltante` e as duas colunas de saldo de OPs (`op_saldo_ate_d1` e `op_saldo_apos_d1`), exportando em PNG de alta resolução.
-* `abrirModalDetalhes(item)`: Abre a inspeção detalhada de todos os insumos consumidos por um item final específico.
+* `abrirResumoPedido(numPedido, itemFinalOpcional)`: Consulta o endpoint gerencial e exibe `ResumoPedido.jsx` com 3 cards alinhados (`lg:grid-cols-[1.35fr_1fr_1fr]`), badge sem colisão e faltas agrupadas via `SecaoGerencialInsumos.jsx`.
+* `abrirMatrizFaltantes()` / `carregarMatrizFaltantes()` / `handleExportarMatrizExcel()`: Controla `MatrizFaltasProduzidos.jsx` com `useDebounce(250)`, `gruposBase`/`gruposFiltrados` memoizados, accordions iniciando com apenas o 1º grupo aberto, `deferred-table-card`, import dinâmico de `exportarImagemMatriz.js` e exportação Excel/PNG.
+* `abrirDetalhes(item)`: Abre `DetalhamentoInsumos.jsx` com cabeçalho responsivo, `role="tab"` acessível e inspeção detalhada dos insumos do item final.
 
 ## Dependências (Grafo)
 **⬅️ Quem chama este módulo (Entrada):**
@@ -33,4 +30,7 @@ tags: [codigo, frontend, javascript, react, ui]
 * [[API_Client_Frontend]]
 * [[API_FastAPI_Main]]
 * [[Servico_Orquestrador_Service]]
-* **Bibliotecas Externas:** `react`, `lucide-react`, `tailwindcss`.
+* [[Modal_Filtro_Fabrica_Local]]
+* [[Modal_Filtro_Familia_Componente]]
+* [[Tela_Itens_Faltantes]]
+* **Bibliotecas Externas:** `react`, `react-dom`, `tailwindcss`.

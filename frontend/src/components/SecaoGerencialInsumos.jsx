@@ -1,4 +1,5 @@
 import React from "react";
+import Icon from "./Icon";
 import { formatarQtd } from "../utils/formatters";
 
 /**
@@ -17,7 +18,7 @@ export default function SecaoGerencialInsumos({
   if (materiasPrimas.length === 0 && componentesPorFabrica.length === 0) {
     return isAbaFaltando ? (
       <div className="py-12 text-center text-xs text-[#2E7D32] flex flex-col items-center gap-2 bg-[#E8F5E9]/25 rounded-xs border border-[#C8E6C9]">
-        <span className="material-symbols-outlined text-4xl">check_circle</span>
+        <Icon name="check_circle" className="w-9 h-9" />
         <strong className="text-sm">
           Nenhuma matéria-prima ou componente em falta para resolver este escopo!
         </strong>
@@ -38,9 +39,7 @@ export default function SecaoGerencialInsumos({
       <section className="bg-white border border-[#E5E5E5] rounded-xs shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
         <div className="px-6 py-4 bg-[#FAFAFA] border-b border-[#E5E5E5] flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-[18px] text-[#8B5A2B]">
-              inventory_2
-            </span>
+            <Icon name="inventory_2" className="w-[18px] h-[18px] text-[#8B5A2B]" />
             <h3 className="text-xs font-semibold tracking-wider text-[#1A1A1A] uppercase">
               MATÉRIAS-PRIMAS E INSUMOS COMPRADOS (TIPO C)
             </h3>
@@ -75,7 +74,7 @@ export default function SecaoGerencialInsumos({
             className="overflow-auto max-h-[min(520px,65vh)] relative focus:outline-none"
           >
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 z-10 bg-white text-neutral-400 uppercase text-[10px] font-medium tracking-wider border-b border-[#E0E0E0] shadow-2xs">
+              <thead className="sticky top-0 z-10 bg-white text-neutral-400 uppercase text-[10px] font-medium tracking-wider border-b border-[#E0E0E0] shadow-sm">
                 <tr>
                   <th scope="col" className="py-3 px-5 font-medium bg-white whitespace-nowrap">Matéria-Prima</th>
                   <th scope="col" className="py-3 px-4 font-medium bg-white">Descrição</th>
@@ -384,7 +383,7 @@ export default function SecaoGerencialInsumos({
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2.5">
             <span className="text-[#4A6B82]">
-              <span className="material-symbols-outlined text-[18px]">precision_manufacturing</span>
+              <Icon name="precision_manufacturing" className="w-[18px] h-[18px]" />
             </span>
             <h3 className="text-xs font-semibold tracking-wider text-[#1A1A1A] uppercase">
               COMPONENTES PRODUZIDOS INTERNAMENTE (TIPO P) <span className="font-normal text-neutral-400">•</span> AGRUPADOS POR FÁBRICA
@@ -420,9 +419,7 @@ export default function SecaoGerencialInsumos({
                 {/* Cabeçalho da Fábrica */}
                 <div className="px-6 py-3 bg-[#F4F7FA] border-b border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[16px] text-[#4A6B82]">
-                      factory
-                    </span>
+                    <Icon name="factory" className="w-4 h-4 text-[#4A6B82]" />
                     <span className="text-xs font-semibold text-[#1A1A1A]">
                       Fábrica: {grupo.fabrica}
                     </span>
@@ -451,7 +448,7 @@ export default function SecaoGerencialInsumos({
                   className="overflow-auto max-h-[min(520px,65vh)] relative focus:outline-none"
                 >
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 z-10 bg-white text-neutral-400 uppercase text-[10px] font-medium tracking-wider border-b border-[#E0E0E0] shadow-2xs">
+                    <thead className="sticky top-0 z-10 bg-white text-neutral-400 uppercase text-[10px] font-medium tracking-wider border-b border-[#E0E0E0] shadow-sm">
                       <tr>
                         <th scope="col" className="py-3 px-5 font-medium bg-white whitespace-nowrap">Componente</th>
                         <th scope="col" className="py-3 px-4 font-medium bg-white">Descrição do Componente</th>

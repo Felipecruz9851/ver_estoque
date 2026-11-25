@@ -1,9 +1,10 @@
-export async function apiCall(method, payload = {}) {
+export async function apiCall(method, payload = {}, { signal } = {}) {
   const res = await fetch(`/ver_estoque/api/call/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
     body: JSON.stringify({ method, payload }),
+    signal,
   });
   if (!res.ok) {
     throw new Error(`API error: ${res.statusText}`);

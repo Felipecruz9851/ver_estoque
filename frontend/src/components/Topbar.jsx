@@ -10,24 +10,24 @@ export default function Topbar({
   acoesDireita,
 }) {
   return (
-    <header className="h-[68px] px-8 bg-white border-b border-[#EAEAEA] flex items-center justify-between shrink-0 sticky top-0 z-10">
-      <div className="flex items-center gap-3">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[17px] font-semibold text-[#1A1A1A] tracking-tight font-serif">
+    <header className="min-h-[64px] py-2.5 px-4 lg:px-6 bg-white border-b border-[#EAEAEA] flex flex-wrap items-center justify-between gap-3 shrink-0 sticky top-0 z-10">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[15px] sm:text-[17px] font-semibold text-[#1A1A1A] tracking-tight font-serif">
               {titulo}
             </h1>
             {badgeStatus}
           </div>
           {subtitulo && (
-            <p className="text-[11px] text-[#757575] mt-0.5">
+            <p className="text-[11px] text-[#757575] mt-0.5 leading-snug">
               {subtitulo}
             </p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-xs">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs shrink-0">
         {acoesDireita}
 
         <span className="hidden sm:inline-flex px-2.5 py-1 bg-[#F8F8F8] border border-[#E0E0E0] rounded-xs text-[#1A1A1A] font-medium items-center gap-1.5">

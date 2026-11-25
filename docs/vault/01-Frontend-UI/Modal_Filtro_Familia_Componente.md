@@ -10,7 +10,7 @@ tags:
 
 # Modal Filtro Família do Componente (`ModalFiltroFamiliaComponente.jsx`)
 
-Componente modal desacoplado no padrão editorial Líder Design para filtragem e recálculo da fila de atendimento MRP exclusivamente pelas famílias selecionadas de componentes iniciados em `3` (insumos e matérias-primas).
+Componente modal nativo em `<dialog>` (`showModal()`/`close()` com `closedby="any"` e fallback de backdrop) desacoplado no padrão editorial Líder Design, utilizando ícones SVG inline (`./frontend/src/components/Icon.jsx`) e `<label>`/`<button>` acessíveis para filtragem e recálculo da fila de atendimento MRP exclusivamente pelas famílias selecionadas de componentes iniciados em `3` (insumos e matérias-primas).
 
 ## Funcionalidades e Interações
 1. **Listagem Dinâmica:**

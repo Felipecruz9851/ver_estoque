@@ -1,10 +1,13 @@
 """API FastAPI autônoma do projeto Ver Estoque + servidor (python backend/main.py)."""
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 import sys
+import threading
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -58,7 +61,7 @@ def _resolver_session_id(request: Request, response: Optional[Response] = None) 
             value=sid,
             max_age=settings.SESSION_COOKIE_MAX_AGE,
             path="/",
-            httponly=False,
+            httponly=True,
             samesite="lax",
             secure=is_https,
         )
@@ -114,6 +117,7 @@ def _executar(method: str, payload: Dict[str, Any], session_id: Optional[str] = 
         return service.obter_matriz_faltantes_producao(
             filtros=payload.get("filtros"),
             session_id=session_id,
+            slim=True,
         )
     if method == "obter_resumo_faltantes":
         return service.obter_resumo_faltantes(
@@ -189,7 +193,17 @@ def sync_snapshots(forcar: bool = False):
     return service.sincronizar_base_snapshots(forcar=forcar)
 
 
-app = FastAPI(title="Ver Estoque")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    threading.Thread(
+        target=service.aquecer_cache_inicial,
+        name="aquecer-cache-inicial",
+        daemon=True,
+    ).start()
+    yield
+
+
+app = FastAPI(title="Ver Estoque", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -217,11 +231,26 @@ async def session_cookie_middleware(request: Request, call_next):
             value=session_id,
             max_age=settings.SESSION_COOKIE_MAX_AGE,
             path="/",
-            httponly=False,
+            httponly=True,
             samesite="lax",
             secure=is_https,
         )
     return response
+
+
+@app.middleware("http")
+async def cache_control_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code == 200:
+        path = request.url.path
+        if path.startswith("/assets/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path in ("/", "/ver_estoque"):
+            response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
 
 app.include_router(router, prefix="/ver_estoque/api")

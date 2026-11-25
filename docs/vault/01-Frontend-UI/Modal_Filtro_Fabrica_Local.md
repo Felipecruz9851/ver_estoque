@@ -9,11 +9,11 @@ tags:
 
 # Modal Filtro Fábrica e Local (`ModalFiltroFabricaLocal.jsx`)
 
-Componente modal de alta fidelidade visual (padrão editorial Líder Design) para filtragem multinível por centros industriais (Fábricas) e locais de produção Sankhya.
+Componente modal nativo em `<dialog>` (`showModal()`/`close()` com `closedby="any"` e fallback de backdrop) de alta fidelidade visual (padrão editorial Líder Design) para filtragem multinível por centros industriais (Fábricas, incluindo `"Unilíder Acabados"`) e locais de produção Sankhya.
 
 ## Visões e Navegação
 1. **Visão 1 — Centros de Produção Industriais (Fábricas):**
-   - Grade de cards fabris com ícones Material Symbols temáticos (`countertops`, `weekend`, `chair`, `precision_manufacturing`, etc.).
+   - Grade de cards fabris com ícones SVG inline (`./frontend/src/components/Icon.jsx`).
    - Checkbox "Todos" com suporte a estado parcial indeterminado (`indeterminate` / traço `-`).
    - Clique no checkbox marca/desmarca todos os locais daquela fábrica.
    - Clique no corpo do card navega em *drill-down* para a Visão 2.
