@@ -2,6 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
+| 2026-11-25 | Realocação do saldo de OPs com abertura em 2030 para o bloco `> hoje+1` (`op_saldo_apos_d1`) na Matriz de Faltas Produzidos e desacoplamento de testes de OP fixa | CONCLUIDO | [[2026-11-25]] |
 | 2026-11-24 | Correção do bug de datetime em scraper.py, modo Todas as OPs, visão Por Local → Item/Pedido em Faltantes, desconsideração dos pedidos 100/1000, sincronização de OCs (`oc_atrasadas-lgx.php`, `vidrosoc.php`, saldo sem x1000, TTL 30min, Tipo F e CST), Opção A (`Abatimento: Fila Global \| Apenas no Filtro`) e barra única condensada de filtros em Disponibilidade de Estoque | CONCLUIDO | [[2026-11-24]] |
 | 2026-11-18 | Colunas de saldo de OPs (<= hoje+1 e > hoje+1) na Matriz Pivot e regra de prioridade máxima para OPs em 2030 | CONCLUIDO | [[2026-11-18]] |
 | 2026-11-17 | Otimização completa de desempenho (Scraping concorrente, calc_data vetorizado, parquet cache, numpy e debounces) | CONCLUIDO | [[2026-11-17]] |

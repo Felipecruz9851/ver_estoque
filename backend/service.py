@@ -2540,8 +2540,10 @@ def _calcular_saldos_ops_abertura_d1(
 ) -> Tuple[float, float]:
     """
     Calcula para um componente (Tipo P) os saldos somados de OPs abertas divididos pelo corte hoje + 1:
-    - saldo_ate_d1: OPs com data de abertura <= hoje + 1 ou no ano 2030 (itens em atraso/prioridade)
-    - saldo_apos_d1: OPs com data de abertura > hoje + 1 (exceto 2030)
+    - saldo_ate_d1: OPs com data de abertura <= hoje + 1 (exceto ano 2030)
+    - saldo_apos_d1: OPs com data de abertura > hoje + 1, incluindo OPs no ano 2030
+      (prioritárias no consumo, porém ainda fora de produção por pendência de componentes)
+      e OPs sem data válida.
     """
     it = scraper.normalizar_cod_item(comp_item)
     if not it:
@@ -2559,7 +2561,12 @@ def _calcular_saldos_ops_abertura_d1(
         dt_ab_sort = str(op.get("data_abertura_sort") or "").strip()
         if not dt_ab_sort or dt_ab_sort == "9999-12-31":
             _, dt_ab_sort = _parse_data_br_flex(op.get("data_abertura"))
-        if dt_ab_sort and dt_ab_sort != "9999-12-31" and (dt_ab_sort <= corte or _eh_data_prioridade_2030(dt_ab_sort)):
+        if (
+            dt_ab_sort
+            and dt_ab_sort != "9999-12-31"
+            and not _eh_data_prioridade_2030(dt_ab_sort)
+            and dt_ab_sort <= corte
+        ):
             saldo_ate_d1 += saldo_op
         else:
             saldo_apos_d1 += saldo_op

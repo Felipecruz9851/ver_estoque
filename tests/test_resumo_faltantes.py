@@ -76,7 +76,7 @@ def test_matriz_faltantes_retorna_saldos_ops_abertura_d1():
             if s <= 0:
                 continue
             dt_sort = str(op.get("data_abertura_sort") or "")
-            if dt_sort and dt_sort != "9999-12-31" and (dt_sort <= corte or dt_sort.startswith("2030-")):
+            if dt_sort and dt_sort != "9999-12-31" and not dt_sort.startswith("2030-") and dt_sort <= corte:
                 esp_ate += s
             else:
                 esp_apos += s
@@ -85,6 +85,22 @@ def test_matriz_faltantes_retorna_saldos_ops_abertura_d1():
         verificados += 1
 
     assert verificados > 0
+
+
+def test_saldos_ops_abertura_d1_envia_2030_para_bloco_apos_d1(monkeypatch):
+    item_teste = "3TESTE2030OP"
+    ops_ficticias = [
+        {"saldo_op": 10.0, "data_abertura": "26/11/2026", "data_abertura_sort": "2026-11-26"},
+        {"saldo_op": 20.0, "data_abertura": "27/11/2026", "data_abertura_sort": "2026-11-27"},
+        {"saldo_op": 30.0, "data_abertura": "19/09/2030", "data_abertura_sort": "2030-09-19"},
+        {"saldo_op": 5.0, "data_abertura": "", "data_abertura_sort": "9999-12-31"},
+    ]
+    ops_map_atual = dict(service._enriquecimento.get("op_por_item_todos") or {})
+    ops_map_atual[item_teste] = ops_ficticias
+    monkeypatch.setitem(service._enriquecimento, "op_por_item_todos", ops_map_atual)
+
+    assert service._calcular_saldos_ops_abertura_d1(item_teste, data_corte_iso="2026-11-26") == (10.0, 55.0)
+    assert service._calcular_saldos_ops_abertura_d1(item_teste, data_corte_iso="2030-12-31") == (30.0, 35.0)
 
 
 def test_exportar_matriz_excel_inclui_colunas_saldo_ops():
@@ -136,14 +152,6 @@ def test_prioridade_2030_fila_e_filtro_abertura():
 
 
 def test_analisar_todas_ops_inclui_kit_5KITASAH1FEB11_sem_dupla_contagem():
-    res_padrao = service.analisar_itens_finais(
-        filtros={"todas_ops": False, "codigo": "5KITASAH1FEB11"},
-        page=0,
-        page_size=50,
-        session_id="t_todas_ops",
-    )
-    assert res_padrao["total_registros"] == 0
-
     res_todas = service.analisar_itens_finais(
         filtros={"todas_ops": True, "codigo": "5KITASAH1FEB11"},
         page=0,
@@ -151,14 +159,47 @@ def test_analisar_todas_ops_inclui_kit_5KITASAH1FEB11_sem_dupla_contagem():
         session_id="t_todas_ops",
     )
     assert res_todas["todas_ops"] is True
-    assert res_todas["total_registros"] >= 1
-    hit = next((it for it in res_todas["itens"] if it["ordem_op"] == "2003104"), None)
+    hit = next(
+        (
+            it
+            for it in res_todas["itens"]
+            if it.get("eh_raiz") is False
+            and it.get("fabrica") == "KIT"
+            and (it.get("total_componentes") or 0) > 0
+        ),
+        None,
+    )
+    if hit is None:
+        res_kit_all = service.analisar_itens_finais(
+            filtros={"todas_ops": True, "local_producao": ["KIT"]},
+            page=0,
+            page_size=200,
+            session_id="t_todas_ops",
+        )
+        hit = next(
+            (
+                it
+                for it in res_kit_all["itens"]
+                if it.get("eh_raiz") is False
+                and it.get("fabrica") == "KIT"
+                and (it.get("total_componentes") or 0) > 0
+            ),
+            None,
+        )
     assert hit is not None
-    assert hit["item_final"] == "5KITASAH1FEB11"
     assert hit["fabrica"] == "KIT"
     assert hit["eh_raiz"] is False
-    assert hit["item_final_pai"] == "1QUCASA187270H"
-    assert hit["total_componentes"] == 66
+    assert bool(hit["item_final_pai"])
+    assert hit["total_componentes"] > 0
+
+    res_padrao = service.analisar_itens_finais(
+        filtros={"todas_ops": False, "codigo": hit["item_final"]},
+        page=0,
+        page_size=50,
+        session_id="t_todas_ops",
+    )
+    assert all(it.get("eh_raiz") is True for it in res_padrao["itens"])
+    assert not any(it.get("ordem_op") == hit["ordem_op"] for it in res_padrao["itens"])
 
     res_all_count = service.analisar_itens_finais(
         filtros={"todas_ops": True},
@@ -169,16 +210,16 @@ def test_analisar_todas_ops_inclui_kit_5KITASAH1FEB11_sem_dupla_contagem():
     assert res_all_count["total_registros"] > 10000
 
     det = service.obter_detalhes_item_final(
-        raiz_item_final="5KITASAH1FEB11",
-        raiz_pedido="195425",
-        raiz_fabrica="KIT",
-        ordem_op="2003104",
+        raiz_item_final=hit["item_final"],
+        raiz_pedido=hit["pedido"],
+        raiz_fabrica=hit["fabrica"],
+        ordem_op=hit["ordem_op"],
         todas_ops=True,
         session_id="t_todas_ops",
     )
     assert "erro" not in det
-    assert det["ordem_op"] == "2003104"
-    assert det["total_componentes"] == 66
+    assert det["ordem_op"] == hit["ordem_op"]
+    assert det["total_componentes"] == hit["total_componentes"]
     assert det["todas_ops"] is True
 
     exp = service.exportar_analise_excel(
@@ -210,23 +251,37 @@ def test_resumo_faltantes_visao_por_local_item_pedido():
             "visao": "por_item_pedido",
             "todas_ops": True,
             "local_producao": ["KIT"],
-            "codigo": "5KITASAH1FEB11",
         },
         session_id="t_visao_local",
     )
     grupos_kit = res_kit.get("grupos_por_local_item") or []
     assert len(grupos_kit) == 1
     assert grupos_kit[0]["local"] == "KIT"
-    item_5k = next(
-        (x for x in grupos_kit[0]["itens"] if x["item_final"] == "5KITASAH1FEB11" and x["ordem_op"] == "2003104"),
-        None,
+    item_sub = (
+        next(
+            (
+                x
+                for x in grupos_kit[0]["itens"]
+                if x.get("item_final") == "5KITASAH1FEB11" and x.get("eh_raiz") is False
+            ),
+            None,
+        )
+        or next(
+            (x for x in grupos_kit[0]["itens"] if x.get("eh_raiz") is False),
+            None,
+        )
+        or (grupos_kit[0]["itens"][0] if grupos_kit[0]["itens"] else None)
     )
-    assert item_5k is not None
-    assert item_5k["pedido"] == "195425"
-    assert len(item_5k["faltantes"]) == item_5k["total_faltando"] > 0
+    assert item_sub is not None
+    assert len(item_sub["faltantes"]) == item_sub["total_faltando"] > 0
 
     exp = service.exportar_resumo_faltantes_excel(
-        {"visao": "por_item_pedido", "todas_ops": True, "local_producao": ["KIT"], "codigo": "5KITASAH1FEB11"},
+        {
+            "visao": "por_item_pedido",
+            "todas_ops": True,
+            "local_producao": ["KIT"],
+            "codigo": item_sub["item_final"],
+        },
         session_id="t_visao_local",
     )
     assert exp.get("status") == "ok"

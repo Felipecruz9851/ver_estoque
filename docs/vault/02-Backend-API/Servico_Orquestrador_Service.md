@@ -2,7 +2,7 @@
 modulo: "service.py"
 tipo: "backend"
 linguagem: "python"
-data_atualizacao: 2026-11-24
+data_atualizacao: 2026-11-25
 tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 ---
 
@@ -14,7 +14,7 @@ tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 * `gerar_dataframe_cons(recarregar, forcar_oc, sincronizar_snapshot)`: Carrega tabelas do snapshot (pedidos, saldos, estoque, ordens, estruturas), dispara sincronização remota e compõe a base unificada de consumo.
 * `_construir_mapas_enriquecimento(df_dfs, df_consumo, forcar_oc)`: Indexa dados de ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) priorizando OPs no ano `2030`, identifica em `apoio_compras` itens com `OC > 0` para fallback em `/sup/vidrosoc.php` quando `forcar_oc=True`, e indexa OCs da Intranet (`/sup/oc_atrasadas-lgx.php`), preservando os caches `.pkl` locais em caso de falha.
 * `obter_info_carregamento()` / `gerar_dataframe_cons()` / `obter_cons_com_cache()`: Exponibilizam `data_carga`, `data_carregamento`, `data_oc` e `snapshot`, além de disparar auto-sync das OCs quando um novo snapshot chega ou `scraper.cache_oc_expirado()` vence (30 min padrão).
-* `_calcular_saldos_ops_abertura_d1(comp_item, data_corte_iso)`: Soma o saldo das OPs abertas do componente (`Tipo == 'P'`) segmentado pelo corte `hoje + 1` (`op_saldo_ate_d1` para abertura `<= hoje+1` ou ano `2030`, e `op_saldo_apos_d1` para abertura `> hoje+1`).
+* `_calcular_saldos_ops_abertura_d1(comp_item, data_corte_iso)`: Soma o saldo das OPs abertas do componente (`Tipo == 'P'`) segmentado pelo corte `hoje + 1` (`op_saldo_ate_d1` para abertura `<= hoje+1` exceto ano `2030`, e `op_saldo_apos_d1` para abertura `> hoje+1` ou ano `2030`, pois OPs em `2030` são prioritárias no consumo porém ainda não entraram em produção por pendência de componentes).
 * `_normalizar_escopo_abatimento()` / `_extrair_filtros_escopo_abatimento()` / `_aplicar_filtro_escopo_filas()`: Implementam o modo `escopo_abatimento` (`"global"` vs `"filtrado"`), permitindo restringir a fila pré-MRP aos filtros ativos (local, pedido, código, datas, simulados e colunas pré-MRP) sem zerar o estoque físico inicial da linha.
 * `_calcular_fila_todas_ops(df, b_norm, t_norm, fam_set, filtros_escopo)`: Executa o abatimento cumulativo FIFO vetorizado em 1 nível por OP (`Ordem Cons`), listando todas as OPs abertas (itens com e sem item pai, expondo `ordem_op`, `eh_raiz`, `item_final_pai`, `fabrica_pai`) sem dupla contagem de estoque, herdando `raiz_Entrega Pedido` em sub-OPs vinculadas a pedidos reais (`_ped_op_str != ""`) quando `Entrega Pedido` vier nulo e respeitando `filtros_escopo`.
 * `_obter_fila_calculada(baixa_filtro, tipo_filtro, familias_filtro, ..., todas_ops, session_id, escopo_abatimento, filtros_escopo)`: Executa o abatimento cumulativo FIFO de estoque físico (Situação L), posicionando OPs com abertura em `2030` no topo da fila (`_prioridade_2030 = 0`), atualiza OCs automaticamente se `cache_oc_expirado()` for verdadeiro e aplica `escopo_abatimento="filtrado"` antes do loop MRP preservando `estoque_inicial` completo do `df`.
