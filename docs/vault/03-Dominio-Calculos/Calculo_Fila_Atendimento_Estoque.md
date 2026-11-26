@@ -1,7 +1,7 @@
 ---
 modulo: "Calculo_Fila_Atendimento_Estoque"
 tipo: "dominio"
-data_atualizacao: 2026-11-25
+data_atualizacao: 2026-11-26
 tags: [regras-negocio, calculo, parametros, estoque, fifo, atendimento, multinivel, mrp]
 ---
 
@@ -21,7 +21,10 @@ tags: [regras-negocio, calculo, parametros, estoque, fifo, atendimento, multiniv
     - Na ordenação global de `_obter_fila_calculada`, recebem chave prioritária (`_prioridade_2030 = 0` vs. `1`), posicionando-se no **topo da fila** antes das datas regulares (`2025/2026/2027`) para abaterem o estoque físico primeiro.
     - Nos filtros de período por `Abertura da OP (De / Até)` (`_filtrar_itens_finais_base`), itens com abertura em `2030` são sempre preservados.
     - Na agregação de saldo de OPs de componentes da Matriz de Faltas Produzidos (`_calcular_saldos_ops_abertura_d1`), OPs de `2030` são somadas na coluna `> hoje+1` (`op_saldo_apos_d1`), pois ainda não entraram em produção por estarem com componentes pendentes, mantendo-se priorizadas na fila de consumo e na escolha da OP principal do componente.
-  - **Padronização Pré-Cálculo (2 Casas Decimais):** Todos os dados de entrada de estoque, ordens, saldo e consumo da estrutura são estritamente padronizados e arredondados com 2 casas decimais (`round(2)`) antes de qualquer cálculo ou merge.
+  - **Padronização Pré-Cálculo (2 Casas Decimais) e Exclusão de Estoque de Locais Desconsiderados (`TERCEIROS`):**
+    - Todos os dados de entrada de estoque, ordens, saldo e consumo da estrutura são estritamente padronizados e arredondados com 2 casas decimais (`round(2)`) antes de qualquer cálculo ou merge.
+    - Na consolidação de saldos físicos em `calc_data` (`./backend/calculo.py`) e no `estoque_map` de `_construir_mapas_enriquecimento` (`./backend/service.py`), a função `filtrar_estoque_valido(raw_estoque, locais_excluidos=None)` exclui registros cujo local normalizado pertença a `settings.LOCAIS_ESTOQUE_DESCONSIDERADOS` (atualmente `frozenset({"TERCEIROS"})`).
+    - A normalização da coluna de local (`"Local - Sit"`, `"Local Estoque"` ou `"Local"`) remove apenas o sufixo final de situação (`r"\s*-\s*[A-Za-z]$"`), preservando integralmente locais válidos que contenham hífen no nome (ex.: `UL-ALMOX05 - L` → `UL-ALMOX05`), além de valores nulos/ausentes.
   - **Avaliação Hierárquica Top-Down (Corte de Ramo por Saldo):**
     - A avaliação inicia no **Nível 1** (filhos diretos da raiz `raiz_Item Final`).
     - Para cada componente, se `(estoque_disp_fila + 1e-6) >= consumo`:

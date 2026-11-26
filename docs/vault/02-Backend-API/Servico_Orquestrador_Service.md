@@ -2,7 +2,7 @@
 modulo: "service.py"
 tipo: "backend"
 linguagem: "python"
-data_atualizacao: 2026-11-25
+data_atualizacao: 2026-11-26
 tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 ---
 
@@ -12,8 +12,8 @@ tags: [codigo, backend, python, service, orquestrador, regras-negocio]
 
 ## Principais Funções / Métodos
 * `aquecer_cache_inicial()`: Rotina segura executada no `lifespan` do servidor para pré-carregar `obter_cons_com_cache(recarregar=False)` e aquecer `_obter_fila_calculada` na fila padrão.
-* `gerar_dataframe_cons(recarregar, forcar_oc, sincronizar_snapshot)`: Carrega tabelas do snapshot (pedidos, saldos, estoque, ordens, estruturas), dispara sincronização remota e compõe a base unificada de consumo, protegida por `_cons_load_lock` (anti-stampede) e Stale-While-Revalidate (`_agendar_refresh_oc_background()` com `_bg_refresh_lock` quando o cache de OC vence em consultas normais).
-* `_construir_mapas_enriquecimento(df_dfs, df_consumo, forcar_oc)`: Indexa dados de ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) priorizando OPs no ano `2030`, identifica em `apoio_compras` itens com `OC > 0` para fallback em `/sup/vidrosoc.php` quando `forcar_oc=True`, e indexa OCs da Intranet (`/sup/oc_atrasadas-lgx.php`), preservando os caches `.pkl` locais em caso de falha.
+* `gerar_dataframe_cons(recarregar, forcar_oc, sincronizar_snapshot)`: Carrega tabelas do snapshot (pedidos, saldos, estoque, ordens, estruturas), dispara sincronização remota e compõe a base unificada de consumo, protegida por `_cons_load_lock` (anti-stampede) e Stale-While-Revalidate (`_agendar_refresh_oc_background()` com `_bg_refresh_lock` quando o cache de OC vence em consultas normais). Valida o arquivo sidecar `_cons_calculado.meta.json` contra `_CONS_CACHE_RULES` (`{"version": 2, "locais_estoque_desconsiderados": ["TERCEIROS"]}`) antes de aceitar `_cons_calculado.parquet`, recalculando a base quando ausente ou divergente e persistindo o sidecar após a gravação.
+* `_construir_mapas_enriquecimento(df_dfs, df_consumo, forcar_oc)`: Indexa dados de estoque e ordens de produção (datas de abertura/entrega, `data_abertura_sort`, saldo da OP, fábrica) priorizando OPs no ano `2030`, identifica em `apoio_compras` itens com `OC > 0` para fallback em `/sup/vidrosoc.php` quando `forcar_oc=True`, e indexa OCs da Intranet (`/sup/oc_atrasadas-lgx.php`), preservando os caches `.pkl` locais em caso de falha. No tratamento do `estoque`, mantém `df_est_clean` completo para extrair metadados do item (`baixa_map`, `local_prod_map`, `fabrica_item_map`, `desc_item_map`) e aplica `filtrar_estoque_valido(df_est_clean)` exclusivamente sobre `df_est_saldo` ao calcular `estoque_map` (excluindo saldos de locais como `TERCEIROS`).
 * `obter_info_carregamento()` / `gerar_dataframe_cons()` / `obter_cons_com_cache()`: Exponibilizam `data_carga`, `data_carregamento`, `data_oc` e `snapshot`, além de disparar auto-sync das OCs em background (SWR) ou síncrono quando `recarregar=True`/`forcar_oc=True`.
 * `_calcular_saldos_ops_abertura_d1(comp_item, data_corte_iso)`: Soma o saldo das OPs abertas do componente (`Tipo == 'P'`) segmentado pelo corte `hoje + 1` (`op_saldo_ate_d1` para abertura `<= hoje+1` exceto ano `2030`, e `op_saldo_apos_d1` para abertura `> hoje+1` ou ano `2030`, pois OPs em `2030` são prioritárias no consumo porém ainda não entraram em produção por pendência de componentes).
 * `_normalizar_escopo_abatimento()` / `_extrair_filtros_escopo_abatimento()` / `_aplicar_filtro_escopo_filas()`: Implementam o modo `escopo_abatimento` (`"global"` vs `"filtrado"`), permitindo restringir a fila pré-MRP aos filtros ativos (local, pedido, código, datas, simulados e colunas pré-MRP) sem zerar o estoque físico inicial da linha.

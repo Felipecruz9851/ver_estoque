@@ -2,6 +2,7 @@
 
 | Data | Foco Principal | Status Final | Nota Diária |
 | :--- | :--- | :--- | :--- |
+| 2026-11-26 | Exclusão de saldo de estoque do local `TERCEIROS` (preservando metadados e locais com hífen como `UL-ALMOX05`) e invalidação versionada de `_cons_calculado.parquet` via `_cons_calculado.meta.json` | CONCLUIDO | [[2026-11-26]] |
 | 2026-11-25 | Otimização completa de performance backend/frontend, acessibilidade (`<dialog>`, `<main>`, `<h1>`), SVG inline (`Icon.jsx`), code-splitting, layout responsivo Desktop/Mobile e realocação de OPs 2030 para `op_saldo_apos_d1` | CONCLUIDO | [[2026-11-25]] |
 | 2026-11-24 | Correção do bug de datetime em scraper.py, modo Todas as OPs, visão Por Local → Item/Pedido em Faltantes, desconsideração dos pedidos 100/1000, sincronização de OCs (`oc_atrasadas-lgx.php`, `vidrosoc.php`, saldo sem x1000, TTL 30min, Tipo F e CST), Opção A (`Abatimento: Fila Global \| Apenas no Filtro`) e barra única condensada de filtros em Disponibilidade de Estoque | CONCLUIDO | [[2026-11-24]] |
 | 2026-11-18 | Colunas de saldo de OPs (<= hoje+1 e > hoje+1) na Matriz Pivot e regra de prioridade máxima para OPs em 2030 | CONCLUIDO | [[2026-11-18]] |

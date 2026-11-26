@@ -15,6 +15,47 @@ else:
 _PEDIDOS_DESCONSIDERADOS_INT = getattr(
     settings, "PEDIDOS_DESCONSIDERADOS_INT", frozenset({0, 100, 1000})
 )
+_LOCAIS_ESTOQUE_DESCONSIDERADOS = getattr(
+    settings, "LOCAIS_ESTOQUE_DESCONSIDERADOS", frozenset({"TERCEIROS"})
+)
+
+
+def filtrar_estoque_valido(raw_estoque, locais_excluidos=None) -> pd.DataFrame:
+    """Filtra registros de estoque removendo locais desconsiderados (ex.: TERCEIROS).
+
+    Preserva locais que contêm hífen no nome (ex.: 'UL-ALMOX05 - L'), removendo
+    apenas o sufixo final de situação (' - <letra>') antes de comparar.
+    """
+    if raw_estoque is None:
+        return pd.DataFrame()
+    df = raw_estoque.to_pandas() if isinstance(raw_estoque, pl.DataFrame) else raw_estoque.copy()
+    if df.empty:
+        return df
+
+    excluidos_raw = (
+        locais_excluidos if locais_excluidos is not None else _LOCAIS_ESTOQUE_DESCONSIDERADOS
+    )
+    excluidos = {str(x).strip().upper() for x in excluidos_raw if str(x).strip()}
+    if not excluidos:
+        return df
+
+    col_local = next(
+        (c for c in ("Local - Sit", "Local Estoque", "Local") if c in df.columns),
+        None,
+    )
+    if col_local is None:
+        return df
+
+    local_norm = (
+        df[col_local]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.replace(r"\s*-\s*[A-Za-z]$", "", regex=True)
+        .str.strip()
+        .str.upper()
+    )
+    return df.loc[~local_norm.isin(excluidos)].copy()
 
 
 def parse_numero_br_series(serie: pd.Series) -> pd.Series:
@@ -228,11 +269,13 @@ def calc_data(dfs):
 
     ######## Calculos Baseados em estoque ##########
     raw_estoque = dfs.get("estoque")
-    if isinstance(raw_estoque, pl.DataFrame):
-        raw_estoque = raw_estoque.to_pandas()
-    if raw_estoque is not None and "Item" in raw_estoque.columns:
-        qt_clean = parse_numero_br_series(raw_estoque.get("Qtde.", pd.Series()))
-        soma_estoque = qt_clean.groupby(raw_estoque["Item"]).sum().round(2)
+    est_valido = filtrar_estoque_valido(raw_estoque)
+    if not est_valido.empty and "Item" in est_valido.columns:
+        item_est = est_valido["Item"].astype(str).str.split("-").str[0].str.strip()
+        qt_clean = parse_numero_br_series(
+            est_valido.get("Qtde.", pd.Series(index=est_valido.index, dtype=float))
+        )
+        soma_estoque = qt_clean.groupby(item_est).sum().round(2)
         consumo["estoque"] = consumo["Item"].map(soma_estoque).fillna(0.0).round(2)
     else:
         consumo["estoque"] = 0.0

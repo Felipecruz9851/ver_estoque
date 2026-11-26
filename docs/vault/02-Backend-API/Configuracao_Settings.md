@@ -2,7 +2,7 @@
 modulo: "settings.py"
 tipo: "backend"
 linguagem: "python"
-data_atualizacao: 2026-11-05
+data_atualizacao: 2026-11-26
 tags: [codigo, backend, python, configuracao, settings, env]
 ---
 
@@ -15,6 +15,10 @@ tags: [codigo, backend, python, configuracao, settings, env]
 * Parâmetros de Snapshots: `SNAPSHOTS_REMOTE_URL` (`http://366n:8001/api/snapshots`), `SNAPSHOTS_AUTO_SYNC` (`True`).
 * Parâmetros de Servidor: `HOST` (`0.0.0.0`), `PORT` (`8687`).
 * Parâmetros de Sessão: `SESSION_COOKIE_NAME` (`ver_estoque_session`), `SESSION_COOKIE_MAX_AGE` (30 dias), `SESSION_TTL_SECONDS` (48 horas).
+* Regras de Filtragem e Negócio:
+  * `PEDIDOS_DESCONSIDERADOS_INT` / `PEDIDOS_DESCONSIDERADOS_STR`: Pedidos internos/fictícios tratados como sem pedido (`0`, `100`, `1000`).
+  * `LOCAIS_ESTOQUE_DESCONSIDERADOS`: `frozenset({"TERCEIROS"})` — define os locais de estoque físico cujo saldo deve ser desconsiderado no cálculo de disponibilidade e no abatimento da fila.
+  * `PRAZOS_EXPEDICAO` e `prazo_por_representante(rep)`: Mapeamento de prazos de expedição (em dias) por código de representante.
 * Credenciais Padrão: `INTRANET_DEFAULT_USER`, `INTRANET_DEFAULT_PASS`.
 
 ## Dependências (Grafo)

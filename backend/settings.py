@@ -46,6 +46,9 @@ SESSION_TTL_SECONDS = int(os.environ.get("VER_ESTOQUE_SESSION_TTL", str(86400 * 
 PEDIDOS_DESCONSIDERADOS_INT = frozenset({0, 100, 1000})
 PEDIDOS_DESCONSIDERADOS_STR = frozenset({"0", "100", "1000"})
 
+# Locais de estoque desconsiderados do saldo disponível
+LOCAIS_ESTOQUE_DESCONSIDERADOS = frozenset({"TERCEIROS"})
+
 SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
 

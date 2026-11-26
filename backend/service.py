@@ -21,7 +21,7 @@ import polars as pl
 
 if __package__:
     from . import scraper, settings
-    from .calculo import calc_data, parse_numero_br_series, sanitizar_dataframe
+    from .calculo import calc_data, filtrar_estoque_valido, parse_numero_br_series, sanitizar_dataframe
     from .snapshots import carregar_snapshot, data_snapshot, obter_metadados_snapshot, sincronizar_snapshots_remotos
 else:
     import sys
@@ -32,7 +32,7 @@ else:
         sys.path.insert(0, _backend_dir)
     import scraper
     import settings
-    from calculo import calc_data, parse_numero_br_series, sanitizar_dataframe
+    from calculo import calc_data, filtrar_estoque_valido, parse_numero_br_series, sanitizar_dataframe
     from snapshots import carregar_snapshot, data_snapshot, obter_metadados_snapshot, sincronizar_snapshots_remotos
 
 # Cache em memória do snapshot base (imutável após carga)
@@ -59,6 +59,12 @@ _global_cache_view_itens: Dict[Tuple[Any, ...], Tuple[pd.DataFrame, Dict[str, An
 _PEDIDOS_IGNORADOS_INT = getattr(settings, "PEDIDOS_DESCONSIDERADOS_INT", frozenset({0, 100, 1000}))
 _PEDIDOS_IGNORADOS_STR = getattr(settings, "PEDIDOS_DESCONSIDERADOS_STR", frozenset({"0", "100", "1000"}))
 _MAPA_LIMPAR_PEDIDO_STR = {p: "" for p in _PEDIDOS_IGNORADOS_STR}
+_CONS_CACHE_RULES = {
+    "version": 2,
+    "locais_estoque_desconsiderados": sorted(
+        getattr(settings, "LOCAIS_ESTOQUE_DESCONSIDERADOS", frozenset({"TERCEIROS"}))
+    ),
+}
 
 
 def _normalizar_pedido_valido(valor: Any) -> str:
@@ -462,16 +468,17 @@ def _construir_mapas_enriquecimento(
             mask_cst_df |= df_consumo["Familia"].astype(str).str.strip().str.upper() == "CST"
         df_consumo.loc[mask_cst_df, "Den. Item"] = df_consumo.loc[mask_cst_df, "Den. Item"].apply(_sinalizar_cst)
 
-    # 2. Estoque Situação L
+    # 2. Estoque Situação L (saldo exclui locais desconsiderados, ex.: TERCEIROS; metadados mantêm base completa)
     raw_estoque = dfs.get("estoque")
     if raw_estoque is not None:
         df_est = raw_estoque.to_pandas() if isinstance(raw_estoque, pl.DataFrame) else raw_estoque.copy()
         if df_est is not None and "Item" in df_est.columns:
             df_est_clean = df_est.copy()
             df_est_clean["_item_norm"] = df_est_clean["Item"].apply(scraper.normalizar_cod_item)
-            if "Qtde." in df_est_clean.columns:
-                qt_num = parse_numero_br_series(df_est_clean["Qtde."])
-                soma_est = qt_num.groupby(df_est_clean["_item_norm"]).sum().round(2)
+            df_est_saldo = filtrar_estoque_valido(df_est_clean)
+            if not df_est_saldo.empty and "Qtde." in df_est_saldo.columns:
+                qt_num = parse_numero_br_series(df_est_saldo["Qtde."])
+                soma_est = qt_num.groupby(df_est_saldo["_item_norm"]).sum().round(2)
                 estoque_map = {str(k): round(float(v), 2) for k, v in soma_est.to_dict().items() if k}
 
             for rec in df_est_clean.drop_duplicates("_item_norm").to_dict("records"):
@@ -772,30 +779,42 @@ def gerar_dataframe_cons(
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando snapshot...")
     dfs, caminho = carregar_snapshot()
     cache_pqt = caminho / "_cons_calculado.parquet"
+    cache_meta = caminho / "_cons_calculado.meta.json"
     source_mtime = max(
         [f.stat().st_mtime for f in caminho.glob("*.parquet") if not f.name.startswith("_")],
         default=0.0,
     )
     df_consumo = None
     if not sincronizar_snapshot and cache_pqt.exists() and cache_pqt.stat().st_mtime >= source_mtime:
-        try:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando base pré-calculada '{cache_pqt.name}'...")
-            df_consumo = pl.read_parquet(cache_pqt).to_pandas()
-            _peds_proib_int = _PEDIDOS_IGNORADOS_INT - {0}
-            _peds_proib_str = _PEDIDOS_IGNORADOS_STR - {"0"}
-            _cache_tem_ignorado = False
-            if "Pedido" in df_consumo.columns and pd.to_numeric(df_consumo["Pedido"], errors="coerce").isin(_peds_proib_int).any():
-                _cache_tem_ignorado = True
-            elif "raiz_Pedido" in df_consumo.columns and pd.to_numeric(df_consumo["raiz_Pedido"], errors="coerce").isin(_peds_proib_int).any():
-                _cache_tem_ignorado = True
-            elif "raiz_Pedido_Str" in df_consumo.columns and df_consumo["raiz_Pedido_Str"].astype(str).str.strip().isin(_peds_proib_str).any():
-                _cache_tem_ignorado = True
-            if _cache_tem_ignorado:
-                print("[CACHE] Cache pré-calculado contém pedidos desconsiderados (100/1000). Recalculando...")
+        _meta_valido = False
+        if cache_meta.exists():
+            try:
+                with open(cache_meta, "r", encoding="utf-8") as f_meta:
+                    meta_obj = json.load(f_meta)
+                _meta_valido = meta_obj == _CONS_CACHE_RULES
+            except Exception as e_meta:
+                print(f"[CACHE] Aviso ao ler metadados de cache ({cache_meta.name}): {e_meta}. Recalculando...")
+        if not _meta_valido:
+            print(f"[CACHE] Regras de cálculo alteradas ou metadados ausentes ({cache_meta.name}). Recalculando...")
+        else:
+            try:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Carregando base pré-calculada '{cache_pqt.name}'...")
+                df_consumo = pl.read_parquet(cache_pqt).to_pandas()
+                _peds_proib_int = _PEDIDOS_IGNORADOS_INT - {0}
+                _peds_proib_str = _PEDIDOS_IGNORADOS_STR - {"0"}
+                _cache_tem_ignorado = False
+                if "Pedido" in df_consumo.columns and pd.to_numeric(df_consumo["Pedido"], errors="coerce").isin(_peds_proib_int).any():
+                    _cache_tem_ignorado = True
+                elif "raiz_Pedido" in df_consumo.columns and pd.to_numeric(df_consumo["raiz_Pedido"], errors="coerce").isin(_peds_proib_int).any():
+                    _cache_tem_ignorado = True
+                elif "raiz_Pedido_Str" in df_consumo.columns and df_consumo["raiz_Pedido_Str"].astype(str).str.strip().isin(_peds_proib_str).any():
+                    _cache_tem_ignorado = True
+                if _cache_tem_ignorado:
+                    print("[CACHE] Cache pré-calculado contém pedidos desconsiderados (100/1000). Recalculando...")
+                    df_consumo = None
+            except Exception as e_read:
+                print(f"[CACHE] Aviso ao ler cache persistente: {e_read}. Recalculando...")
                 df_consumo = None
-        except Exception as e_read:
-            print(f"[CACHE] Aviso ao ler cache persistente: {e_read}. Recalculando...")
-            df_consumo = None
 
     if df_consumo is None:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Snapshot '{caminho.name}' carregado. Executando calc_data...")
@@ -859,6 +878,8 @@ def gerar_dataframe_cons(
 
         try:
             pl.from_pandas(df_consumo).write_parquet(cache_pqt)
+            with open(cache_meta, "w", encoding="utf-8") as f_meta:
+                json.dump(_CONS_CACHE_RULES, f_meta, ensure_ascii=False, indent=2)
         except Exception as e_write:
             print(f"[CACHE] Aviso ao persistir {cache_pqt.name}: {e_write}")
 
